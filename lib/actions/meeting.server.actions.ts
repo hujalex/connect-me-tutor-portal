@@ -52,8 +52,6 @@ export async function getMeeting(id: string): Promise<Meeting | null> {
 }
 
 
-
-
 export async function getMeetings(): Promise<Meeting[] | null> {
   const supabase = await createClient()
   try {
