@@ -103,10 +103,6 @@ const EnrollmentList = ({
   meetingsPromise,
   studentsPromise,
   tutorsPromise,
-  // initialEnrollments,
-  // initialMeetings,
-  // initialStudents,
-  // initialTutors,
 }: any) => {
   const initialEnrollments: Enrollment[] = use(enrollmentsPromise);
   const initialMeetings: Meeting[] = use(meetingsPromise);
@@ -1435,20 +1431,6 @@ const EnrollmentList = ({
                     className="col-span-3"
                   />
                 </div>
-                {/* <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="endDate" className="text-right">
-                    End Date
-                  </Label>
-                  <Input
-                    id="endDate"
-                    name="endDate"
-                    type="date"
-                    value={selectedEnrollment.endDate}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
-                </div> */}
-
                 <div>
                   <Label>Meeting Link</Label>
                   <Select

@@ -18,8 +18,8 @@ import SkeletonTable from "@/components/ui/skeleton";
 import { redirect } from "next/navigation";
 
 const fetchUserProfile = async () => {
-  const user = await cachedGetUser()
-  if (!user) redirect("/")
+  const user = await cachedGetUser();
+  if (!user) redirect("/");
   const profileData = await cachedGetProfile(user.id);
   if (!profileData) throw new Error("No profile found");
   return profileData;
@@ -30,7 +30,7 @@ const fetchEnrollments = async (profileData: Profile) => {
   if (!enrollmentsData) throw new Error("No enrollments found");
 
   const sortedEnrollments = enrollmentsData.sort(
-    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
   );
   return sortedEnrollments;
 };
@@ -38,19 +38,16 @@ const fetchEnrollments = async (profileData: Profile) => {
 async function MyEnrollmentsData() {
   const profileData = await fetchUserProfile();
 
-  const [sortedEnrollments, meetings, students] = await Promise.all([
-    fetchEnrollments(profileData),
-    getMeetings(),
-    getTutorStudents(profileData.id).then((s) =>
-      s?.filter((s) => s.status === "Active")
-    ),
-  ]);
+  const sortedEnrollments = fetchEnrollments(profileData);
+  const meetings = getMeetings();
+  const students = getTutorStudents(profileData.id);
+
   return (
     <EnrollmentsList
-      initialEnrollments={sortedEnrollments}
-      initialProfile={profileData}
-      initialMeetings={meetings}
-      initialStudents={students}
+      profile={profileData}
+      enrollmentsPromise={sortedEnrollments}
+      meetingsPromise={meetings}
+      studentsPromise={students}
     />
   );
 }

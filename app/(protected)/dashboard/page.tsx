@@ -8,10 +8,8 @@ import {
   cachedGetProfile,
   getProfile,
 } from "@/lib/actions/profile.server.actions";
-import {
-  getStudentSessions,
-  getTutorSessions,
-} from "@/lib/actions/session.server.actions";
+import { getTutorSessions } from "@/lib/actions/session.actions";
+import { getStudentSessions } from "@/lib/actions/session.actions";
 import { cachedGetUser, getUser } from "@/lib/actions/user.server.actions";
 import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
@@ -26,32 +24,24 @@ async function TutorDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentSessionData = getTutorSessions(
-    profile.id,
-    startOfWeek(new Date()).toISOString(),
-    endOfWeek(new Date()).toISOString(),
-    undefined,
-    "date",
-    true
-  );
+  const currentSessionData = getTutorSessions(profile.id, {
+    startDate: startOfWeek(new Date()).toISOString(),
+    endDate: endOfWeek(new Date()).toISOString(),
+    orderBy: "date",
+    ascending: false,
+  });
 
-  const activeSessionData = getTutorSessions(
-    profile.id,
-    undefined,
-    undefined,
-    "Active",
-    "date",
-    true
-  );
+  const activeSessionData = getTutorSessions(profile.id, {
+    status: "Active",
+    orderBy: "date",
+    ascending: false,
+  });
 
-  const pastSessionData = getTutorSessions(
-    profile.id,
-    undefined,
-    undefined,
-    ["Complete", "Cancelled"],
-    "date",
-    false
-  );
+  const pastSessionData = getTutorSessions(profile.id, {
+    status: ["Complete", "Cancelled"],
+    orderBy: "date",
+    ascending: false,
+  });
 
   return (
     <TutorDashboard
@@ -72,33 +62,25 @@ async function StudentDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentStudentSessions = getStudentSessions(
-    profile.id,
-    startOfWeek(new Date()).toISOString(),
-    endOfWeek(new Date()).toISOString(),
-    undefined,
-    "date",
-    false
-  );
+  const currentStudentSessions = getStudentSessions(profile.id, {
+    startDate: startOfWeek(new Date()).toISOString(),
+    endDate: endOfWeek(new Date()).toISOString(),
+    orderBy: "date",
+    ascending: false,
+  });
 
-  const activeStudentSessions = getStudentSessions(
-    profile.id,
-    undefined,
-    undefined,
-    "Active",
-    "date",
-    false
-  );
+  const activeStudentSessions = getStudentSessions(profile.id, {
+    status: "Active",
+    orderBy: "date",
+    ascending: false,
+  });
 
-  const pastStudentSessions = getStudentSessions(
-    profile.id,
-    undefined,
-    undefined,
-    ["Complete", "Cancelled"],
-    "date",
-    false
-  );
-  
+  const pastStudentSessions = getStudentSessions(profile.id, {
+    status: ["Complete", "Cancelled"],
+    orderBy: "date",
+    ascending: false,
+  });
+
   return (
     <Suspense fallback={<SkeletonTable />}>
       <StudentDashboard
@@ -137,24 +119,3 @@ export default async function DashboardPage() {
     </>
   );
 }
-
-// const Dashboard = () => {
-//   const { profile, setProfile } = useProfile()
-//   const router = useRouter();
-
-//   console.log("Dashboard")
-
-//   if (!profile || !profile.role) {
-//     router.push('/login');
-//     return null;
-//   }
-
-//   // Layout with Sidebar and Navbar
-//   return (
-//     <main>
-//       {profile.role === 'Student' && <StudentDashboard/>}
-//       {profile.role === 'Tutor' && <TutorDashboard />}
-//       {profile.role === 'Admin' && <AdminDashboard />}
-//     </main>
-//   );
-// };
