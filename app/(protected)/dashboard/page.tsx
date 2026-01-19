@@ -8,13 +8,12 @@ import {
   cachedGetProfile,
   getProfile,
 } from "@/lib/actions/profile.server.actions";
-import { getTutorSessions } from "@/lib/actions/session.actions";
-import { getStudentSessions } from "@/lib/actions/session.actions";
+import { getTutorSessions } from "@/lib/actions/session.server.actions";
+import { getStudentSessions } from "@/lib/actions/session.server.actions";
 import { cachedGetUser, getUser } from "@/lib/actions/user.server.actions";
 import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
-import { SurveySchedule } from "posthog-js";
 import { Suspense } from "react";
 
 async function TutorDashboardPage({

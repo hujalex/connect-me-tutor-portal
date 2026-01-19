@@ -42,3 +42,7 @@ keys.json
 .vscode
 
 .env.locala
+
+# unlighthouse
+.unlighthouse
+unlighthouse.config.mjs
