@@ -12,7 +12,7 @@ Our portal allows users to have multiple profiles under one email to accommodate
 - **Questions & Concerns Form** - A form that immediately notifies one of our team members of an incoming question or concern
 - **Session Exit Form** - A form for tutors to submit completion of their tutoring session, automatically logging volunteer hours
 - **Notifications** - Automated emails for upcoming tutoring sessions
-- **Session Rescheduler** - The portal identifies available times and Zoom links for user to reschedule their sessions
+- **Session Rescheduler** - The portal identifies available times and Zoom links for users to reschedule their sessions
 - **Resources** - A curated list of academic resources selected by our Connect Me team
 
 ## Administrators
