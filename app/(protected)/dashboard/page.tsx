@@ -14,7 +14,6 @@ import { cachedGetUser, getUser } from "@/lib/actions/user.server.actions";
 import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
-import { SurveySchedule } from "posthog-js";
 import { Suspense } from "react";
 
 async function TutorDashboardPage({
