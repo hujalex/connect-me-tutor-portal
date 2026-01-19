@@ -21,6 +21,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/supabase/server.js", "lib/supabase/client.ts", "lib/supabase/middleware.js"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/supabase/server.js", "lib/supabase/client.ts", "lib/supabase/middleware.js", "unlighthouse.config.mjs"],
   "exclude": ["node_modules"]
 }
