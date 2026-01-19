@@ -57,7 +57,7 @@ const handleUpdateWeek = async (): Promise<Session[]> => {
   }
 };
 
-export async function addSessionsServer(
+async function addSessionsServer(
   weekStartString: string,
   weekEndString: string,
   enrollments: Enrollment[],
