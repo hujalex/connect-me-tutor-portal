@@ -30,7 +30,6 @@ import {
   setMinutes,
 } from "date-fns"; // Only use date-fns
 import ResetPassword from "@/app/(auth)/set-password/page";
-import { getStudentSessions } from "./student.actions";
 import { date } from "zod";
 import { withCoalescedInvoke } from "next/dist/lib/coalesced-function";
 import toast from "react-hot-toast";
@@ -39,6 +38,10 @@ import { SYSTEM_ENTRYPOINTS } from "next/dist/shared/lib/constants";
 import { getAllSessions } from "./admin.actions";
 import { fromZonedTime } from "date-fns-tz";
 import { Table } from "../supabase/tables";
+import {
+  tableToInterfaceMeetings,
+  tableToInterfaceProfiles,
+} from "../type-utils";
 // import { getMeeting } from "./meeting.actions";
 
 const supabase = createClientComponentClient({
@@ -87,7 +90,7 @@ export async function getSessionKeys(data?: Session[]) {
       const sessionDate = new Date(session.date);
       const key = `${session.student?.id}-${session.tutor?.id}-${format(
         sessionDate,
-        "yyyy-MM-dd-HH:mm"
+        "yyyy-MM-dd-HH:mm",
       )}`;
       sessionKeys.add(key);
     }
@@ -95,8 +98,6 @@ export async function getSessionKeys(data?: Session[]) {
 
   return sessionKeys;
 }
-
-
 
 /**
  * Add sessions for enrollments within the specified week range
@@ -110,16 +111,16 @@ export async function addSessions(
   weekStartString: string,
   weekEndString: string,
   enrollments: Enrollment[],
-  sessions: Session[]
+  sessions: Session[],
 ) {
   try {
     const weekStart: Date = fromZonedTime(
       parseISO(weekStartString),
-      "America/New_York"
+      "America/New_York",
     );
     const weekEnd: Date = fromZonedTime(
       parseISO(weekEndString),
-      "America/New_York"
+      "America/New_York",
     );
 
     const now: string = new Date().toISOString();
@@ -152,7 +153,7 @@ export async function addSessions(
       if (!student?.id || !tutor?.id || !availability?.length) {
         continue;
       }
-           
+
       // Process each availability slot
       let { day, startTime, endTime } = availability[0];
 
@@ -167,8 +168,8 @@ export async function addSessions(
         continue;
       }
 
-      const startDate_asDate = new Date(startDate); 
- 
+      const startDate_asDate = new Date(startDate);
+
       // Find matching day in the week range
       let currentDate = new Date(weekStart);
       const dayLower = day.toLowerCase();
@@ -189,7 +190,7 @@ export async function addSessions(
 
         //Remove Seven Days if CurrentDate is next week (Acts as a Modulus to ensure updating current week only)
         if (currentDate > parseISO(weekEndString)) {
-          currentDate = addDays(currentDate, -7); 
+          currentDate = addDays(currentDate, -7);
         }
 
         try {
@@ -204,7 +205,7 @@ export async function addSessions(
             isNaN(endMinute)
           ) {
             throw new Error(
-              `Invalid time format: start=${startTime}, end=${endTime}`
+              `Invalid time format: start=${startTime}, end=${endTime}`,
             );
           }
 
@@ -214,7 +215,7 @@ export async function addSessions(
           const dateString = `${format(currentDate, "yyyy-MM-dd")}T${startTime}:00`;
           const sessionStartTime = fromZonedTime(
             dateString,
-            "America/New_York"
+            "America/New_York",
           ); // Automatically handles DST
 
           if (sessionStartTime < startDate_asDate) {
@@ -224,7 +225,7 @@ export async function addSessions(
           // Check for duplicate session
           const sessionKey = `${student.id}-${tutor.id}-${format(
             sessionStartTime,
-            "yyyy-MM-dd-HH:mm"
+            "yyyy-MM-dd-HH:mm",
           )}`;
 
           if (!scheduledSessions.has(sessionKey)) {
@@ -246,7 +247,7 @@ export async function addSessions(
         } catch (err) {
           console.error(
             `Error processing time for ${day} ${startTime}-${endTime}:`,
-            err
+            err,
           );
         }
 
@@ -301,4 +302,159 @@ export async function addSessions(
     console.error("Error creating sessions:", error);
     throw error;
   }
+}
+
+export async function getStudentSessions(
+  profileId: string,
+  params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string | string[];
+    orderBy?: string;
+    ascending?: boolean;
+  },
+): Promise<Session[]> {
+  const { startDate, endDate, status, orderBy, ascending } = params
+    ? params
+    : {};
+
+  let query = supabase
+    .from(Table.Sessions)
+    .select(
+      `
+      *,
+      student:Profiles!student_id(*),
+      tutor:Profiles!tutor_id(*),
+      meeting:Meetings!meeting_id(*)
+    `,
+    )
+    .eq("student_id", profileId);
+
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
+  }
+
+  if (status) {
+    if (Array.isArray(status)) {
+      query = query.in("status", status);
+    } else {
+      query = query.eq("status", status);
+    }
+  }
+
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching student sessions:", error.message);
+    throw error;
+  }
+
+  // Map the result to the Session interface
+  const sessions: Session[] = data
+    .filter(
+      (session) => session.meeting && session.tutor_id && session.student_id,
+    )
+    .map((session: any) => ({
+      id: session.id,
+      enrollmentId: session.enrollment_id,
+      createdAt: session.created_at,
+      environment: session.environment,
+      date: session.date,
+      summary: session.summary,
+      // meetingId: session.meeting_id,
+      meeting: tableToInterfaceMeetings(session.meeting),
+      status: session.status,
+      student: tableToInterfaceProfiles(session.student),
+      tutor: tableToInterfaceProfiles(session.tutor),
+      session_exit_form: session.session_exit_form,
+      isQuestionOrConcern: session.isQuestionOrConcern,
+      isFirstSession: session.isFirstSession,
+      duration: session.duration,
+    }));
+
+  return sessions;
+}
+
+
+export async function getTutorSessions(
+  profileId: string,
+  params: {
+    startDate?: string,
+    endDate?: string,
+    status?: string | string[],
+    orderBy?: string,
+    ascending?: boolean,
+  }
+): Promise<Session[]> {
+  
+  const { startDate, endDate, status, orderBy, ascending } = params ? params : {}
+
+  let query = supabase
+    .from(Table.Sessions)
+    .select(
+      `
+     *,
+     meeting:Meetings!meeting_id(*),
+     student:Profiles!student_id(*),
+     tutor:Profiles!tutor_id(*)
+    `
+    )
+    .eq("tutor_id", profileId);
+
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
+  }
+
+  if (status) {
+    if (Array.isArray(status)) {
+      query = query.in("status", status);
+    } else {
+      query = query.eq("status", status);
+    }
+  }
+
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching student sessions:", error.message);
+    throw error;
+  }
+
+  // Map the result to the Session interface
+  const sessions: Session[] = data
+    .filter((data) => data.meeting && data.student && data.tutor)
+    .map((session: any) => {
+      return {
+        id: session.id,
+        enrollmentId: session.enrollment_id,
+        createdAt: session.created_at,
+        environment: session.environment,
+        date: session.date,
+        summary: session.summary,
+        meeting: tableToInterfaceMeetings(session.meeting),
+        student: tableToInterfaceProfiles(session.student),
+        tutor: tableToInterfaceProfiles(session.tutor),
+        status: session.status,
+        session_exit_form: session.session_exit_form,
+        isQuestionOrConcern: Boolean(session.isQuestionOrConcernO),
+        isFirstSession: Boolean(session.isFirstSession),
+        duration: session.duration,
+      };
+    });
+
+  return sessions;
 }
