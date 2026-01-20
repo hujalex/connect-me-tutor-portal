@@ -81,8 +81,7 @@ import { boolean } from "zod";
 import { checkAvailableMeeting } from "@/lib/actions/meeting.actions";
 import { getAllActiveEnrollments } from "@/lib/actions/enrollment.actions";
 import { getEnrollmentsWithMissingSEF } from "@/lib/actions/enrollment.server.actions";
-import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
-import { QueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Schedule = ({
   initialCurrentWeek,
@@ -94,7 +93,8 @@ const Schedule = ({
   initialTutors,
   initialMeetings,
 }: any) => {
-  const queryClient = new QueryClient();
+  // changed to use useQueryCLient so cache invalidation actually propogates
+  const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const weekEnd = endOfWeek(currentWeek).toISOString();
   const weekStart = startOfWeek(currentWeek).toISOString();
@@ -230,8 +230,16 @@ const Schedule = ({
   const sessions = sessionsResult.data || [];
   const students = studentsResult.data || [];
   const tutors = tutorsResult.data || [];
-  const enrollments = enrollmentsResult.data || [];
+  const enrollments: Enrollment[] = useMemo(
+    () => enrollmentsResult.data ?? [],
+    [enrollmentsResult.data]
+  );
   const meetings = meetingsResult.data || [];
+// added enrollment filtering, 
+  const activeEnrollmentIds = useMemo(
+    () => new Set(enrollments.map((enrollment: Enrollment) => enrollment.id)),
+    [enrollments]
+  );
 
   let isLoading = sessionsResult.isLoading;
 
@@ -445,7 +453,8 @@ const Schedule = ({
   };
 
   const updateWeekMutation = useMutation({
-    mutationFn: () => addSessions(weekStart, weekEnd, enrollments, sessions),
+    mutationFn: ({ enrollments }: { enrollments: Enrollment[] }) =>
+      addSessions(weekStart, weekEnd, enrollments, sessions),
     onMutate: async () => {
 
       // await queryClient.cancelQueries({ queryKey: ["sessions"] });
@@ -485,9 +494,15 @@ const Schedule = ({
     onSettled: () => {
     },
   });
-
+// refetch all of it before Update Week so new sessions arent created for deleted enrollments
   const handleUpdateWeek = async () => {
-    updateWeekMutation.mutate();
+    const freshEnrollments =
+      (await queryClient.fetchQuery({
+        queryKey: ["enrollments", weekEnd],
+        queryFn: () => getAllActiveEnrollments(weekEnd),
+      })) ?? [];
+
+    updateWeekMutation.mutate({ enrollments: freshEnrollments });
   };
 
   // Filter sessions with valid dates for display
@@ -495,6 +510,13 @@ const Schedule = ({
     return sessions.filter((session) => {
       if (!session?.date) return false;
       try {
+        if (
+          !enrollmentsResult.isLoading &&
+          session.enrollmentId &&
+          !activeEnrollmentIds.has(session.enrollmentId)
+        ) {
+          return false;
+        }
         return (
           format(
             toZonedTime(parseISO(session.date), "America/New_York"),
