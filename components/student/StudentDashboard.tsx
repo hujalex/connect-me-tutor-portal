@@ -71,7 +71,6 @@ const StudentDashboard = ({
 
   const [allSessions, setAllSessions] = useState<Session[]>([]);
 
-  // const { profile, setProfile } = useProfile();
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,13 +93,6 @@ const StudentDashboard = ({
     try {
       setLoading(true);
       setError(null);
-
-      // if (!user) throw new Error("No user found");
-
-      // const profileData = await getProfile(user.id);
-      // if (!profileData) throw new Error("No profile found");
-
-      // setProfile(profileData);
       if (!profile) return;
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -111,74 +103,6 @@ const StudentDashboard = ({
       setLoading(false);
     }
   }, []);
-
-  // useEffect(() => {
-  //   let isMounted = true;
-
-  //   const loadData = async () => {
-  //     if (profile) {
-  //       const [
-  //         currentSessionData,
-  //         activeSessionData,
-  //         pastSessionData,
-  //         fetchedMeetings,
-  //       ] = await Promise.all([
-  //         getStudentSessions(
-  //           profile.id,
-  //           startOfWeek(new Date()).toISOString(),
-  //           endOfWeek(new Date()).toISOString(),
-  //           undefined,
-  //           "date",
-  //           false
-  //         ),
-  //         getStudentSessions(
-  //           profile.id,
-  //           undefined,
-  //           undefined,
-  //           "Active",
-  //           "date",
-  //           false
-  //         ),
-  //         getStudentSessions(
-  //           profile.id,
-  //           undefined,
-  //           undefined,
-  //           ["Complete", "Cancelled"],
-  //           "date",
-  //           false
-  //         ),
-  //         getMeetings(),
-  //       ]);
-  //       if (isMounted) {
-  //         setCurrentSessions(currentSessionData);
-  //         setSessions(activeSessionData);
-  //         setFilteredSessions(activeSessionData);
-  //         setPastSessions(pastSessionData);
-  //         setFilteredPastSessions(pastSessionData);
-
-  //         if (fetchedMeetings) setMeetings(fetchedMeetings);
-  //       }
-  //     }
-  //   };
-
-  //   loadData();
-  //   return () => {
-  //     isMounted = false;
-  //   };
-  // }, [profile]);
-
-  // const fetchMeetings = async () => {
-  //   try {
-
-  //     const fetchedMeetings = await getMeetings();
-  //     if (fetchedMeetings) {
-  //       setMeetings(fetchedMeetings);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to fetch meetings:", error);
-  //     toast.error("Failed to load meetings");
-  //   }
-  // };
 
   const fetchAllSessionsFromSchedule = async () => {
     try {
