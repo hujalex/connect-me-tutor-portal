@@ -255,28 +255,29 @@ export async function getEnrollments(
 
 export const cachedGetEnrollments = cache(getEnrollments)
 
+// added this in order to remove future sessions on the SCHEDULE after an enrollment is deleted. 
 export const removeFutureSessions = async (enrollmentId: string, supabase: any) => {
   try {
     const now: string = new Date().toISOString();
-    console.log(enrollmentId);
-    const { data: deleteSessionsData, error: deleteSessionsError } =
-      await supabase
-        .from("Sessions")
-        .select("*")
-        .eq("enrollment_id", enrollmentId)
-        .eq("status", "Active")
-        .gte("date", now)
-        .throwOnError();
-    console.log("Successfully returned future sessions", deleteSessionsData)
+    await supabase
+      .from(Table.Sessions)
+      .delete()
+      .eq("enrollment_id", enrollmentId)
+      .neq("status", "Complete")
+      .gte("date", now)
+      .throwOnError();
   } catch (error) {
     console.error("Unable to remove future sessions", error);
     throw error;
   }
 };
-
+// before, it used createClient() which respects Supabase RLS
+// now tho it uses createAdminCLient() to bypass RLS and guarentee deletion succeeds
 export const removeEnrollment = async (enrollmentId: string) => {
-  const supabase = await createClient()
-  await removeFutureSessions(enrollmentId, supabase);
+  const adminSupabase = await createAdminClient();
+  await removeFutureSessions(enrollmentId, adminSupabase);
+
+  const supabase = await createClient();
 
   const { data: deleteEnrollmentData, error: deleteEnrollmentError } =
     await supabase.from("Enrollments").delete().eq("id", enrollmentId);
@@ -340,7 +341,8 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
     }
 
     //remove future sessions
-    await removeFutureSessions(enrollment.id, supabase);
+    const adminSupabase = await createAdminClient();
+    await removeFutureSessions(enrollment.id, adminSupabase);
 
     return updateEnrollmentData;
   } catch (error) {

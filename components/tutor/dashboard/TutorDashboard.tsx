@@ -13,6 +13,8 @@ import {
 } from "@/lib/actions/admin.actions";
 import {
   rescheduleSession,
+  recordSessionExitForm,
+  undoCancelSession,
 } from "@/lib/actions/tutor.actions";
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
@@ -161,12 +163,13 @@ const TutorDashboard = ({
   };
 
   const handleSessionComplete = async (
-    updatedSession: Session,
+    session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
     isFirstSession: boolean
   ) => {
     try {
+      const updatedSession = session;
       updatedSession.session_exit_form = notes;
       updatedSession.status = "Complete";
       updatedSession.isQuestionOrConcern = isQuestionOrConcern;
@@ -198,13 +201,13 @@ const TutorDashboard = ({
             },
             method: "POST",
             body: JSON.stringify({
-              tutorFirstName: updatedSession.tutor?.firstName,
-              tutorLastName: updatedSession.tutor?.lastName,
-              studentFirstName: updatedSession.student?.firstName,
-              studentLastName: updatedSession.student?.lastName,
+              tutorFirstName: session.tutor?.firstName,
+              tutorLastName: session.tutor?.lastName,
+              studentFirstName: session.student?.firstName,
+              studentLastName: session.student?.lastName,
               formContent: notes,
-              tutorEmail: updatedSession.tutor?.email,
-              studentEmail: updatedSession.student?.email,
+              tutorEmail: session.tutor?.email,
+              studentEmail: session.student?.email,
             }),
           }
         );
@@ -218,6 +221,28 @@ const TutorDashboard = ({
     } catch (error) {
       console.error("Failed to record Session Exit Form", error);
       toast.error("Failed to record Session Exit Form");
+    }
+  };
+
+  // why: restore cancelled session to active status and update UI state
+  const handleUndoCancel = async (sessionId: string) => {
+    try {
+      await undoCancelSession(sessionId, "Active");
+      setCurrentSessions(
+        currentSessions.map((s) =>
+          s.id === sessionId ? { ...s, status: "Active" } : s
+        )
+      );
+      setPastSessions(
+        pastSessions.filter((s) => s.id !== sessionId)
+      );
+      setFilteredPastSessions(
+        filteredPastSessions.filter((s) => s.id !== sessionId)
+      );
+      toast.success("Session cancellation undone");
+    } catch (error) {
+      console.error("Failed to undo session cancellation", error);
+      toast.error("Failed to undo session cancellation");
     }
   };
 
@@ -288,6 +313,7 @@ const TutorDashboard = ({
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
+              handleUndoCancel={handleUndoCancel}
               handlePageChange={handlePageChange}
               handleRowsPerPageChange={handleRowsPerPageChange}
               handleInputChange={handleInputChange}
