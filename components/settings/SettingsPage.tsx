@@ -251,7 +251,7 @@ export default function SettingsPage({
           getProfileWithProfileId(lastActiveProfileId),
         ]);
         setProfile(newProfileData);
-        // router.refresh()
+        router.refresh()
       }
       toast.success("Switched Profile");
     } catch (error) {

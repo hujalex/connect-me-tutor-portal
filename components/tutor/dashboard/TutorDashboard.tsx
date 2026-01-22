@@ -10,28 +10,12 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { getProfile } from "@/lib/actions/user.actions";
 import {
   updateSession,
-  getMeetings,
-  getAllSessions,
 } from "@/lib/actions/admin.actions";
 import {
-  getTutorSessions,
   rescheduleSession,
-  recordSessionExitForm,
 } from "@/lib/actions/tutor.actions";
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
-import {
-  parseISO,
-  addHours,
-  areIntervalsOverlapping,
-  isValid,
-  startOfWeek,
-  endOfWeek,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
-import { SelectSeparator } from "@radix-ui/react-select";
-import { Description } from "@radix-ui/react-dialog";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
 const TutorDashboard = ({

@@ -126,10 +126,10 @@ export default async function DashboardPage() {
   return (
     <>
       {profile.role === "Student" && (
-        <StudentDashboardPage profile={profile} meetings={meetings} />
+        <StudentDashboardPage key = {profile.id} profile={profile} meetings={meetings} />
       )}
       {profile.role === "Tutor" && (
-        <TutorDashboardPage profile={profile} meetings={meetings} />
+        <TutorDashboardPage key = {profile.id} profile={profile} meetings={meetings} />
       )}
       {profile.role === "Admin" && <AdminDashboard />}
     </>
