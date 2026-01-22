@@ -686,7 +686,7 @@ const Schedule = ({
             )}
           </Button>
           <Dialog>
-            <DialogTrigger>
+            <DialogTrigger asChild>
               <Button className="mx-4" variant="secondary">
                 Add Session
               </Button>
