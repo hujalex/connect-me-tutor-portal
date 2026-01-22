@@ -40,22 +40,22 @@ import SkeletonTable, { Skeleton } from "../ui/skeleton";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
 const StudentDashboard = ({
-  initialProfile,
-  currentSessionsPromise,
-  activeSessionsPromise,
-  pastSessionsPromise,
-  meetingsPromise,
-}: {
-  initialProfile: Profile;
-  currentSessionsPromise: Promise<Session[]>;
-  activeSessionsPromise: Promise<Session[]>;
-  pastSessionsPromise: Promise<Session[]>;
-  meetingsPromise: Promise<Meeting[] | null>;
-}) => {
-  const initialCurrentSessions = use(currentSessionsPromise);
-  const initialActiveSessions = use(activeSessionsPromise);
-  const initialPastSessions = use(pastSessionsPromise);
-  const initialMeetings = use(meetingsPromise);
+  // initialProfile,
+  // currentSessionsPromise,
+  // activeSessionsPromise,
+  // pastSessionsPromise,
+  // meetingsPromise,
+}: any
+  // initialProfile: Profile;
+  // currentSessionsPromise: Promise<Session[]>;
+  // activeSessionsPromise: Promise<Session[]>;
+  // pastSessionsPromise: Promise<Session[]>;
+  // meetingsPromise: Promise<Meeting[] | null>;
+  ) => {
+  // const initialCurrentSessions = use(currentSessionsPromise);
+  // const initialActiveSessions = use(activeSessionsPromise);
+  // const initialPastSessions = use(pastSessionsPromise);
+  // const initialMeetings = use(meetingsPromise);
 
   const SC = useDashboardContext();
 

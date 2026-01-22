@@ -68,6 +68,7 @@ import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 import SessionExitForm from "./SessionExitForm";
 import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
+import { useDashboardContext } from "@/contexts/dashboardContext";
 
 interface CurrentSessionTableProps {
   currentSessions: Session[];
@@ -105,32 +106,33 @@ interface CurrentSessionTableProps {
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
 }
 
-const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
-  currentSessions,
-  filteredSessions,
+const CurrentSessionsTable = ({
+  // currentSessions,
+  // filteredSessions,
   meetings,
-  currentPage,
+  // currentPage,
   totalPages,
-  rowsPerPage,
-  selectedSession,
-  selectedSessionDate,
-  isDialogOpen,
-  isSessionExitFormOpen,
-  notes,
-  nextClassConfirmed,
-  setSelectedSession,
-  setSelectedSessionDate,
-  setIsDialogOpen,
-  setIsSessionExitFormOpen,
-  setNotes,
-  setNextClassConfirmed,
+  // rowsPerPage,
+  // selectedSession,
+  // selectedSessionDate,
+  // isDialogOpen,
+  // isSessionExitFormOpen,
+  // notes,
+  // nextClassConfirmed,
+  // setSelectedSession,
+  // setSelectedSessionDate,
+  // setIsDialogOpen,
+  // setIsSessionExitFormOpen,
+  // setNotes,
+  // setNextClassConfirmed,
   handleStatusChange,
   handleReschedule,
   handleSessionComplete,
   handlePageChange,
   handleRowsPerPageChange,
   handleInputChange,
-}) => {
+}: any) => {
+  const TC = useDashboardContext()
   return (
     <>
       <Table>
@@ -147,7 +149,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentSessions.map((session, index) => (
+          {TC.currentSessions.map((session, index) => (
             <TableRow
               key={index}
 
@@ -213,20 +215,20 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
               <TableCell>
                 <SessionExitForm
                   currSession={session}
-                  isSessionExitFormOpen={isSessionExitFormOpen}
-                  setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                  selectedSession={selectedSession}
-                  setSelectedSession={setSelectedSession}
-                  notes={notes}
-                  setNotes={setNotes}
-                  nextClassConfirmed={nextClassConfirmed}
-                  setNextClassConfirmed={setNextClassConfirmed}
+                  // isSessionExitFormOpen={isSessionExitFormOpen}
+                  // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
+                  // selectedSession={selectedSession}
+                  // setSelectedSession={setSelectedSession}
+                  // notes={notes}
+                  // setNotes={setNotes}
+                  // nextClassConfirmed={nextClassConfirmed}
+                  // setNextClassConfirmed={setNextClassConfirmed}
                   handleSessionComplete={handleSessionComplete}
                   handleStatusChange={handleStatusChange}
                 />
               </TableCell>
               <TableCell className="flex content-center">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={TC.isDialogOpen} onOpenChange={TC.setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <HoverCard>
                       <HoverCardTrigger>
@@ -234,9 +236,9 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedSession(session);
-                            setIsDialogOpen(true);
-                            setSelectedSessionDate(session.date);
+                            TC.setSelectedSession(session);
+                            TC.setIsDialogOpen(true);
+                            TC.setSelectedSessionDate(session.date);
                           }}
                         >
                           <CalendarDays color="#3b82f6" className="h-4 w-4" />
@@ -248,14 +250,10 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     </HoverCard>
                   </DialogTrigger>
                   <RescheduleForm
-                    session={session}
-                    isDialogOpen={isDialogOpen}
-                    selectedSession={selectedSession}
-                    selectedSessionDate={selectedSessionDate}
+                    selectedSession={TC.selectedSession}
+                    selectedSessionDate={TC.selectedSessionDate}
                     meetings={meetings}
-                    setIsDialogOpen={setIsDialogOpen}
-                    setSelectedSession={setSelectedSession}
-                    setSelectedSessionDate={setSelectedSessionDate}
+                    setSelectedSessionDate={TC.setSelectedSessionDate}
                     handleInputChange={handleInputChange}
                     handleReschedule={handleReschedule}
                   />

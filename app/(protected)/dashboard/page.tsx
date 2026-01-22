@@ -16,6 +16,7 @@ import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import TutorContextProvider from "./(tutor)/tutorContextProvider";
 
 async function TutorDashboardPage({
   profile,
@@ -24,34 +25,44 @@ async function TutorDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentSessionData = getTutorSessions(profile.id, {
+  const currentTutorSessions = getTutorSessions(profile.id, {
     startDate: startOfWeek(new Date()).toISOString(),
     endDate: endOfWeek(new Date()).toISOString(),
     orderBy: "date",
     ascending: false,
   });
 
-  const activeSessionData = getTutorSessions(profile.id, {
+  const activeTutorSessions = getTutorSessions(profile.id, {
     status: "Active",
     orderBy: "date",
     ascending: false,
   });
 
-  const pastSessionData = getTutorSessions(profile.id, {
+  const pastTutorSessions = getTutorSessions(profile.id, {
     status: ["Complete", "Cancelled"],
     orderBy: "date",
     ascending: false,
   });
 
   return (
-    <TutorDashboard
-      key={profile.id}
-      initialProfile={profile}
-      currentSessionsPromise={currentSessionData}
-      activeSessionsPromise={activeSessionData}
-      pastSessionsPromise={pastSessionData}
-      meetingsPromise={meetings}
-    />
+    <Suspense fallback={<SkeletonTable />}>
+      <TutorContextProvider
+        initialProfile={profile}
+        currentSessionsPromise={currentTutorSessions}
+        activeSessionsPromise={activeTutorSessions}
+        pastSessionsPromise={pastTutorSessions}
+        meetingsPromise={meetings}
+      >
+        <TutorDashboard
+          key={profile.id}
+          initialProfile={profile}
+          currentSessionsPromise={currentTutorSessions}
+          activeSessionsPromise={activeTutorSessions}
+          pastSessionsPromise={pastTutorSessions}
+          meetingsPromise={meetings}
+        />
+      </TutorContextProvider>
+    </Suspense>
   );
 }
 
@@ -118,9 +129,7 @@ export default async function DashboardPage() {
         <StudentDashboardPage profile={profile} meetings={meetings} />
       )}
       {profile.role === "Tutor" && (
-        <Suspense fallback={<SkeletonTable />}>
-          <TutorDashboardPage profile={profile} meetings={meetings} />{" "}
-        </Suspense>
+        <TutorDashboardPage profile={profile} meetings={meetings} />
       )}
       {profile.role === "Admin" && <AdminDashboard />}
     </>
