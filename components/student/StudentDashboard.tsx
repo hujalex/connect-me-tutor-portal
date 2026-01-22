@@ -72,13 +72,13 @@ const StudentDashboard = ({
   const [allSessions, setAllSessions] = useState<Session[]>([]);
 
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(5);
   const [filterValueActiveSessions, setFilterValueActiveSessions] =
-    useState("");
-  const [filterValuePastSessions, setFilterValuePastSessions] = useState("");
+    useState<string>("");
+  const [filterValuePastSessions, setFilterValuePastSessions] = useState<string>("");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(
     null

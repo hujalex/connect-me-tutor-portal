@@ -1,7 +1,14 @@
 "use client";
 
 import { Meeting, Profile, Session } from "@/types";
-import { Dispatch, SetStateAction, createContext, ReactNode, useContext, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  createContext,
+  ReactNode,
+  useContext,
+  useState,
+} from "react";
 
 export interface DashboardContextValue {
   currentSessions: Session[];
@@ -27,26 +34,26 @@ export interface DashboardContextValue {
   notes: string;
   nextClassConfirmed: boolean;
 
-  setCurrentSessions: Dispatch;
-  setPastSessions: ;
-  setSessions: ;
-  setFilteredSessions: ;
-  setFilteredPastSessions: ;
-  setMeetings: ;
-  setAllSessions: ;
-  setProfile: ;
-  setLoading: ;
-  setError: ;
-  setCurrentPage: ;
-  setRowsPerPage: ;
-  setFilterValueActiveSessions;
-  setFilterValuePastSessions;
-  setSelectedSession;
-  setSelectedSessionDate;
-  setIsDialogOpen;
-  setIsSessionExitFormOpen;
-  setNotes;
-  setNextClassConfirmed;
+  setCurrentSessions: Dispatch<SetStateAction<Session[]>>;
+  setPastSessions: Dispatch<SetStateAction<Session[]>>;
+  setSessions: Dispatch<SetStateAction<Session[]>>;
+  setFilteredSessions: Dispatch<SetStateAction<Session[]>>;
+  setFilteredPastSessions: Dispatch<SetStateAction<Session[]>>;
+  setMeetings: Dispatch<SetStateAction<Meeting[]>>;
+  setAllSessions: Dispatch<SetStateAction<Session[]>>;
+  setProfile: Dispatch<SetStateAction<Profile | null>>;
+  setLoading: Dispatch<SetStateAction<boolean>>;
+  setError: Dispatch<SetStateAction<string | null>>;
+  setCurrentPage: Dispatch<SetStateAction<number>>;
+  setRowsPerPage: Dispatch<SetStateAction<number>>;
+  setFilterValueActiveSessions: Dispatch<SetStateAction<string>>;
+  setFilterValuePastSessions: Dispatch<SetStateAction<string>>;
+  setSelectedSession: Dispatch<SetStateAction<Session | null>>;
+  setSelectedSessionDate: Dispatch<SetStateAction<string | null>>;
+  setIsDialogOpen: Dispatch<SetStateAction<boolean>>;
+  setIsSessionExitFormOpen: Dispatch<SetStateAction<boolean>>;
+  setNotes: Dispatch<SetStateAction<string>>;
+  setNextClassConfirmed: Dispatch<SetStateAction<boolean>>;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -78,17 +85,14 @@ export function DashboardContextProvider({
   const [filteredPastSessions, setFilteredPastSessions] =
     useState<Session[]>(initialPastSessions);
   const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings || []);
-
   const [allSessions, setAllSessions] = useState<Session[]>([]);
-
-  // const { profile, setProfile } = useProfile();
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [filterValueActiveSessions, setFilterValueActiveSessions] =
-    useState("");
+    useState<string>("");
   const [filterValuePastSessions, setFilterValuePastSessions] = useState("");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(
@@ -96,7 +100,6 @@ export function DashboardContextProvider({
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
-
   const [notes, setNotes] = useState<string>("");
   const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
 
@@ -154,4 +157,11 @@ export function DashboardContextProvider({
       {children}
     </DashboardContext.Provider>
   );
+}
+
+export function useDashboardContext(): DashboardContextValue {
+  const context = useContext(DashboardContext);
+  if (context === null)
+    throw new Error("useContext must be used within DashboardContextProvider");
+  return context;
 }

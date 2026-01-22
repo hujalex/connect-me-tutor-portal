@@ -73,7 +73,7 @@ export async function getMeetings(): Promise<Meeting[] | null> {
 
     // Check if data exists
     if (!data) {
-      return null; // Valid return
+      return []; // Valid return
     }
 
     // Mapping the fetched data to the Notification object

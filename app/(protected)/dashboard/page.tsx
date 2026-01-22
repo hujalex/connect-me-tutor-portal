@@ -105,7 +105,6 @@ export default async function DashboardPage() {
 
   return (
     <>
-      {/* <Dashboard /> */}
       {profile.role === "Student" && (
         <StudentDashboardPage profile={profile} meetings={meetings} />
       )}

@@ -11,10 +11,12 @@ import { fetchExternalImage } from "next/dist/server/image-optimizer";
 import { Profile } from "@/types";
 import ErrorBoundary from "next/dist/client/components/error-boundary";
 import GlobalError from "./error";
+import { DashboardContextProvider } from "@/contexts/dashboardContext";
 
 export default function DashboardProviders({
   children,
   initialProfile,
+
 }: {
   children: React.ReactNode;
   initialProfile: Profile | null;
