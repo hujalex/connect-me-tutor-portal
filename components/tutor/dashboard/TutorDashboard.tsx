@@ -228,16 +228,16 @@ const TutorDashboard = ({
   const handleUndoCancel = async (sessionId: string) => {
     try {
       await undoCancelSession(sessionId, "Active");
-      setCurrentSessions(
-        currentSessions.map((s) =>
+      TC.setCurrentSessions(
+        TC.currentSessions.map((s) =>
           s.id === sessionId ? { ...s, status: "Active" } : s
         )
       );
-      setPastSessions(
-        pastSessions.filter((s) => s.id !== sessionId)
+      TC.setPastSessions(
+        TC.pastSessions.filter((s) => s.id !== sessionId)
       );
-      setFilteredPastSessions(
-        filteredPastSessions.filter((s) => s.id !== sessionId)
+      TC.setFilteredPastSessions(
+        TC.filteredPastSessions.filter((s) => s.id !== sessionId)
       );
       toast.success("Session cancellation undone");
     } catch (error) {
