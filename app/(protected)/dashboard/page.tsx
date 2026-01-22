@@ -3,6 +3,7 @@ import AdminDashboard from "@/components/admin/DashboardContent";
 import StudentDashboard from "@/components/student/StudentDashboard";
 import TutorDashboard from "@/components/tutor/dashboard";
 import SkeletonTable from "@/components/ui/skeleton";
+import StudentContextProvider from "./(students)/studentContextProvider";
 import { getMeetings } from "@/lib/actions/meeting.server.actions";
 import {
   cachedGetProfile,
@@ -82,14 +83,22 @@ async function StudentDashboardPage({
 
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <StudentDashboard
-        key={profile.id}
+      <StudentContextProvider
         initialProfile={profile}
         currentSessionsPromise={currentStudentSessions}
         activeSessionsPromise={activeStudentSessions}
         pastSessionsPromise={pastStudentSessions}
         meetingsPromise={meetings}
-      />
+      >
+        <StudentDashboard
+          key={profile.id}
+          initialProfile={profile}
+          currentSessionsPromise={currentStudentSessions}
+          activeSessionsPromise={activeStudentSessions}
+          pastSessionsPromise={pastStudentSessions}
+          meetingsPromise={meetings}
+        />
+      </StudentContextProvider>
     </Suspense>
   );
 }
