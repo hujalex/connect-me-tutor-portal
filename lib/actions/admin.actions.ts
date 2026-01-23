@@ -270,6 +270,7 @@ export async function editUser(profile: Profile) {
     subjects_of_interest,
     languages_spoken,
     studentNumber,
+    status, // pull status out so we can actually persist it instead of just ignoring
   } = profile;
   try {
     const { data, error } = await supabase
@@ -292,6 +293,7 @@ export async function editUser(profile: Profile) {
         availability: availability,
         subjects_of_interest: subjects_of_interest,
         languages_spoken: languages_spoken,
+        status: status, // without this, status changes from the edit form just get ignored and dont hit db
       })
       .eq("id", id)
       .single();
