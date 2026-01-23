@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
         return res;
     }
 
+    // Only create Supabase client for protected routes
     const supabase = createMiddlewareClient({req, res})
     const { data: { session }} = await supabase.auth.getSession()
     
