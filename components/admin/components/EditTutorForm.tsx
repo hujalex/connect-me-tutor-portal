@@ -182,7 +182,7 @@ const EditTutorForm = ({
             />
           </div>
         </div>
-        {/*Edit Page*/}
+        {/*Edit  Page*/}
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogTrigger asChild>
             <Button
