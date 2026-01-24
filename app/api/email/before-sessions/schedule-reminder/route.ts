@@ -93,7 +93,7 @@ return `
 
     This is a reminder that your tutoring session with ${studentName} starts in <strong>15 minutes</strong>!<br><br>
 
-    Remember to visit <a href="https://www.connectmego.app/">ConnectMeGo</a> and fill out a Session Exist Form (SEF) once the session is complete.<br><br>
+    Remember to visit the <a href="https://www.connectmego.app/">Connect Me Tutor Portal</a> and fill out a Session Exist Form (SEF) once the session is complete.<br><br>
 
     Here's the Zoom link to the meeting:<br>
     <a href="${session.meeting?.link}">Join Zoom Meeting</a><br><br>
@@ -101,9 +101,9 @@ return `
     If you need to cancel, reschedule, or add additional sessions, you can do everything through the portal:<br>
     <a href="https://www.connectmego.app/">https://www.connectmego.app/</a><br><br>
 
-    For more details, you can reference the ConnectMe Guidebook:<br>
+    For more details, you can reference the Connect Me Guidebook:<br>
     <a href="https://drive.google.com/file/d/1vk9neT5FzDfk2ICpW6aeP5B_OL06te8i/view">
-        ConnectMe Guidebook
+        Connect Me Guidebook
     </a><br><br>
 
     If you have any questions, feel free to reach out to us on Discord!<br><br>

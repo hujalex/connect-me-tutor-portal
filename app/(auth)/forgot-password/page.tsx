@@ -47,11 +47,6 @@ export default function ForgotPasswordPage() {
     try {
       const email = emailForm.getValues("email");
 
-      // const { data: resetData, error } =
-      //   await supabase.auth.resetPasswordForEmail(email, {
-      //     redirectTo: `${window.location.origin}`,
-      //   });
-
       const { data, error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) {
@@ -60,18 +55,6 @@ export default function ForgotPasswordPage() {
       if (!data) {
         throw new Error();
       }
-
-      // useEffect(() => {
-      //   supabase.auth.onAuthStateChange(async (event, session) => {
-      //     if (event == "PASSWORD_RECOVERY") {
-      //       const newPassword = prompt("What would you like your password to be?");
-      //       const { data, error } = await supabase.auth.updateUser({password: newPassword || ""})
-
-      //       if (data) alert("Password updated successfully!")
-      //       if (error) alert("There was an error updating your password")
-      //     }
-      //   })
-      // })
 
       toast.success("Password reset email sent successfully");
     } catch (error) {

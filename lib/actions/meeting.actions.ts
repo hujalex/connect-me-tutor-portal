@@ -1,10 +1,11 @@
 // lib/student.actions.ts
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Profile, Session, Meeting } from "@/types";
+import { Profile, Session, Meeting, Enrollment } from "@/types";
 import { getProfileWithProfileId } from "./user.actions";
 import { string } from "zod";
 import { fetchDaySessionsFromSchedule } from "./session.actions";
 import { addHours, areIntervalsOverlapping, isValid, parseISO } from "date-fns";
+import { formatAvailabilityAsDate } from "../utils";
 
 const supabase = createClientComponentClient({
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -138,3 +139,44 @@ export const checkAvailableMeeting = async (
     throw error;
   }
 };
+
+export const checkAvailableMeetingForEnrollments = async (
+  enroll: Omit<Enrollment, "id" | "createdAt">,
+  enrollments: Enrollment[],
+  meetings: Meeting[]
+) => {
+  const updatedMeetingAvailability: { [key: string]: boolean } = {};
+  meetings.forEach((meeting) => {
+    updatedMeetingAvailability[meeting.id] = true;
+  });
+  const [newEnrollmentStartTime, newEnrollmentEndTime] = enroll.availability[0]
+    ? formatAvailabilityAsDate(enroll.availability[0])
+    : [new Date(NaN), new Date(NaN)];
+  for (const enrollment of enrollments) {
+    if (!enrollment?.availability[0] || !enrollment?.meetingId) continue;
+    try {
+      const [existingStartTime, existingEndTime] = formatAvailabilityAsDate(
+        enrollment.availability[0]
+      );
+      const isOverlap = areIntervalsOverlapping(
+        {
+          start: newEnrollmentStartTime.getTime(),
+          end: newEnrollmentEndTime.getTime(),
+        },
+        {
+          start: existingStartTime.getTime(),
+          end: existingEndTime.getTime(),
+        }
+      );
+      if (updatedMeetingAvailability[enrollment.meetingId]) {
+        updatedMeetingAvailability[enrollment.meetingId] = !isOverlap;
+        if (isOverlap) {
+        }
+      }
+    } catch (error) {
+      updatedMeetingAvailability[enrollment.meetingId] = false;
+    }
+  }
+  return updatedMeetingAvailability;
+};
+

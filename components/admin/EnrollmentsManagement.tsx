@@ -85,8 +85,9 @@ import { areIntervalsOverlapping, previousDay, set } from "date-fns";
 import { z } from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { checkAvailableMeetingForEnrollments } from "@/lib/actions/meeting.server.actions";
+import { checkAvailableMeetingForEnrollments } from "@/lib/actions/meeting.actions";
 import { formatDateServer } from "@/lib/actions/utils.server.actions";
+import { QueryClient } from "@tanstack/react-query";
 // import Availability from "@/components/student/AvailabilityFormat";
 
 const durationSchema = z.object({
@@ -111,6 +112,8 @@ const EnrollmentList = ({
   const initialMeetings: Meeting[] = use(meetingsPromise);
   const initialStudents: Profile[] = use(studentsPromise);
   const initialTutors: Profile[] = use(tutorsPromise);
+
+  const queryClient = new QueryClient()
 
   const [enrollments, setEnrollments] =
     useState<Enrollment[]>(initialEnrollments);
@@ -936,6 +939,7 @@ const EnrollmentList = ({
                                 key={meeting.id}
                                 value={meeting.id}
                                 className="flex items-center justify-between"
+                                disabled = {isCheckingMeetingAvailability}
                               >
                                 <span>
                                   {meeting.name} - {meeting.id}
@@ -1401,7 +1405,7 @@ const EnrollmentList = ({
                       <SelectContent>
                         {/* Add time zone options here */}
                         <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="biweekly">Biweekly</SelectItem>
+                        <SelectItem value="biweekly" disabled={true}>Biweekly</SelectItem>
                         {/* <SelectItem value="MT">Monthy</SelectItem> */}
                       </SelectContent>
                     </Select>

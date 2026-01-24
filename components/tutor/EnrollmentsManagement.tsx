@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   AlarmClockMinus,
+  Copy,
   MessageCircleIcon,
   Search,
   Timer,
@@ -97,7 +98,7 @@ import { getProfile } from "@/lib/actions/user.actions";
 import { getTutorStudents } from "@/lib/actions/tutor.actions";
 import { profile } from "console";
 import AvailabilityForm2 from "../ui/availability-form-2";
-import { checkAvailableMeetingForEnrollments } from "@/lib/actions/meeting.server.actions";
+import { checkAvailableMeetingForEnrollments } from "@/lib/actions/meeting.actions";
 import { isDeepStrictEqual } from "util";
 import { useProfile } from "@/contexts/profileContext";
 // import EnrollmentForm from "./components/EnrollmentForm";
@@ -586,6 +587,27 @@ const EnrollmentList = ({
     }
   };
 
+    const handleCopyMeetingLink = (meetingId: string) => {
+    const meeting = meetings.find((m) => String(m.id) === String(meetingId));
+
+    if (!meeting) {
+      toast.error("Meeting not found");
+      return;
+    }
+
+    const url = meeting.link;
+
+    if (!url) {
+      toast.error("No Zoom link available");
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success("Meeting link copied!"))
+      .catch(() => toast.error("Failed to copy link"));
+  };
+
   // const handleValidateDuration = async (
   //   duration: number,
   //   startTime: string,
@@ -920,7 +942,7 @@ const EnrollmentList = ({
                   "Status",
                   "Chat",
                 ].map((header) => (
-                  <TableHead key={header}>{header}</TableHead>
+                  <TableHead className = "text-left" key={header}>{header}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -944,15 +966,42 @@ const EnrollmentList = ({
                   <TableCell>
                     {formatDateUTC(enrollment.startDate, { includeTime: false, includeDate: true})}
                   </TableCell>
-                  <TableCell>
-                    <TableCell>
-                      {enrollment.meetingId
-                        ? meetings.find(
-                            (meeting) =>
-                              String(meeting.id) ===
-                              String(enrollment.meetingId)
-                          )?.name || "No Meeting"
-                        : "No Meeting Link"}
+                  <TableCell className = "text-left">
+                    <TableCell className = "text-center">
+                     {(() => {
+                      const meeting = meetings.find(
+                        (m) => String(m.id) === String(enrollment.meetingId)
+                      );
+
+                      if (!meeting) return "No Meeting Link";
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMeetingLink(meeting.id)}
+                          className="relative inline-flex items-center group cursor-pointer"
+                        >
+                          {/* Text – left aligned, normal state */}
+                          <span className="underline text-black-600 transition-opacity duration-150 group-hover:opacity-0">
+                            {meeting.name}
+                          </span>
+
+                          {/* Icon – centered over the text, only visible on hover */}
+                          <Copy
+                            className="
+                              absolute
+                              left-1/2 -translate-x-1/2
+                              w-4 h-4
+                              text-gray-700
+                              opacity-0
+                              transition-opacity duration-150
+                              group-hover:opacity-100
+                              pointer-events-none
+                            "
+                          />
+                        </button>
+                      );
+                    })()}
                     </TableCell>
                   </TableCell>
                   <TableCell>

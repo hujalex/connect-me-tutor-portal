@@ -70,8 +70,6 @@ import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
 import { useRouter } from "next/navigation";
 
-const router = useRouter();
-
 interface CurrentSessionTableProps {
   currentSessions: Session[];
   filteredSessions: Session[];
@@ -96,7 +94,7 @@ interface CurrentSessionTableProps {
     sessionId: string,
     newDate: string,
     meetingId: string
-  ) => void;
+  ) => Promise<void>;
   handleSessionComplete: (
     session: Session,
     notes: string,
@@ -134,6 +132,17 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
   handleRowsPerPageChange,
   handleInputChange,
 }) => {
+  const router = useRouter();
+
+  const handleRescheduleWithRefresh = async (
+    sessionId: string,
+    newDate: string,
+    meetingId: string
+  ) => {
+    await handleReschedule(sessionId, newDate, meetingId);
+    router.refresh();
+  };
+
   return (
     <>
       <Table>
@@ -151,19 +160,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
         </TableHeader>
         <TableBody>
           {currentSessions.map((session, index) => (
-            <TableRow
-              key={index}
-
-              // className={
-              //     session.status === "Active"
-              //     ? "bg-blue-200 opacity-20"
-              //     : session.status === "Complete"
-              //     ? "bg-green-200 opacity-50"
-              //     : session.status === "Cancelled"
-              //     ? "bg-red-100 opacity-50 "
-              //     : ""
-              // }
-            >
+            <TableRow key={index}>
               <TableCell>
                 {session.status === "Active" ? (
                   <span className="px-3 py-1 inline-flex items-center rounded-full bg-blue-100 text-blue-800 border border-blue-200">
@@ -260,7 +257,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     setSelectedSession={setSelectedSession}
                     setSelectedSessionDate={setSelectedSessionDate}
                     handleInputChange={handleInputChange}
-                    handleReschedule={handleReschedule}
+                    handleReschedule={handleRescheduleWithRefresh}
                   />
                 </Dialog>
 

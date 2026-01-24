@@ -73,6 +73,21 @@ const TutorDashboard = ({
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
+  
+  useEffect(() => {
+    setSessions(activeSessionsData);
+    setFilteredSessions(activeSessionsData);
+  }, [activeSessionsData]);
+
+  useEffect(() => {
+    setCurrentSessions(currentSessionsData);
+  }, [currentSessionsData]);
+
+  useEffect(() => {
+    setPastSessions(pastSessionsData);
+    setFilteredPastSessions(pastSessionsData);
+  }, [pastSessionsData]);
+
 
   const [notes, setNotes] = useState<string>("");
   const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
