@@ -62,6 +62,7 @@ import {
   CalendarDays,
   UserRoundPlus,
   CircleCheck,
+  X,
 } from "lucide-react";
 import { format, parseISO, isAfter } from "date-fns";
 import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
@@ -94,7 +95,7 @@ interface CurrentSessionTableProps {
     sessionId: string,
     newDate: string,
     meetingId: string
-  ) => Promise<void>;
+  ) => void;
   handleSessionComplete: (
     session: Session,
     notes: string,
@@ -104,6 +105,7 @@ interface CurrentSessionTableProps {
   handlePageChange: (page: number) => void;
   handleRowsPerPageChange: (value: string) => void;
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
+  handleUndoCancel?: (sessionId: string) => void;
 }
 
 const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
@@ -131,6 +133,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
   handlePageChange,
   handleRowsPerPageChange,
   handleInputChange,
+  handleUndoCancel,
 }) => {
   const router = useRouter();
 
@@ -160,7 +163,9 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
         </TableHeader>
         <TableBody>
           {currentSessions.map((session, index) => (
-            <TableRow key={index}>
+            <TableRow
+              key={index}
+            >
               <TableCell>
                 {session.status === "Active" ? (
                   <span className="px-3 py-1 inline-flex items-center rounded-full bg-blue-100 text-blue-800 border border-blue-200">
@@ -278,25 +283,36 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     <center>Request a Substitute</center>
                   </HoverCardContent>
                 </HoverCard>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <HoverCard>
-                      <HoverCardTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash className="h-4 w-4" color="#ef4444" />
-                        </Button>
-                      </HoverCardTrigger>
-                      <HoverCardContent>
-                        <center>Cancel Session</center>
-                      </HoverCardContent>
-                    </HoverCard>
-                  </AlertDialogTrigger>
-                  <CancellationForm
-                    session={session}
-                    handleStatusChange={handleStatusChange}
-                    onClose={() => {}}
-                  />
-                </AlertDialog>
+
+                {session.status === "Cancelled" ? (
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleUndoCancel?.(session.id)}
+                      >
+                        <X className="h-4 w-4" color="#10b981" />
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent>
+                      <center>Undo Cancel</center>
+                    </HoverCardContent>
+                  </HoverCard>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Trash className="h-4 w-4" color="#ef4444" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <CancellationForm
+                      session={session}
+                      handleStatusChange={handleStatusChange}
+                      onClose={() => {}}
+                    />
+                  </AlertDialog>
+                )}
               </TableCell>
             </TableRow>
           ))}
