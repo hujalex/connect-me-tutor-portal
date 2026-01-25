@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/admin/dashboard-layout"; // Assuming Sidebar component is available
+import DashboardLayout from "@/components/dashboard/dashboard-layout"; // Assuming Sidebar component is available
 import { ProfileContextProvider, useProfile } from "@/contexts/profileContext";
 import { useFetchProfile } from "@/hooks/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

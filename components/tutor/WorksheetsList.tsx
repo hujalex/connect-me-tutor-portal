@@ -3,17 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { supabase } from "@/lib/supabase/client";
 
 const WorksheetsList = () => {
   const [worksheets, setWorksheets] = useState<any[]>([]);
@@ -26,7 +17,7 @@ const WorksheetsList = () => {
       const { data, error } = await supabase.storage
         .from("worksheets")
         .list("");
-      if (!error && data){
+      if (!error && data) {
         setWorksheets(data);
       }
     };
@@ -41,7 +32,7 @@ const WorksheetsList = () => {
     }
     const query = searchQuery.toLowerCase();
     const results = worksheets.filter((file) =>
-      file.name.toLowerCase().includes(query)
+      file.name.toLowerCase().includes(query),
     );
 
     setFilteredWorksheets(results);
@@ -73,7 +64,7 @@ const WorksheetsList = () => {
 
     if (selectedTag !== "all") {
       results = results.filter((file) =>
-        getTags(file.name).includes(selectedTag)
+        getTags(file.name).includes(selectedTag),
       );
     }
 
@@ -84,7 +75,7 @@ const WorksheetsList = () => {
     <main className="p-8">
       <h1 className="text-3xl font-bold mb-6">Worksheets</h1>
 
-      <div className="mb-6">
+      <div className="space-x-2 mb-6">
         <input
           type="text"
           placeholder="Search Worksheets"
@@ -116,10 +107,7 @@ const WorksheetsList = () => {
               </CardTitle>
               <div className="flex flex-wrap justify-center gap-2 mt-2 text-sm text-gray-600">
                 {getTags(file.name).map((tag) => (
-                  <span
-                    key={tag}
-                    className="bg-gray-100 px-2 py-0.5 rounded"
-                  >
+                  <span key={tag} className="bg-gray-100 px-2 py-0.5 rounded">
                     {tag}
                   </span>
                 ))}
@@ -131,7 +119,9 @@ const WorksheetsList = () => {
                 <Button
                   className="w-1/2"
                   onClick={() => {
-                    const { data } = supabase.storage.from("worksheets").getPublicUrl(file.name);
+                    const { data } = supabase.storage
+                      .from("worksheets")
+                      .getPublicUrl(file.name);
                     window.open(data.publicUrl, "_blank");
                   }}
                 >
