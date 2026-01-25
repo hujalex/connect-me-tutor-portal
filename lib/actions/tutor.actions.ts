@@ -149,46 +149,6 @@ export async function getTutorStudents(tutorId: string) {
   }
 }
 
-export async function rescheduleSession(
-  sessionId: string,
-  newDate: any,
-  meetingId: string,
-  tutorid?: string
-) {
-  try {
-    const { data: sessionData, error } = await supabase
-      .from(Table.Sessions)
-      .update({
-        date: newDate,
-        meeting_id: meetingId,
-      })
-      .eq("id", sessionId)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    const { error: notificationError } = await supabase
-      .from("Notifications")
-      .insert({
-        session_id: sessionId,
-        previous_date: sessionData.date,
-        suggested_date: newDate,
-        tutor_id: sessionData.tutor_id,
-        student_id: sessionData.student_id,
-        type: "RESCHEDULE_REQUEST",
-        status: "Active",
-      });
-
-    if (notificationError) throw notificationError;
-    if (sessionData) {
-      return sessionData[0];
-    }
-  } catch (error) {
-    console.error("Unable to reschedule", error);
-    throw error;
-  }
-}
 
 export async function cancelSession(sessionId: string) {
   const { data, error } = await supabase

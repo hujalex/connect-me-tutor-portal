@@ -7,7 +7,7 @@ const Worksheets = async () => {
   console.log(fetchFiles) 
   return (
     <>
-      <WorksheetsList files = {fetchFiles}/>
+      <WorksheetsList />
     </>
   );
 };
