@@ -19,7 +19,6 @@ export const switchProfile = async (userId: string, profileId: string) => {
       .eq("user_id", userId)
       .throwOnError();
 
-    console.log("Switched")
   } catch (error) {
     throw error;
   }
