@@ -163,6 +163,20 @@ export async function cancelSession(sessionId: string) {
   return data;
 }
 
+// changed to allow tutors to restore cancelled sessions back to their original status
+export async function undoCancelSession(sessionId: string, originalStatus: string = "Active") {
+  const { data, error } = await supabase
+    .from(Table.Sessions)
+    .update({
+      status: originalStatus,
+    })
+    .eq("id", sessionId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function addSessionNotes(sessionId: string, notes: string) {
   const { data, error } = await supabase
     .from(Table.Sessions)

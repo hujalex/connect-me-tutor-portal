@@ -598,15 +598,21 @@ export async function getSessionById(
   }
 }
 
+
 export async function getTutorSessions(
   profileId: string,
-  startDate?: string,
-  endDate?: string,
-  status?: string | string[],
-  orderby?: string,
-  ascending?: boolean
+  params: {
+    startDate?: string,
+    endDate?: string,
+    status?: string | string[],
+    orderBy?: string,
+    ascending?: boolean,
+  }
 ): Promise<Session[]> {
-  const supabase = await createClient();
+  
+  const supabase = await createClient()
+  const { startDate, endDate, status, orderBy, ascending } = params ? params : {}
+
   let query = supabase
     .from(Table.Sessions)
     .select(
@@ -634,8 +640,8 @@ export async function getTutorSessions(
     }
   }
 
-  if (orderby && ascending !== undefined) {
-    query = query.order(orderby, { ascending });
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
   }
 
   const { data, error } = await query;
@@ -670,15 +676,23 @@ export async function getTutorSessions(
   return sessions;
 }
 
+
 export async function getStudentSessions(
   profileId: string,
-  startDate?: string,
-  endDate?: string,
-  status?: string | string[],
-  orderby?: string,
-  ascending?: boolean
+  params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string | string[];
+    orderBy?: string;
+    ascending?: boolean;
+  },
 ): Promise<Session[]> {
-  const supabase = await createClient();
+
+  const supabase = await createClient()
+  const { startDate, endDate, status, orderBy, ascending } = params
+    ? params
+    : {};
+
   let query = supabase
     .from(Table.Sessions)
     .select(
@@ -687,7 +701,7 @@ export async function getStudentSessions(
       student:Profiles!student_id(*),
       tutor:Profiles!tutor_id(*),
       meeting:Meetings!meeting_id(*)
-    `
+    `,
     )
     .eq("student_id", profileId);
 
@@ -706,8 +720,8 @@ export async function getStudentSessions(
     }
   }
 
-  if (orderby && ascending !== undefined) {
-    query = query.order(orderby, { ascending });
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
   }
 
   const { data, error } = await query;
@@ -720,7 +734,7 @@ export async function getStudentSessions(
   // Map the result to the Session interface
   const sessions: Session[] = data
     .filter(
-      (session) => session.meeting && session.tutor_id && session.student_id
+      (session) => session.meeting && session.tutor_id && session.student_id,
     )
     .map((session: any) => ({
       id: session.id,

@@ -231,6 +231,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                 />
               </TableCell>
               <TableCell className="flex content-center">
+                {/* changed to show all icons - X for cancelled sessions, trash for active */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <HoverCard>
@@ -284,6 +285,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                   </HoverCardContent>
                 </HoverCard>
 
+                {/* changed to show X icon for cancelled sessions, trash for active */}
                 {session.status === "Cancelled" ? (
                   <HoverCard>
                     <HoverCardTrigger asChild>

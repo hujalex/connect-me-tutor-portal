@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, use } from "react";
 import {
   AlarmClockMinus,
   Copy,
@@ -78,8 +78,8 @@ import {
 } from "@/lib/actions/admin.actions";
 import {
   removeEnrollment,
-  updateEnrollment
-} from "@/lib/actions/enrollment.server.actions"
+  updateEnrollment,
+} from "@/lib/actions/enrollment.server.actions";
 import {
   getEnrollments,
   getOverlappingAvailabilites,
@@ -105,29 +105,35 @@ import { useProfile } from "@/contexts/profileContext";
 // import Availability from "@/components/student/AvailabilityFormat";
 
 const EnrollmentList = ({
-  initialEnrollments,
-  initialProfile,
-  initialMeetings,
-  initialStudents,
-}: any) => {
-  const supabase = createClientComponentClient();
-  const { profile: userData, setProfile: setUserData } = useProfile();
-  // const [userData, setUserData] = useState<Profile | null>(null);
-  const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState("");
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  profile,
+  enrollmentsPromise,
+  meetingsPromise,
+  studentsPromise,
+}: {
+  profile: Profile;
+  enrollmentsPromise: Promise<Enrollment[]>;
+  meetingsPromise: Promise<Meeting[] | null>;
+  studentsPromise: Promise<Profile[] | null>;
+}) => {
+  const initialEnrollments = use(enrollmentsPromise);
+  const initialMeetings = use(meetingsPromise);
+  const initialStudents = use(studentsPromise);
+
+  const [enrollments, setEnrollments] =
+    useState<Enrollment[]>(initialEnrollments);
+  const [filteredEnrollments, setFilteredEnrollments] =
+    useState<Enrollment[]>(initialEnrollments);
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings || []);
+  const [students, setStudents] = useState<Profile[]>(initialStudents || []);
+  const [tutors, setTutors] = useState<Profile[]>([profile]);
+
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
-  const [filteredEnrollments, setFilteredEnrollments] = useState<Enrollment[]>(
-    []
-  );
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+
   const [openStudentOptions, setOpenStudentOptions] = React.useState(false);
   const [openTutorOptions, setOpentTutorOptions] = React.useState(false);
   const [selectedTutorId, setSelectedTutorId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const [students, setStudents] = useState<Profile[]>([]);
-  const [tutors, setTutors] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -160,22 +166,12 @@ const EnrollmentList = ({
     [key: string]: boolean;
   }>({});
   const [overlappingAvailabilties, setOverlappingAvailabilites] = useState<
-    { day: string; startTime: string; endTime: string }[]
+    Availability[]
   >([]);
   const [showOverlappingAvailabilites, setShowOverlappingAvailabilties] =
     useState(true);
 
   const router = useRouter();
-
-  useEffect(() => {
-    setEnrollments(initialEnrollments);
-    setFilteredEnrollments(initialEnrollments);
-    setUserData(initialProfile);
-    setMeetings(initialMeetings);
-    setStudents(initialStudents);
-    setLoading(false);
-    if (userData) setTutors([userData]);
-  }, []);
 
   useEffect(() => {
     const filtered = enrollments.filter((enrollment) => {
@@ -213,7 +209,7 @@ const EnrollmentList = ({
         map[student.id] = student;
         return map;
       },
-      {} as Record<string, Profile>
+      {} as Record<string, Profile>,
     );
   }, [students]);
 
@@ -269,7 +265,7 @@ const EnrollmentList = ({
   };
 
   const areMeetingsAvailable = (
-    enroll: Omit<Enrollment, "id" | "createdAt">
+    enroll: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     setIsCheckingMeetingAvailability(true);
     const updatedMeetingAvailability: { [key: string]: boolean } = {};
@@ -284,7 +280,7 @@ const EnrollmentList = ({
       if (!enrollment?.availability[0] || !enrollment?.meetingId) continue;
       try {
         const [existingStartTime, existingEndTime] = formatAvailabilityAsDate(
-          enrollment.availability[0]
+          enrollment.availability[0],
         );
         const isOverlap =
           (newEnrollmentStartTime.getTime() === existingStartTime.getTime() &&
@@ -295,12 +291,6 @@ const EnrollmentList = ({
             newEnrollmentEndTime > existingStartTime);
         //-----Only change to false if true before-----
         if (updatedMeetingAvailability[enrollment.meetingId]) {
-          // if (isOverlap) {
-          //   console.log(newEnrollmentStartTime);
-          //   console.log(newEnrollmentEndTime);
-          //   console.log(existingStartTime);
-          //   console.log(existingEndTime);
-          // }
           updatedMeetingAvailability[enrollment.meetingId] = !isOverlap;
         }
       } catch (error) {
@@ -313,12 +303,12 @@ const EnrollmentList = ({
     Object.entries(updatedMeetingAvailability).forEach(
       ([meetingId, isAvailable]) => {
         const meetingName = meetings.find((m) => m.id === meetingId)?.name;
-      }
+      },
     );
   };
 
   const checkAvailableMeetings = async (
-    enrollment: Omit<Enrollment, "id" | "createdAt">
+    enrollment: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     setIsCheckingMeetingAvailability(true);
     const otherEnrollments: Enrollment[] | null =
@@ -328,7 +318,7 @@ const EnrollmentList = ({
         await checkAvailableMeetingForEnrollments(
           enrollment,
           otherEnrollments,
-          meetings
+          meetings,
         );
       setMeetingAvailability(updatedMeetingAvailability);
       setAllEnrollments(otherEnrollments);
@@ -338,12 +328,12 @@ const EnrollmentList = ({
 
   const isMeetingAvailable = (
     meetingId: string,
-    enroll: Omit<Enrollment, "id" | "createdAt">
+    enroll: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     try {
       const now = new Date();
       const new_enrollment_date = new Date(
-        `${enroll.availability[0].day} ${enroll.availability[0].endTime}`
+        `${enroll.availability[0].day} ${enroll.availability[0].endTime}`,
       );
       return !enrollments.some((enrollment) => {
         // Skip sessions without dates or meeting IDs
@@ -351,7 +341,7 @@ const EnrollmentList = ({
 
         try {
           const sessionEndTime = new Date(
-            `${enrollment.availability[0].day}, ${enrollment.availability[0].endTime}`
+            `${enrollment.availability[0].day}, ${enrollment.availability[0].endTime}`,
           );
           sessionEndTime.setHours(sessionEndTime.getHours() + 1.5);
           return (
@@ -386,14 +376,14 @@ const EnrollmentList = ({
       setLoading(true);
       setError(null);
 
-      if (!userData) return;
+      if (!profile) return;
 
-      const enrollmentsData = await getEnrollments(userData.id);
+      const enrollmentsData = await getEnrollments(profile.id);
       if (!enrollmentsData) throw new Error("No enrollments found");
 
       const sortedEnrollments = enrollmentsData.sort(
         (a, b) =>
-          new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+          new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
       );
 
       setEnrollments(sortedEnrollments);
@@ -401,7 +391,7 @@ const EnrollmentList = ({
     } catch (error) {
       console.error("Error fetching enrollment data:", error);
       setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
+        error instanceof Error ? error.message : "An unknown error occurred",
       );
       setIsCheckingMeetingAvailability(true); // Ensures that new enrollments are not accidentally added when unable to check for available meeting links
     } finally {
@@ -422,7 +412,7 @@ const EnrollmentList = ({
 
   const paginatedEnrollments = filteredEnrollments.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   const handleInputChange = (e: {
@@ -451,11 +441,11 @@ const EnrollmentList = ({
 
     if (selectedEnrollment) {
       setSelectedEnrollment((prevState) =>
-        handleNestedChange({ ...prevState }, name, value)
+        handleNestedChange({ ...prevState }, name, value),
       );
     } else {
       setNewEnrollment((prevState) =>
-        handleNestedChange({ ...prevState }, name, value)
+        handleNestedChange({ ...prevState }, name, value),
       );
     }
   };
@@ -501,8 +491,8 @@ const EnrollmentList = ({
         if (updatedEnrollment) {
           setEnrollments(
             enrollments.map((e: Enrollment) =>
-              e.id === updatedEnrollment.id ? updatedEnrollment : e
-            ) as Enrollment[]
+              e.id === updatedEnrollment.id ? updatedEnrollment : e,
+            ) as Enrollment[],
           ); // Explicitly cast as Enrollment[]
         }
         setIsEditModalOpen(false);
@@ -521,7 +511,7 @@ const EnrollmentList = ({
       try {
         await removeEnrollment(selectedEnrollment.id);
         setEnrollments(
-          enrollments.filter((e) => e.id !== selectedEnrollment.id)
+          enrollments.filter((e) => e.id !== selectedEnrollment.id),
         );
         setIsDeleteModalOpen(false);
         setSelectedEnrollment(null);
@@ -549,15 +539,15 @@ const EnrollmentList = ({
   };
 
   const handlePausePairingOverSummer = async (
-    updatedEnrollment: Enrollment
+    updatedEnrollment: Enrollment,
   ) => {
     try {
       setEnrollments((prev) =>
         prev.map((enrollment) =>
           enrollment.id === updatedEnrollment.id
             ? updatedEnrollment
-            : enrollment
-        )
+            : enrollment,
+        ),
       );
 
       await pauseEnrollmentOverSummer(updatedEnrollment);
@@ -569,17 +559,55 @@ const EnrollmentList = ({
 
   const handleGetOverlappingAvailabilites = async (student: Profile) => {
     try {
-      const tutor: Profile | null = userData;
+      const tutor: Profile | null = profile;
 
       if (tutor && student.availability) {
         const data: {
           day: string;
           startTime: string;
           endTime: string;
-        }[] = await getOverlappingAvailabilites(
-          tutor.availability,
-          student.availability
-        );
+        }[] =
+          // await getOverlappingAvailabilites(
+          //   tutor.availability,
+          //   student.availability,
+          // );
+          [
+            {
+              day: "Sunday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Monday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Tuesday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Wednesday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Thursday",
+              startTime: "00:00",
+              endTime: "23:509",
+            },
+            {
+              day: "Friday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Saturday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+          ];
         if (data) setOverlappingAvailabilites(data);
       }
     } catch (error) {
@@ -587,7 +615,7 @@ const EnrollmentList = ({
     }
   };
 
-    const handleCopyMeetingLink = (meetingId: string) => {
+  const handleCopyMeetingLink = (meetingId: string) => {
     const meeting = meetings.find((m) => String(m.id) === String(meetingId));
 
     if (!meeting) {
@@ -607,35 +635,6 @@ const EnrollmentList = ({
       .then(() => toast.success("Meeting link copied!"))
       .catch(() => toast.error("Failed to copy link"));
   };
-
-  // const handleValidateDuration = async (
-  //   duration: number,
-  //   startTime: string,
-  //   endTime: string
-  // ) => {
-  //   try {
-  //     const startTimeNumber: number = timeStrToHours(startTime);
-  //     const endTimeNumber: number = timeStrToHours(endTime);
-  //     let difference = endTimeNumber - startTimeNumber;
-
-  //     if (difference < 0) {
-  //       difference += 24;
-  //     }
-
-  //     console.log(difference);
-  //     console.log(duration);
-
-  //     const tolerance = 0.01;
-
-  //     if (Math.abs(difference - duration) > tolerance) {
-  //       toast.error("Duration does not match time range");
-  //       throw new Error("Duration does not match time range");
-  //     }
-  //   } catch (error) {
-  //     console.log("Unable to validate time");
-  //     throw error;
-  //   }
-  // };
 
   return (
     <>
@@ -714,7 +713,7 @@ const EnrollmentList = ({
                                           "mr-2 h-4 w-4",
                                           selectedStudentId === student.id
                                             ? "opacity-100"
-                                            : "opacity-0"
+                                            : "opacity-0",
                                         )}
                                       />
                                       {student.firstName} {student.lastName} -{" "}
@@ -747,12 +746,12 @@ const EnrollmentList = ({
                                 <>
                                   {
                                     tutors.find(
-                                      (tutor) => tutor.id === selectedTutorId
+                                      (tutor) => tutor.id === selectedTutorId,
                                     )?.firstName
                                   }{" "}
                                   {
                                     tutors.find(
-                                      (tutor) => tutor.id === selectedTutorId
+                                      (tutor) => tutor.id === selectedTutorId,
                                     )?.lastName
                                   }
                                 </>
@@ -797,7 +796,7 @@ const EnrollmentList = ({
                                           "mr-2 h-4 w-4",
                                           selectedTutorId === tutor.id
                                             ? "opacity-100"
-                                            : "opacity-0"
+                                            : "opacity-0",
                                         )}
                                       />
                                       {tutor.firstName} {tutor.lastName} -{" "}
@@ -889,7 +888,7 @@ const EnrollmentList = ({
                               ) : newEnrollment.meetingId ? (
                                 meetings.find(
                                   (meeting) =>
-                                    meeting.id === newEnrollment.meetingId
+                                    meeting.id === newEnrollment.meetingId,
                                 )?.name
                               ) : (
                                 "Select a meeting"
@@ -942,7 +941,9 @@ const EnrollmentList = ({
                   "Status",
                   "Chat",
                 ].map((header) => (
-                  <TableHead className = "text-left" key={header}>{header}</TableHead>
+                  <TableHead className="text-left" key={header}>
+                    {header}
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -964,31 +965,34 @@ const EnrollmentList = ({
                   </TableCell>
                   <TableCell>{enrollment.summary}</TableCell>
                   <TableCell>
-                    {formatDateUTC(enrollment.startDate, { includeTime: false, includeDate: true})}
+                    {formatDateUTC(enrollment.startDate, {
+                      includeTime: false,
+                      includeDate: true,
+                    })}
                   </TableCell>
-                  <TableCell className = "text-left">
-                    <TableCell className = "text-center">
-                     {(() => {
-                      const meeting = meetings.find(
-                        (m) => String(m.id) === String(enrollment.meetingId)
-                      );
+                  <TableCell className="text-left">
+                    <TableCell className="text-center">
+                      {(() => {
+                        const meeting = meetings.find(
+                          (m) => String(m.id) === String(enrollment.meetingId),
+                        );
 
-                      if (!meeting) return "No Meeting Link";
+                        if (!meeting) return "No Meeting Link";
 
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => handleCopyMeetingLink(meeting.id)}
-                          className="relative inline-flex items-center group cursor-pointer"
-                        >
-                          {/* Text – left aligned, normal state */}
-                          <span className="underline text-black-600 transition-opacity duration-150 group-hover:opacity-0">
-                            {meeting.name}
-                          </span>
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMeetingLink(meeting.id)}
+                            className="relative inline-flex items-center group cursor-pointer"
+                          >
+                            {/* Text – left aligned, normal state */}
+                            <span className="underline text-black-600 transition-opacity duration-150 group-hover:opacity-0">
+                              {meeting.name}
+                            </span>
 
-                          {/* Icon – centered over the text, only visible on hover */}
-                          <Copy
-                            className="
+                            {/* Icon – centered over the text, only visible on hover */}
+                            <Copy
+                              className="
                               absolute
                               left-1/2 -translate-x-1/2
                               w-4 h-4
@@ -998,10 +1002,10 @@ const EnrollmentList = ({
                               group-hover:opacity-100
                               pointer-events-none
                             "
-                          />
-                        </button>
-                      );
-                    })()}
+                            />
+                          </button>
+                        );
+                      })()}
                     </TableCell>
                   </TableCell>
                   <TableCell>
@@ -1056,7 +1060,7 @@ const EnrollmentList = ({
                       className="gap-2"
                       onClick={() =>
                         router.push(
-                          `/dashboard/enrollment/${enrollment.id}/chat`
+                          `/dashboard/enrollment/${enrollment.id}/chat`,
                         )
                       }
                       variant="outline"
@@ -1129,41 +1133,6 @@ const EnrollmentList = ({
           </div>
         </div>
       </div>
-      {/* 
-      <EnrollmentForm
-        StudentOptions={{
-          openStudentOptions: openStudentOptions, // or your boolean value
-          selectedStudentId: selectedStudentId,
-          studentsMap: studentsMap,
-          studentsSearch: studentSearch,
-          students: students,
-          setOpenStudentOptions: setOpenStudentOptions,
-          setSelectedStudentId: setSelectedStudentId,
-          setStudentsSearch: setStudentSearch,
-        }}
-        TutorOptions={{
-          openTutorOptions: openTutorOptions,
-          selectedTutorId: selectedTutorId,
-          tutors: tutors,
-          tutorSearch: tutorSearch,
-          setOpenTutorOptions: setOpentTutorOptions,
-          setSelectedTutorId: setSelectedTutorId,
-          setTutorSearch: setTutorSearch
-        }}
-        AvailabilityProps = {{
-          availabilityList: availabilityList,
-          isCheckingMeetingAvailability: isCheckingMeetingAvailability,
-          meetings: meetings,
-          meetingAvailability: meetingAvailability,
-          setAvailabilityList: setAvailabilityList,
-          setAvailableMeetingsForEnrollments: 
-        }}
-        EnrollmentProps = {{
-          newEnrollment: newEnrollment,
-          setNewEnrollment: setNewEnrollment,
-          handleAddEnrollment: handleAddEnrollment
-        }}
-      /> */}
 
       {/* Edit Enrollment Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -1196,13 +1165,13 @@ const EnrollmentList = ({
                             {
                               students.find(
                                 (student) =>
-                                  student.id === selectedEnrollment.student?.id
+                                  student.id === selectedEnrollment.student?.id,
                               )?.firstName
                             }{" "}
                             {
                               students.find(
                                 (student) =>
-                                  student.id === selectedEnrollment.student?.id
+                                  student.id === selectedEnrollment.student?.id,
                               )?.lastName
                             }
                           </>
@@ -1247,7 +1216,7 @@ const EnrollmentList = ({
                                     "mr-2 h-4 w-4",
                                     selectedStudentId === student.id
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                                 {student.firstName} {student.lastName}
@@ -1280,13 +1249,13 @@ const EnrollmentList = ({
                             {
                               tutors.find(
                                 (tutor) =>
-                                  tutor.id === selectedEnrollment.tutor?.id
+                                  tutor.id === selectedEnrollment.tutor?.id,
                               )?.firstName
                             }{" "}
                             {
                               tutors.find(
                                 (tutor) =>
-                                  tutor.id === selectedEnrollment.tutor?.id
+                                  tutor.id === selectedEnrollment.tutor?.id,
                               )?.lastName
                             }
                           </>
@@ -1331,7 +1300,7 @@ const EnrollmentList = ({
                                     "mr-2 h-4 w-4",
                                     selectedTutorId === tutor.id
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                                 {tutor.firstName} {tutor.lastName}
@@ -1399,7 +1368,7 @@ const EnrollmentList = ({
                         {selectedEnrollment.meetingId
                           ? meetings.find(
                               (meeting) =>
-                                meeting.id === selectedEnrollment.meetingId
+                                meeting.id === selectedEnrollment.meetingId,
                             )?.name
                           : "Select a meeting"}
                       </SelectValue>
