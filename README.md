@@ -2,7 +2,7 @@
 Web Application to manage tutoring sessions for Connect Me Free Tutoring & Mentoring
 
 ## Overview
-Connect Me's tutor portal began as an internal tool to meet our organization's need to serve a growing user base, allowing our leadership team to manage tutoring sessions in a scalable and sustainable manner while providing tutors and students with additional quality-of-life features
+Connect Me's tutor portal is an internal tool to meet our organization's need to serve a growing user base, allowing our leadership team to manage tutoring sessions in a scalable and sustainable manner while providing tutors and students with additional quality-of-life features
 
 ## Multi-Profile System
 Our portal allows users to have multiple profiles under one email to accommodate parents who would like to register multiple students under one email, or tutors who would also like to register as students to take classes with other tutors
@@ -16,7 +16,7 @@ Our portal allows users to have multiple profiles under one email to accommodate
 - **Resources** - A curated list of academic resources selected by our Connect Me team
 
 ## Administrators
-- **Sessions Schedule** - Full schedule of all Connect Me's tutoring sessions
+- **Sessions Schedule** - Full schedule of all Connect Me tutoring sessions
 - **Tutors Dashboard** - User interface to navigate through Connect Me's tutors
 - **Students Dashboard** - User interface to navigate through Connect Me's students
 - **Volunteer Hours Dashboard** - User interface to view volunteering hours for each user, by each week, month, and all time
