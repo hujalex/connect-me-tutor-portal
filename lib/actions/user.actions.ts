@@ -122,15 +122,12 @@ export const getProfileRole = async (
 
     const profileRole: { profile: { role: string } } = data as any;
 
-    console.log("Profile Data", profileRole.profile.role);
-
     if (!profileRole || !profileRole.profile || !profileRole.profile.role) {
       console.error("No role identified");
       return null;
     }
 
     const result = profileRole?.profile.role || null;
-    console.log(result);
 
     return result;
   } catch (error) {
