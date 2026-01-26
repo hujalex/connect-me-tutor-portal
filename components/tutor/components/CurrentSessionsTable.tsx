@@ -69,6 +69,7 @@ import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 import SessionExitForm from "./SessionExitForm";
 import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
+import { useRouter } from "next/navigation";
 
 interface CurrentSessionTableProps {
   currentSessions: Session[];
@@ -134,6 +135,17 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
   handleInputChange,
   handleUndoCancel,
 }) => {
+  const router = useRouter();
+
+  const handleRescheduleWithRefresh = async (
+    sessionId: string,
+    newDate: string,
+    meetingId: string
+  ) => {
+    await handleReschedule(sessionId, newDate, meetingId);
+    router.refresh();
+  };
+
   return (
     <>
       <Table>
@@ -153,16 +165,6 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
           {currentSessions.map((session, index) => (
             <TableRow
               key={index}
-
-              // className={
-              //     session.status === "Active"
-              //     ? "bg-blue-200 opacity-20"
-              //     : session.status === "Complete"
-              //     ? "bg-green-200 opacity-50"
-              //     : session.status === "Cancelled"
-              //     ? "bg-red-100 opacity-50 "
-              //     : ""
-              // }
             >
               <TableCell>
                 {session.status === "Active" ? (
@@ -261,7 +263,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     setSelectedSession={setSelectedSession}
                     setSelectedSessionDate={setSelectedSessionDate}
                     handleInputChange={handleInputChange}
-                    handleReschedule={handleReschedule}
+                    handleReschedule={handleRescheduleWithRefresh}
                   />
                 </Dialog>
 
