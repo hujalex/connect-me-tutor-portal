@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import TutorCalendar from "../TutorCalendar";
 import { Input } from "@/components/ui/input";
 import SessionsTable from "../components/ActiveSessionsTable";
@@ -12,10 +13,12 @@ import {
   updateSession,
 } from "@/lib/actions/admin.actions";
 import {
-  rescheduleSession,
   recordSessionExitForm,
   undoCancelSession,
 } from "@/lib/actions/tutor.actions";
+import {
+  rescheduleSession
+} from "@/lib/actions/session.server.actions"
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import { useDashboardContext } from "@/contexts/dashboardContext";
@@ -27,6 +30,7 @@ const TutorDashboard = ({
   // pastSessionsPromise,
   // meetingsPromise,
 }: any) => {
+  const router = useRouter();
   // const currentSessionsData: Session[] = use(currentSessionsPromise)
   // const activeSessionsData: Session[] = use(activeSessionsPromise)
   // const pastSessionsData: Session[] = use(pastSessionsPromise)

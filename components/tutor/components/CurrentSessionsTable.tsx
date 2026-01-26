@@ -69,6 +69,7 @@ import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 import SessionExitForm from "./SessionExitForm";
 import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
+import { useRouter } from "next/navigation";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
 interface CurrentSessionTableProps {
@@ -135,6 +136,17 @@ const CurrentSessionsTable = ({
   handleInputChange,
   handleUndoCancel,
 }: any) => {
+  const router = useRouter();
+
+  const handleRescheduleWithRefresh = async (
+    sessionId: string,
+    newDate: string,
+    meetingId: string
+  ) => {
+    await handleReschedule(sessionId, newDate, meetingId);
+    router.refresh();
+  };
+
   const TC = useDashboardContext();
   return (
     <>
@@ -155,16 +167,6 @@ const CurrentSessionsTable = ({
           {TC.currentSessions.map((session, index) => (
             <TableRow
               key={index}
-
-              // className={
-              //     session.status === "Active"
-              //     ? "bg-blue-200 opacity-20"
-              //     : session.status === "Complete"
-              //     ? "bg-green-200 opacity-50"
-              //     : session.status === "Cancelled"
-              //     ? "bg-red-100 opacity-50 "
-              //     : ""
-              // }
             >
               <TableCell>
                 {session.status === "Active" ? (
@@ -261,7 +263,7 @@ const CurrentSessionsTable = ({
                     meetings={meetings}
                     setSelectedSessionDate={TC.setSelectedSessionDate}
                     handleInputChange={handleInputChange}
-                    handleReschedule={handleReschedule}
+                    handleReschedule={handleRescheduleWithRefresh}
                   />
                 </Dialog>
 

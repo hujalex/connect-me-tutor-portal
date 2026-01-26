@@ -17,9 +17,11 @@ import {
 } from "@/lib/actions/admin.actions";
 import {
   getTutorSessions,
-  rescheduleSession,
   recordSessionExitForm,
 } from "@/lib/actions/tutor.actions";
+import {
+  rescheduleSession
+} from "@/lib/actions/session.server.actions"
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import {

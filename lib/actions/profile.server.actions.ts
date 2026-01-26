@@ -21,7 +21,6 @@ export const switchProfile = async (userId: string, profileId: string) => {
 
     // Invalidate cache to force refetch of profile data
     revalidatePath("/dashboard");
-    console.log("Switched")
   } catch (error) {
     throw error;
   }
