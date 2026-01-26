@@ -149,52 +149,26 @@ export async function getTutorStudents(tutorId: string) {
   }
 }
 
-export async function rescheduleSession(
-  sessionId: string,
-  newDate: any,
-  meetingId: string,
-  tutorid?: string
-) {
-  try {
-    const { data: sessionData, error } = await supabase
-      .from(Table.Sessions)
-      .update({
-        date: newDate,
-        meeting_id: meetingId,
-      })
-      .eq("id", sessionId)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    const { error: notificationError } = await supabase
-      .from("Notifications")
-      .insert({
-        session_id: sessionId,
-        previous_date: sessionData.date,
-        suggested_date: newDate,
-        tutor_id: sessionData.tutor_id,
-        student_id: sessionData.student_id,
-        type: "RESCHEDULE_REQUEST",
-        status: "Active",
-      });
-
-    if (notificationError) throw notificationError;
-    if (sessionData) {
-      return sessionData[0];
-    }
-  } catch (error) {
-    console.error("Unable to reschedule", error);
-    throw error;
-  }
-}
 
 export async function cancelSession(sessionId: string) {
   const { data, error } = await supabase
     .from(Table.Sessions)
     .update({
       status: "CANCELLED",
+    })
+    .eq("id", sessionId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// changed to allow tutors to restore cancelled sessions back to their original status
+export async function undoCancelSession(sessionId: string, originalStatus: string = "Active") {
+  const { data, error } = await supabase
+    .from(Table.Sessions)
+    .update({
+      status: originalStatus,
     })
     .eq("id", sessionId)
     .single();

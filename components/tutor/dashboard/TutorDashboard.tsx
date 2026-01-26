@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import TutorCalendar from "../TutorCalendar";
 import { Input } from "@/components/ui/input";
 import SessionsTable from "../components/ActiveSessionsTable";
@@ -15,9 +16,12 @@ import {
 } from "@/lib/actions/admin.actions";
 import {
   getTutorSessions,
-  rescheduleSession,
   recordSessionExitForm,
+  undoCancelSession,
 } from "@/lib/actions/tutor.actions";
+import {
+  rescheduleSession
+} from "@/lib/actions/session.server.actions"
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import {
@@ -40,6 +44,7 @@ const TutorDashboard = ({
   pastSessionsPromise,
   meetingsPromise,
 }: any) => {
+  const router = useRouter();
   const currentSessionsData: Session[] = use(currentSessionsPromise)
   const activeSessionsData: Session[] = use(activeSessionsPromise)
   const pastSessionsData: Session[] = use(pastSessionsPromise)
@@ -71,87 +76,9 @@ const TutorDashboard = ({
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
-
   const [notes, setNotes] = useState<string>("");
   const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
 
-  useEffect(() => {
-    // getUserData();
-    // fetchMeetings();
-  }, []);
-
-  // const fetchMeetings = async () => {
-  //   try {
-  //     const fetchedMeetings = await getMeetings();
-  //     if (fetchedMeetings) {
-  //       setMeetings(fetchedMeetings);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to fetch meetings:", error);
-  //     toast.error("Failed to load meetings");
-  //   }
-  // };
-
-  const getUserData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw new Error(userError.message);
-      if (!user) throw new Error("No user found");
-
-      const profileData = await getProfile(user.id);
-      if (!profileData) throw new Error("No profile found");
-
-      setProfile(profileData);
-
-      const currentSessionData = await getTutorSessions(
-        profileData.id,
-        startOfWeek(new Date()).toISOString(),
-        endOfWeek(new Date()).toISOString(),
-        undefined,
-        "date",
-        true
-      );
-
-      setCurrentSessions(currentSessionData);
-
-      const activeSessionData = await getTutorSessions(
-        profileData.id,
-        undefined,
-        undefined,
-        "Active",
-        "date",
-        true
-      );
-
-      setSessions(activeSessionData);
-      setFilteredSessions(activeSessionData);
-
-      const pastSessionData = await getTutorSessions(
-        profileData.id,
-        undefined,
-        undefined,
-        ["Complete", "Cancelled"],
-        "date",
-        false
-      );
-      setPastSessions(pastSessionData);
-      setFilteredPastSessions(pastSessionData);
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchAllSessionsFromSchedule = async () => {
     try {
@@ -258,9 +185,10 @@ const TutorDashboard = ({
           )
         );
       }
-      // getUserData();
       setSelectedSession(null);
       setIsDialogOpen(false);
+      
+      // Refresh
       toast.success("Session updated successfully");
     } catch (error) {
       console.error("Error requesting session reschedule:", error);
@@ -289,12 +217,13 @@ const TutorDashboard = ({
   };
 
   const handleSessionComplete = async (
-    updatedSession: Session,
+    session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
     isFirstSession: boolean
   ) => {
     try {
+      const updatedSession = session;
       updatedSession.session_exit_form = notes;
       updatedSession.status = "Complete";
       updatedSession.isQuestionOrConcern = isQuestionOrConcern;
@@ -326,13 +255,13 @@ const TutorDashboard = ({
             },
             method: "POST",
             body: JSON.stringify({
-              tutorFirstName: updatedSession.tutor?.firstName,
-              tutorLastName: updatedSession.tutor?.lastName,
-              studentFirstName: updatedSession.student?.firstName,
-              studentLastName: updatedSession.student?.lastName,
+              tutorFirstName: session.tutor?.firstName,
+              tutorLastName: session.tutor?.lastName,
+              studentFirstName: session.student?.firstName,
+              studentLastName: session.student?.lastName,
               formContent: notes,
-              tutorEmail: updatedSession.tutor?.email,
-              studentEmail: updatedSession.student?.email,
+              tutorEmail: session.tutor?.email,
+              studentEmail: session.student?.email,
             }),
           }
         );
@@ -346,6 +275,28 @@ const TutorDashboard = ({
     } catch (error) {
       console.error("Failed to record Session Exit Form", error);
       toast.error("Failed to record Session Exit Form");
+    }
+  };
+
+  // why: restore cancelled session to active status and update UI state
+  const handleUndoCancel = async (sessionId: string) => {
+    try {
+      await undoCancelSession(sessionId, "Active");
+      setCurrentSessions(
+        currentSessions.map((s) =>
+          s.id === sessionId ? { ...s, status: "Active" } : s
+        )
+      );
+      setPastSessions(
+        pastSessions.filter((s) => s.id !== sessionId)
+      );
+      setFilteredPastSessions(
+        filteredPastSessions.filter((s) => s.id !== sessionId)
+      );
+      toast.success("Session cancellation undone");
+    } catch (error) {
+      console.error("Failed to undo session cancellation", error);
+      toast.error("Failed to undo session cancellation");
     }
   };
 
@@ -416,6 +367,7 @@ const TutorDashboard = ({
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
+              handleUndoCancel={handleUndoCancel}
               handlePageChange={handlePageChange}
               handleRowsPerPageChange={handleRowsPerPageChange}
               handleInputChange={handleInputChange}

@@ -1,5 +1,5 @@
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
-import DashboardLayout from "@/components/admin/dashboard-layout";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import DashboardProviders from "./dashboardprovider";
 import { cachedGetProfile, getUserProfiles } from "@/lib/actions/profile.server.actions";
 import { redirect } from "next/navigation";
