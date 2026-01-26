@@ -46,6 +46,7 @@ import {
   ChartColumn,
   FileSpreadsheet,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -179,6 +180,11 @@ export default function DashboardLayout({
       title: "Pairings",
       href: "/dashboard/pairings",
       icon: <LinkIcon className="h-5 w-5" />,
+    },
+    {
+      title: "AI Chatbot",
+      href: "/dashboard/ai-chatbot",
+      icon: <Sparkles className="h-5 w-5" />,
     },
     {
       title: "Profile",
