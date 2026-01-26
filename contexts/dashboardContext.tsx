@@ -8,6 +8,7 @@ import {
   ReactNode,
   useContext,
   useState,
+  useEffect,
 } from "react";
 
 export interface DashboardContextValue {
@@ -102,6 +103,12 @@ export function DashboardContextProvider({
   const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
   const [notes, setNotes] = useState<string>("");
   const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
+
+  // useEffect(() => {
+  //   if (initialProfile && profile?.id !== initialProfile.id) {
+  //     setProfile(initialProfile);
+  //   }
+  // }, [initialProfile, profile?.id]);
 
   const contextValue: DashboardContextValue = {
     currentSessions,

@@ -23,50 +23,10 @@ import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
-const TutorDashboard = ({
-  // initialProfile,
-  // currentSessionsPromise,
-  // activeSessionsPromise,
-  // pastSessionsPromise,
-  // meetingsPromise,
-}: any) => {
+
+const TutorDashboard = () => {
   const router = useRouter();
-  // const currentSessionsData: Session[] = use(currentSessionsPromise)
-  // const activeSessionsData: Session[] = use(activeSessionsPromise)
-  // const pastSessionsData: Session[] = use(pastSessionsPromise)
-  // const meetings: Meeting[] = use(meetingsPromise)
-
   const TC = useDashboardContext()
-
-  // const [sessions, setSessions] = useState<Session[]>(activeSessionsData);
-  // const [currentSessions, setCurrentSessions] = useState<Session[]>(currentSessionsData);
-  // const [pastSessions, setPastSessions] = useState<Session[]>(pastSessionsData);
-  // const [filteredSessions, setFilteredSessions] = useState<Session[]>(activeSessionsData);
-  // const [filteredPastSessions, setFilteredPastSessions] = useState<Session[]>(
-  //   pastSessionsData
-  // );
-  // const [profile, setProfile] = useState<Profile | null>(initialProfile);
-
-  // const [allSessions, setAllSessions] = useState<Session[]>([]);
- 
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState<string | null>(null);
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const [rowsPerPage, setRowsPerPage] = useState(5);
-  // const [filterValueActiveSessions, setFilterValueActiveSessions] =
-  //   useState("");
-  // const [filterValuePastSessions, setFilterValuePastSessions] = useState("");
-  // const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  // const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(
-  //   null
-  // );
-  // const [isDialogOpen, setIsDialogOpen] = useState(false);
-  // const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
-
-  // const [notes, setNotes] = useState<string>("");
-  // const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
-
- 
 
   useEffect(() => {
     const filtered = TC.sessions.filter(
@@ -136,7 +96,6 @@ const TutorDashboard = ({
           )
         );
       }
-      // getUserData();
       TC.setSelectedSession(null);
       TC.setIsDialogOpen(false);
       toast.success("Session updated successfully");
@@ -296,24 +255,8 @@ const TutorDashboard = ({
         <div className="flex space-x-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <CurrentSessionsTable
-              // currentSessions={currentSessions}
-              // filteredSessions={filteredSessions}
               meetings={TC.meetings}
-              // currentPage={currentPage}
               totalPages={totalPages}
-              // rowsPerPage={rowsPerPage.toString()}
-              // selectedSession={selectedSession}
-            //  selectedSessionDate={selectedSessionDate}
-              // isDialogOpen={isDialogOpen}
-              // isSessionExitFormOpen={isSessionExitFormOpen}
-              // notes={notes}
-              // nextClassConfirmed={nextClassConfirmed}
-              // setSelectedSession={setSelectedSession}
-              // setSelectedSessionDate={setSelectedSessionDate}
-              // setIsDialogOpen={setIsDialogOpen}
-              // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-              // setNotes={setNotes}
-              // setNextClassConfirmed={setNextClassConfirmed}
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
@@ -344,23 +287,8 @@ const TutorDashboard = ({
 
             <ActiveSessionsTable
               paginatedSessions={paginatedSessions}
-              // filteredSessions={filteredSessions}
               meetings={TC.meetings}
-              // currentPage={currentPage}
               totalPages={totalPages}
-              // rowsPerPage={rowsPerPage.toString()}
-              // selectedSession={selectedSession}
-              // selectedSessionDate={selectedSessionDate}
-              // isDialogOpen={isDialogOpen}
-              // isSessionExitFormOpen={isSessionExitFormOpen}
-              // notes={notes}
-              // nextClassConfirmed={nextClassConfirmed}
-              // setSelectedSession={setSelectedSession}
-              // setSelectedSessionDate={setSelectedSessionDate}
-              // setIsDialogOpen={setIsDialogOpen}
-              // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-              // setNotes={setNotes}
-              // setNextClassConfirmed={setNextClassConfirmed}
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
@@ -370,9 +298,6 @@ const TutorDashboard = ({
             />
           </div>
 
-          {/* <div className="w-80">
-            <TutorCalendar sessions={sessions} />
-          </div> */}
         </div>
       </div>
       <div className="p-8">

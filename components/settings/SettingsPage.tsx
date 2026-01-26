@@ -23,7 +23,7 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Profile } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
-import { switchProfile } from "@/lib/actions/profile.server.actions";
+import { switchProfile, getProfileUncached } from "@/lib/actions/profile.server.actions";
 import { useProfile } from "@/contexts/profileContext";
 import { getUserProfiles } from "@/lib/actions/profile.server.actions";
 import { NetworkAccessProfileListInstance } from "twilio/lib/rest/supersim/v1/networkAccessProfile";

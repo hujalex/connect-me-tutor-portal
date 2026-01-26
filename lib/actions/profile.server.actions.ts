@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { cache } from "react";
 import { tableToInterfaceProfiles } from "../type-utils";
 
+
 export const switchProfile = async (userId: string, profileId: string) => {
   try {
     const supabase = await createClient();
@@ -21,6 +22,9 @@ export const switchProfile = async (userId: string, profileId: string) => {
 
     // Invalidate cache to force refetch of profile data
     revalidatePath("/dashboard");
+    revalidatePath("/");
+    revalidatePath("/settings");
+    revalidatePath("/profile");
   } catch (error) {
     throw error;
   }
@@ -221,6 +225,10 @@ export async function getProfile(userId: string) {
 }
 
 export const cachedGetProfile = cache(getProfile)
+
+export const getProfileUncached = async (userId: string) => {
+  return getProfile(userId);
+};
 
 export const getTutorStudents = cache(async (tutorId: string) => {
   try {

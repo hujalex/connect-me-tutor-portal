@@ -19,9 +19,7 @@ import {
   getTutorSessions,
   recordSessionExitForm,
 } from "@/lib/actions/tutor.actions";
-import {
-  rescheduleSession
-} from "@/lib/actions/session.server.actions"
+import { rescheduleSession } from "@/lib/actions/session.server.actions";
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import {
@@ -41,58 +39,8 @@ import { useProfile } from "@/contexts/profileContext";
 import SkeletonTable, { Skeleton } from "../ui/skeleton";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
-const StudentDashboard = ({
-  // initialProfile,
-  // currentSessionsPromise,
-  // activeSessionsPromise,
-  // pastSessionsPromise,
-  // meetingsPromise,
-}: any
-  // initialProfile: Profile;
-  // currentSessionsPromise: Promise<Session[]>;
-  // activeSessionsPromise: Promise<Session[]>;
-  // pastSessionsPromise: Promise<Session[]>;
-  // meetingsPromise: Promise<Meeting[] | null>;
-  ) => {
-  // const initialCurrentSessions = use(currentSessionsPromise);
-  // const initialActiveSessions = use(activeSessionsPromise);
-  // const initialPastSessions = use(pastSessionsPromise);
-  // const initialMeetings = use(meetingsPromise);
-
+const StudentDashboard = () => {
   const SC = useDashboardContext();
-
-  // const [currentSessions, setCurrentSessions] = useState<Session[]>(
-  //   initialCurrentSessions
-  // );
-  // const [pastSessions, setPastSessions] =
-  //   useState<Session[]>(initialPastSessions);
-  // const [sessions, setSessions] = useState<Session[]>(initialActiveSessions);
-  // const [filteredSessions, setFilteredSessions] = useState<Session[]>(
-  //   initialActiveSessions
-  // );
-  // const [filteredPastSessions, setFilteredPastSessions] =
-  //   useState<Session[]>(initialPastSessions);
-  // const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings || []);
-
-  // const [allSessions, setAllSessions] = useState<Session[]>([]);
-
-  // const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  // const [loading, setLoading] = useState<boolean>(true);
-  // const [error, setError] = useState<string | null>(null);
-  // const [currentPage, setCurrentPage] = useState<number>(1);
-  // const [rowsPerPage, setRowsPerPage] = useState<number>(5);
-  // const [filterValueActiveSessions, setFilterValueActiveSessions] =
-  //   useState<string>("");
-  // const [filterValuePastSessions, setFilterValuePastSessions] = useState<string>("");
-  // const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  // const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(
-  //   null
-  // );
-  // const [isDialogOpen, setIsDialogOpen] = useState(false);
-  // const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
-
-  // const [notes, setNotes] = useState<string>("");
-  // const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
 
   const getUserData = useCallback(async () => {
     try {
@@ -351,32 +299,7 @@ const StudentDashboard = ({
         <div className="flex space-x-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <Suspense fallback={<SkeletonTable />}>
-              <CurrentSessionsTable
-                // currentSessions={SC.currentSessions}
-                // filteredSessions={SC.filteredSessions}
-                // meetings={meetings}
-                // currentPage={currentPage}
-                // totalPages={totalPages}
-                // rowsPerPage={rowsPerPage.toString()}
-                // selectedSession={selectedSession}
-                // selectedSessionDate={selectedSessionDate}
-                // isDialogOpen={isDialogOpen}
-                // isSessionExitFormOpen={isSessionExitFormOpen}
-                // notes={notes}
-                // nextClassConfirmed={nextClassConfirmed}
-                // setSelectedSession={setSelectedSession}
-                // setSelectedSessionDate={setSelectedSessionDate}
-                // setIsDialogOpen={setIsDialogOpen}
-                // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                // setNotes={setNotes}
-                // setNextClassConfirmed={setNextClassConfirmed}
-                // handleStatusChange={handleStatusChange}
-                // handleReschedule={handleReschedule}
-                // handleSessionComplete={handleSessionComplete}
-                // handlePageChange={handlePageChange}
-                // handleRowsPerPageChange={handleRowsPerPageChange}
-                // handleInputChange={handleInputChange}
-              />
+              <CurrentSessionsTable />
             </Suspense>
           </div>
         </div>
@@ -393,7 +316,9 @@ const StudentDashboard = ({
                   placeholder="Filter sessions..."
                   className="w-64"
                   value={SC.filterValueActiveSessions}
-                  onChange={(e) => SC.setFilterValueActiveSessions(e.target.value)}
+                  onChange={(e) =>
+                    SC.setFilterValueActiveSessions(e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -401,22 +326,7 @@ const StudentDashboard = ({
               <ActiveSessionsTable
                 paginatedSessions={paginatedSessions}
                 filteredSessions={SC.filteredSessions}
-                // meetings={meetings}
-                // currentPage={currentPage}
                 totalPages={totalPages}
-                // rowsPerPage={rowsPerPage.toString()}
-                // selectedSession={selectedSession}
-                // selectedSessionDate={selectedSessionDate}
-                // isDialogOpen={isDialogOpen}
-                // isSessionExitFormOpen={isSessionExitFormOpen}
-                // notes={notes}
-                // nextClassConfirmed={nextClassConfirmed}
-                // setSelectedSession={setSelectedSession}
-                // setSelectedSessionDate={setSelectedSessionDate}
-                // setIsDialogOpen={setIsDialogOpen}
-                // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                // setNotes={setNotes}
-                // setNextClassConfirmed={setNextClassConfirmed}
                 handleStatusChange={handleStatusChange}
                 handleReschedule={handleReschedule}
                 handleSessionComplete={handleSessionComplete}
@@ -426,10 +336,6 @@ const StudentDashboard = ({
               />
             </Suspense>
           </div>
-
-          {/* <div className="w-80">
-            <TutorCalendar sessions={sessions} />
-          </div> */}
         </div>
       </div>
       <div className="p-8">
@@ -444,7 +350,9 @@ const StudentDashboard = ({
                   placeholder="Filter sessions..."
                   className="w-64"
                   value={SC.filterValuePastSessions}
-                  onChange={(e) => SC.setFilterValuePastSessions(e.target.value)}
+                  onChange={(e) =>
+                    SC.setFilterValuePastSessions(e.target.value)
+                  }
                 />
               </div>
             </div>
