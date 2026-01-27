@@ -28,19 +28,19 @@ async function TutorDashboardPage({
     startDate: startOfWeek(new Date()).toISOString(),
     endDate: endOfWeek(new Date()).toISOString(),
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const activeTutorSessions = getTutorSessions(profile.id, {
     status: "Active",
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const pastTutorSessions = getTutorSessions(profile.id, {
     status: ["Complete", "Cancelled"],
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   return (
@@ -74,19 +74,19 @@ async function StudentDashboardPage({
     startDate: startOfWeek(new Date()).toISOString(),
     endDate: endOfWeek(new Date()).toISOString(),
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const activeStudentSessions = getStudentSessions(profile.id, {
     status: "Active",
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const pastStudentSessions = getStudentSessions(profile.id, {
     status: ["Complete", "Cancelled"],
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   return (
