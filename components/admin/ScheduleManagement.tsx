@@ -654,6 +654,13 @@ const Schedule = ({
     return { totalStudents, studentsThisWeek };
   };
 
+  // calc total and unique sessions for the week
+  const getSessionStatistics = () => {
+    const totalSessions = sessions.length;
+    const tutorsInvolved = new Set(sessions.map((session) => session?.tutor?.id)).size;
+    return { totalSessions, tutorsInvolved };
+  };
+
   const handleGetMissingSEF = async () => {
     try {
       await  getEnrollmentsWithMissingSEF();
@@ -978,14 +985,22 @@ const Schedule = ({
           </h3>
           <Card className="mb-6">
             <CardContent className="p-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <p className="font-medium">Total Students:</p>
                   <p>{getEnrollmentProgress().totalStudents}</p>
                 </div>
                 <div>
-                  <p className="font-medium">Students This Week:</p>
+                  <p className="font-medium"># Of Unique Students This Week:</p>
                   <p>{getEnrollmentProgress().studentsThisWeek}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Total Sessions This Week:</p>
+                  <p>{getSessionStatistics().totalSessions}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Tutors Involved This Week:</p>
+                  <p>{getSessionStatistics().tutorsInvolved}</p>
                 </div>
               </div>
             </CardContent>
