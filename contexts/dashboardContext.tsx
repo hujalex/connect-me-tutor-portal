@@ -9,6 +9,7 @@ import {
   useContext,
   useState,
   useEffect,
+  use,
 } from "react";
 
 export interface DashboardContextValue {
@@ -59,21 +60,50 @@ export interface DashboardContextValue {
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 
+interface DashboardContextProviderParams {
+  children: ReactNode;
+  initialProfile: Profile;
+  params?: {
+    initialCurrentSessions: Session[];
+    initialPastSessions: Session[];
+    initialActiveSessions: Session[];
+    initialMeetings: Meeting[];
+  };
+  promises?: {
+    currentSessionsPromise: Promise<Session[]>;
+    pastSessionsPromise: Promise<Session[]>;
+    activeSessionsPromise: Promise<Session[]>;
+    meetingsPromise: Promise<Meeting[] | null>;
+  };
+}
+
 export function DashboardContextProvider({
   children,
   initialProfile,
-  initialCurrentSessions,
-  initialPastSessions,
-  initialActiveSessions,
-  initialMeetings,
-}: {
-  children: ReactNode;
-  initialProfile: Profile;
-  initialCurrentSessions: Session[];
-  initialPastSessions: Session[];
-  initialActiveSessions: Session[];
-  initialMeetings: Meeting[];
-}) {
+  params,
+  promises,
+}: DashboardContextProviderParams) {
+  const initialCurrentSessions = params
+    ? params.initialCurrentSessions
+    : promises
+      ? use(promises.currentSessionsPromise)
+      : [];
+  const initialPastSessions = params
+    ? params.initialPastSessions
+    : promises
+      ? use(promises.pastSessionsPromise)
+      : [];
+  const initialActiveSessions = params
+    ? params.initialActiveSessions
+    : promises
+      ? use(promises.activeSessionsPromise)
+      : [];
+  const initialMeetings = params
+    ? params.initialMeetings
+    : promises
+      ? use(promises.meetingsPromise)
+      : [];
+
   const [currentSessions, setCurrentSessions] = useState<Session[]>(
     initialCurrentSessions,
   );
@@ -103,12 +133,6 @@ export function DashboardContextProvider({
   const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
   const [notes, setNotes] = useState<string>("");
   const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
-
-  // useEffect(() => {
-  //   if (initialProfile && profile?.id !== initialProfile.id) {
-  //     setProfile(initialProfile);
-  //   }
-  // }, [initialProfile, profile?.id]);
 
   const contextValue: DashboardContextValue = {
     currentSessions,

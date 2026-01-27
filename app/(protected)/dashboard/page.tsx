@@ -3,7 +3,6 @@ import AdminDashboard from "@/components/admin/DashboardContent";
 import StudentDashboard from "@/components/student/StudentDashboard";
 import TutorDashboard from "@/components/tutor/dashboard";
 import SkeletonTable from "@/components/ui/skeleton";
-import StudentContextProvider from "./(students)/studentContextProvider";
 import { getMeetings } from "@/lib/actions/meeting.server.actions";
 import {
   cachedGetProfile,
@@ -16,7 +15,7 @@ import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import TutorContextProvider from "./(tutor)/tutorContextProvider";
+import { DashboardContextProvider } from "@/contexts/dashboardContext";
 
 async function TutorDashboardPage({
   profile,
@@ -46,22 +45,20 @@ async function TutorDashboardPage({
 
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <TutorContextProvider
+      <DashboardContextProvider
+        key = {profile.id}
         initialProfile={profile}
-        currentSessionsPromise={currentTutorSessions}
-        activeSessionsPromise={activeTutorSessions}
-        pastSessionsPromise={pastTutorSessions}
-        meetingsPromise={meetings}
+        promises = {{
+          currentSessionsPromise: currentTutorSessions,
+          activeSessionsPromise: activeTutorSessions,
+          pastSessionsPromise: pastTutorSessions,
+          meetingsPromise: meetings
+        }}
       >
         <TutorDashboard
           key={profile.id}
-          initialProfile={profile}
-          currentSessionsPromise={currentTutorSessions}
-          activeSessionsPromise={activeTutorSessions}
-          pastSessionsPromise={pastTutorSessions}
-          meetingsPromise={meetings}
         />
-      </TutorContextProvider>
+      </DashboardContextProvider>
     </Suspense>
   );
 }
@@ -94,22 +91,20 @@ async function StudentDashboardPage({
 
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <StudentContextProvider
+      <DashboardContextProvider
+        key={profile.id}
         initialProfile={profile}
-        currentSessionsPromise={currentStudentSessions}
-        activeSessionsPromise={activeStudentSessions}
-        pastSessionsPromise={pastStudentSessions}
-        meetingsPromise={meetings}
+        promises={{
+          currentSessionsPromise: currentStudentSessions,
+          activeSessionsPromise: activeStudentSessions,
+          pastSessionsPromise: pastStudentSessions,
+          meetingsPromise: meetings,
+        }}
       >
         <StudentDashboard
           key={profile.id}
-          initialProfile={profile}
-          currentSessionsPromise={currentStudentSessions}
-          activeSessionsPromise={activeStudentSessions}
-          pastSessionsPromise={pastStudentSessions}
-          meetingsPromise={meetings}
         />
-      </StudentContextProvider>
+      </DashboardContextProvider>
     </Suspense>
   );
 }
@@ -117,19 +112,25 @@ async function StudentDashboardPage({
 export default async function DashboardPage() {
   const user = await cachedGetUser();
   if (!user) redirect("/");
-
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("No Profile found");
-
   const meetings = getMeetings();
 
   return (
     <>
       {profile.role === "Student" && (
-        <StudentDashboardPage key = {profile.id} profile={profile} meetings={meetings} />
+        <StudentDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Tutor" && (
-        <TutorDashboardPage key = {profile.id} profile={profile} meetings={meetings} />
+        <TutorDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Admin" && <AdminDashboard />}
     </>
