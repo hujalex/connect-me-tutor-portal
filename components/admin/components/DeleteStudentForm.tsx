@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+// delete student flow
+// pick a student then confirm
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,9 +24,13 @@ import { Combobox } from "@/components/ui/combobox";
 import { ScrollArea } from "@/components/ui/scrollarea";
 
 interface DeleteStudentFormProps {
+  // list of students for the picker
   students: Profile[];
+  // selected student id comes from parent
   selectedStudentId: string | null;
+  // update selected student id
   setSelectedStudentId: (value: string) => void;
+  // parent does the delete work
   handleDeleteStudent: () => void;
 }
 
@@ -34,6 +40,7 @@ const DeleteStudentForm = ({
   setSelectedStudentId,
   handleDeleteStudent,
 }: DeleteStudentFormProps) => {
+  // dialog ui for picking student then confirming delete
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -50,7 +57,7 @@ const DeleteStudentForm = ({
           <div className="relative">
             <Combobox
               list={students
-                // .filter((student) => student.status === "Active")
+                // could filter to only active if we want later
                 .map((student) => ({
                   value: student.id,
                   label: `${student.firstName} ${student.lastName} - ${student.email}`,

@@ -24,26 +24,41 @@ import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import TimeZoneSelector from "./components/TimezoneSelector";
 
+// props needed to pick and edit a student
 interface EditStudentFormProps {
+  // list of students for the selector
   students: Profile[];
+  // selected student id from the selector
   selectedStudentId: string | null;
+  // sets selected student id
   setSelectedStudentId: (value: string) => void;
+  // loads the student by id into selectedStudent
   handleGetSelectedStudent: (value: string | null) => void;
+  // currently loaded student record
   selectedStudent: Profile | null;
+  // simple input handler for basic fields
   handleInputChangeForEdit: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => void;
+  // select handler for grade
   handleGradeChangeForEdit: (value: string) => void;
+  // select handler for gender
   handleGenderForEdit: (value: string) => void;
+  // updates timezone field
   handleTimeZoneForEdit: (value: string) => void;
+  // input handler for subjects field when it is plain text
   handleSubjectsChangeForEdit: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  // generic setter for complex profile fields
   handleEditProfile: (name: string, value: any) => void;
+  // formats grade label
   getOrdinalSuffix: (value: number) => void;
+  // saves edits for the student
   handleEditStudent: () => void;
 }
 
+// list of days for availability dropdown
 const DAYS_OF_WEEK = [
   "Monday",
   "Tuesday",
@@ -69,15 +84,22 @@ const EditStudentForm = ({
   getOrdinalSuffix,
   handleEditStudent,
 }: EditStudentFormProps) => {
+  // outer modal state
   const [isReactivateModalOpen, setIsReactivateModalOpen] =
     useState<boolean>(false);
 
+  // basic tab is identity fields extended tab is profile fields
   const [activeTab, setActiveTab] = useState("basic");
+
+  // text input for adding a subject
   const [subjectInput, setSubjectInput] = useState("");
+  // text input for adding a language
   const [languageInput, setLanguageInput] = useState("");
 
+  // inner modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
+  // adds one availability row to the student
   const addAvailabilitySlot = () => {
     if (!selectedStudent) return;
 
@@ -89,6 +111,7 @@ const EditStudentForm = ({
     handleEditProfile("availability", newAvailability);
   };
 
+  // updates a single field in one availability row
   const updateAvailabilitySlot = (
     index: number,
     field: "day" | "startTime" | "endTime",
@@ -102,6 +125,7 @@ const EditStudentForm = ({
     handleEditProfile("availability", updated);
   };
 
+  // removes one availability row
   const removeAvailabilitySlot = (index: number) => {
     if (!selectedStudent || !selectedStudent.availability) return;
 
@@ -110,6 +134,7 @@ const EditStudentForm = ({
     handleEditProfile("availability", updated);
   };
 
+  // adds one subject into the list
   const addSubject = () => {
     if (!selectedStudent || !subjectInput.trim()) return;
 
@@ -120,9 +145,11 @@ const EditStudentForm = ({
 
     handleEditProfile("subjects_of_interest", updated);
 
+    // clear text box after add
     setSubjectInput("");
   };
 
+  // removes one subject from the list
   const removeSubject = (subject: string) => {
     if (!selectedStudent || !selectedStudent.subjects_of_interest) return;
 
@@ -133,6 +160,7 @@ const EditStudentForm = ({
     handleEditProfile("subjects_of_interest", updated);
   };
 
+  // adds one language into the list
   const addLanguage = () => {
     if (!selectedStudent || !languageInput.trim()) return;
 
@@ -143,9 +171,11 @@ const EditStudentForm = ({
 
     handleEditProfile("languages_spoken", updated);
 
+    // clear text box after add
     setLanguageInput("");
   };
 
+  // removes one language from the list
   const removeLanguage = (language: string) => {
     if (!selectedStudent || !selectedStudent.languages_spoken) return;
 
@@ -156,6 +186,7 @@ const EditStudentForm = ({
     handleEditProfile("languages_spoken", updated);
   };
 
+  // outer dialog picks student id then inner dialog edits fields
   return (
     <Dialog
       open={isReactivateModalOpen}
@@ -176,7 +207,7 @@ const EditStudentForm = ({
           <div className="relative">
             <Combobox
               list={students
-                // .filter((student) => student.status === "Inactive")
+                // filter students list here if needed
                 .map((student) => ({
                   value: student.id,
                   label: `${student.firstName} ${student.lastName} - ${student.email}`,

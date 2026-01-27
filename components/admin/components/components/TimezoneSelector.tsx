@@ -8,11 +8,14 @@ import {
 import { Profile } from "@/types";
 
 interface TimeZoneSelectorProps {
+    // profile can be partial while filling forms
     profile: Partial<Profile> | null,
+    // parent updates state when timezone changes
     handleTimeZone: (value: string) => void
 }
 
 const TimeZoneSelector = ({ profile, handleTimeZone }: TimeZoneSelectorProps) => {
+  // timezone dropdown
   return (
     <Select
       name="timeZone"

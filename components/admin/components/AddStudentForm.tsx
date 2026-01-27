@@ -22,6 +22,7 @@ import { Plus, X } from "lucide-react";
 import { Profile } from "@/types";
 import TimeZoneSelector from "./components/TimezoneSelector";
 
+// list of days for availability dropdown
 const DAYS_OF_WEEK = [
   "Monday",
   "Tuesday",
@@ -33,17 +34,24 @@ const DAYS_OF_WEEK = [
 ];
 
 interface AddStudentFormProps {
+  // draft student object lives in parent
   newStudent: Partial<Profile>;
+  // basic inputs write back to parent
   handleInputChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => void;
+  // grade uses a select so it gets its own handler
   handleGradeChange: (value: string) => void;
 
+  // timezone selector uses on value change
   handleTimeZone: (value: string) => void;
+  // gender selector uses on value change
   handleGender: (value: string) => void;
+  // parent submits student to backend
   handleAddStudent: (value: Partial<Profile>) => void;
+  // used to disable buttons while saving
   addingStudent: boolean;
 }
 
@@ -56,23 +64,31 @@ const AddStudentForm = ({
   handleAddStudent,
   addingStudent,
 }: AddStudentFormProps) => {
+  // controls the modal open state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // basic tab is main info extended tab is extra fields
   const [activeTab, setActiveTab] = useState("basic");
 
-  // Mock student state - replace with your actual state management
+  // local state for extended fields
 
+  // local list of subjects for the extended tab
   const [subjectsOfInterest, setSubjectsOfInterest] = useState<string[]>([]);
 
+  // local list of languages for the extended tab
   const [languagesSpoken, setLanguagesSpoken] = useState<string[]>([]);
 
+  // local availability slots for the extended tab
   const [availability, setAvailability] = useState<
     { day: string; startTime: string; endTime: string }[]
   >([]);
+  // input box state for adding one subject
   const [newSubject, setNewSubject] = useState("");
+  // input box state for adding one language
   const [newLanguage, setNewLanguage] = useState("");
 
-  // Mock handlers - replace with your actual handlers
+  // local handlers for extended fields
 
+  // adds one default availability row
   const addAvailabilitySlot = () => {
     setAvailability([
       ...availability,
@@ -80,6 +96,7 @@ const AddStudentForm = ({
     ]);
   };
 
+  // updates one field inside one availability row
   const updateAvailabilitySlot = (
     index: number,
     field: keyof (typeof availability)[0],
@@ -90,20 +107,24 @@ const AddStudentForm = ({
     setAvailability(updated);
   };
 
+  // removes one availability row
   const removeAvailabilitySlot = (index: number) => {
     setAvailability(availability.filter((_, i) => i !== index));
   };
 
+  // adds one subject into the list
   const addSubject = () => {
     if (newSubject.trim() && !subjectsOfInterest.includes(newSubject.trim())) {
       setSubjectsOfInterest([...subjectsOfInterest, newSubject.trim()]);
       setNewSubject("");
     }
   };
+  // removes one subject from the list
   const removeSubject = (subject: string) => {
     setSubjectsOfInterest(subjectsOfInterest.filter((s) => s !== subject));
   };
 
+  // adds one language into the list
   const addLanguage = () => {
     if (newLanguage.trim() && !languagesSpoken.includes(newLanguage.trim())) {
       setLanguagesSpoken([...languagesSpoken, newLanguage.trim()]);
@@ -111,10 +132,12 @@ const AddStudentForm = ({
     }
   };
 
+  // removes one language from the list
   const removeLanguage = (language: string) => {
     setLanguagesSpoken(languagesSpoken.filter((l) => l !== language));
   };
 
+  // helper for grade display
   const getOrdinalSuffix = (num: number) => {
     if (num === 1) return "st";
     if (num === 2) return "nd";
@@ -122,6 +145,8 @@ const AddStudentForm = ({
     return "th";
   };
 
+  // merges local extended fields into the parent student object
+  // then calls the parent submit handler
   const handleEnhancedAddStudent = () => {
     const studentWithExtendedFields = {
       ...newStudent,
