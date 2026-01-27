@@ -26,21 +26,29 @@ import { Switch } from "@/components/ui/switch";
 import TimeZoneSelector from "./components/TimezoneSelector";
 
 interface AddTutorFormProps {
+  // draft tutor object lives in parent
   newTutor: Partial<Profile>;
+  // used to disable buttons while saving
   addingTutor: boolean;
+  // basic inputs write back to parent
   handleInputChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => void;
+  // parent submits tutor to backend
+  // add to pairing queue is optional
   handleAddTutor: (
     value: Partial<Profile>,
     addToPairingQueue?: boolean
   ) => void;
+  // timezone selector uses on value change
   handleTimeZone: (value: string) => void;
+  // parent state setter for new tutor
   setNewTutor: React.Dispatch<React.SetStateAction<Partial<Profile>>>; // 👈 add this
 }
 
+// list of days for availability dropdown
 const DAYS_OF_WEEK = [
   "Monday",
   "Tuesday",
@@ -59,22 +67,32 @@ const AddTutorForm = ({
   handleAddTutor,
   handleTimeZone,
 }: AddTutorFormProps) => {
+  // controls the modal open state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // basic tab is main info extended tab is extra fields
   const [activeTab, setActiveTab] = useState("basic");
+  // toggle for adding new tutors to pairing queue
   const [addNewProfilesToQueue, setAddNewProfilesToQueue] =
     useState<boolean>(false);
 
-  // Extended profile fields (moved from the original component state)
+  // extended profile fields moved from original component state
+  // local list of subjects for extended tab
   const [subjectsOfInterest, setSubjectsOfInterest] = useState<string[]>([]);
+  // local list of languages for extended tab
   const [languagesSpoken, setLanguagesSpoken] = useState<string[]>([]);
+  // local availability slots for extended tab
   const [availability, setAvailability] = useState<
     { day: string; startTime: string; endTime: string }[]
   >([]);
 
+  // input box state for adding one subject
   const [newSubject, setNewSubject] = useState("");
+  // input box state for adding one language
   const [newLanguage, setNewLanguage] = useState("");
+  // gender select value
   const [newGender, setNewGender] = useState("");
 
+  // adds one default availability row
   const addAvailabilitySlot = () => {
     setAvailability([
       ...availability,
@@ -82,6 +100,7 @@ const AddTutorForm = ({
     ]);
   };
 
+  // updates one field inside one availability row
   const updateAvailabilitySlot = (
     index: number,
     field: keyof (typeof availability)[0],
@@ -92,10 +111,12 @@ const AddTutorForm = ({
     setAvailability(updated);
   };
 
+  // removes one availability row
   const removeAvailabilitySlot = (index: number) => {
     setAvailability(availability.filter((_, i) => i !== index));
   };
 
+  // adds one subject into the list
   const addSubject = () => {
     if (newSubject.trim() && !subjectsOfInterest.includes(newSubject.trim())) {
       setSubjectsOfInterest([...subjectsOfInterest, newSubject.trim()]);
@@ -103,10 +124,12 @@ const AddTutorForm = ({
     }
   };
 
+  // removes one subject from the list
   const removeSubject = (subject: string) => {
     setSubjectsOfInterest(subjectsOfInterest.filter((s) => s !== subject));
   };
 
+  // adds one language into the list
   const addLanguage = () => {
     if (newLanguage.trim() && !languagesSpoken.includes(newLanguage.trim())) {
       setLanguagesSpoken([...languagesSpoken, newLanguage.trim()]);
@@ -114,24 +137,14 @@ const AddTutorForm = ({
     }
   };
 
+  // removes one language from the list
   const removeLanguage = (language: string) => {
     setLanguagesSpoken(languagesSpoken.filter((l) => l !== language));
   };
 
-  // const handleAddExtendedFields = () => {
-  //   setNewTutor((prev) => ({ ...prev, availability: availability }));
-  //   setNewTutor((prev) => ({
-  //     ...prev,
-  //     subjects_of_interest: subjectsOfInterest,
-  //   }));
-  //   setNewTutor((prev) => ({ ...prev, languages_spoken: languagesSpoken }));
-  // };
-
-  // Enhanced handleAddTutor to include extended fields
+  // merges extended fields then calls the parent submit handler
   const handleEnhancedAddTutor = (addToPairingQueue?: boolean) => {
-    // You'll need to modify this to include the extended fields
-    // This assumes your Profile type and handleAddTutor can accept these fields
-
+    // build one object that matches the profile shape
     const tutorWithExtendedFields = {
       ...newTutor,
       availability,
@@ -139,10 +152,7 @@ const AddTutorForm = ({
       languages_spoken: languagesSpoken,
     };
 
-    // handleAddExtendedFields();
-
-    // Call original handler - you may need to modify the parent component
-    // to handle these additional fields
+    // call parent handler with merged fields
     handleAddTutor(tutorWithExtendedFields, addToPairingQueue);
   };
 

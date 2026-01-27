@@ -24,27 +24,43 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvailabilities } from "@/components/ui/UserAvailabilities";
 import TimeZoneSelector from "./components/TimezoneSelector";
 
+// props needed to pick and edit a tutor
 interface EditTutorFormProps {
+  // outer modal open state
   isReactivateModalOpen: boolean;
+  // updates outer modal open state
   setIsReactivateModalOpen: (value: boolean) => void;
+  // inner modal open state
   isEditModalOpen: boolean;
+  // updates inner modal open state
   setIsEditModalOpen: (value: boolean) => void;
+  // list of tutors for the selector
   tutors: Profile[];
+  // currently loaded tutor record
   selectedTutor: Profile | null;
+  // selected tutor id from the selector
   selectedTutorId: string | null;
+  // sets the loaded tutor record
   setSelectedTutor: (value: Profile | null) => void;
+  // sets selected tutor id
   setSelectedTutorId: (value: string) => void;
+  // saves edits for the tutor
   handleEditTutor: () => void;
+  // loads the tutor by id into selectedTutor
   handleGetSelectedTutor: (value: string | null) => void;
+  // simple input handler for basic fields
   handleInputChangeForEdit: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => void;
+  // updates complex fields like arrays
   handleComplexFieldsForEdit: (name: string, value: any) => void;
+  // updates timezone field
   handleTimeZoneForEdit: (value: string) => void;
 }
 
+// list of days for availability dropdown
 const DAYS_OF_WEEK = [
   "Monday",
   "Tuesday",
@@ -71,12 +87,20 @@ const EditTutorForm = ({
   handleComplexFieldsForEdit,
   handleTimeZoneForEdit,
 }: EditTutorFormProps) => {
+  // basic tab is identity fields extended tab is profile fields
   const [activeTab, setActiveTab] = useState("basic");
+
+  // unused state kept for future edits
   const [newSubject, setNewSubject] = useState<string[]>([]);
+  // unused state kept for future edits
   const [newLanguage, setNewLanguage] = useState<string[]>([]);
+
+  // text input for adding a subject
   const [subjectInput, setSubjectInput] = useState("");
+  // text input for adding a language
   const [languageInput, setLanguageInput] = useState("");
 
+  // adds one availability row to the tutor
   const addAvailabilitySlot = () => {
     if (!selectedTutor) return;
 
@@ -88,6 +112,7 @@ const EditTutorForm = ({
     handleComplexFieldsForEdit("availability", newAvailability);
   };
 
+  // updates a single field in one availability row
   const updateAvailabilitySlot = (
     index: number,
     field: "day" | "startTime" | "endTime",
@@ -101,6 +126,7 @@ const EditTutorForm = ({
     handleComplexFieldsForEdit("availability", updated);
   };
 
+  // removes one availability row
   const removeAvailabilitySlot = (index: number) => {
     if (!selectedTutor || !selectedTutor.availability) return;
 
@@ -109,6 +135,7 @@ const EditTutorForm = ({
     handleComplexFieldsForEdit("availability", updated);
   };
 
+  // adds one subject into the list
   const addSubject = () => {
     if (!selectedTutor || !subjectInput.trim()) return;
 
@@ -119,9 +146,11 @@ const EditTutorForm = ({
 
     handleComplexFieldsForEdit("subjects_of_interest", updated);
 
+    // clear text box after add
     setSubjectInput("");
   };
 
+  // removes one subject from the list
   const removeSubject = (subject: string) => {
     if (!selectedTutor || !selectedTutor.subjects_of_interest) return;
 
@@ -132,6 +161,7 @@ const EditTutorForm = ({
     handleComplexFieldsForEdit("subjects_of_interest", updated);
   };
 
+  // adds one language into the list
   const addLanguage = () => {
     if (!selectedTutor || !languageInput.trim()) return;
 
@@ -142,9 +172,11 @@ const EditTutorForm = ({
 
     handleComplexFieldsForEdit("languages_spoken", updated);
 
+    // clear text box after add
     setLanguageInput("");
   };
 
+  // removes one language from the list
   const removeLanguage = (language: string) => {
     if (!selectedTutor || !selectedTutor.languages_spoken) return;
 
@@ -155,6 +187,7 @@ const EditTutorForm = ({
     handleComplexFieldsForEdit("languages_spoken", updated);
   };
 
+  // outer dialog picks tutor id then inner dialog edits fields
   return (
     <Dialog
       open={isReactivateModalOpen}
@@ -505,7 +538,6 @@ const EditTutorForm = ({
                     </div>
                   </div>
                 </div>
-                // </div>
               )}
             </div>
 

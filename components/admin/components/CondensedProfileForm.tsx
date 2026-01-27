@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { X, Plus, BookOpen, Languages } from "lucide-react";
 
+// lightweight profile shape used just for this ui
 interface Profile {
   id: string;
   firstName: string;
@@ -25,11 +26,15 @@ interface Profile {
 }
 
 interface CondensedProfileFormProps {
+  // initial profile data
   profile: Profile;
+  // parent callback for saving changes
   onProfileUpdate: (updatedProfile: Profile) => void;
+  // flag for showing student or tutor label
   isStudent?: boolean; // Flag to determine if this is for student or tutor
 }
 
+// list of days for availability dropdown
 const DAYS_OF_WEEK = [
   "Monday",
   "Tuesday",
@@ -45,16 +50,21 @@ export default function CondensedProfileForm({
   onProfileUpdate,
   isStudent = true,
 }: CondensedProfileFormProps) {
+  // local copy so typing feels instant
   const [localProfile, setLocalProfile] = useState<Profile>(profile);
+  // input box state for adding one subject
   const [newSubject, setNewSubject] = useState("");
+  // input box state for adding one language
   const [newLanguage, setNewLanguage] = useState("");
 
+  // merge updates into local profile and call parent
   const updateProfile = (updates: Partial<Profile>) => {
     const updatedProfile = { ...localProfile, ...updates };
     setLocalProfile(updatedProfile);
     onProfileUpdate(updatedProfile);
   };
 
+  // adds one default availability row
   const addAvailabilitySlot = () => {
     const newAvailability = [
       ...(localProfile.availability || []),
@@ -63,6 +73,7 @@ export default function CondensedProfileForm({
     updateProfile({ availability: newAvailability });
   };
 
+  // updates one field inside one availability row
   const updateAvailabilitySlot = (
     index: number,
     field: keyof { day: string; startTime: string; endTime: string },
@@ -75,6 +86,7 @@ export default function CondensedProfileForm({
     updateProfile({ availability: updated });
   };
 
+  // removes one availability row
   const removeAvailabilitySlot = (index: number) => {
     if (!localProfile.availability) return;
 
@@ -82,6 +94,7 @@ export default function CondensedProfileForm({
     updateProfile({ availability: filtered });
   };
 
+  // adds one subject into the list
   const addSubject = () => {
     if (
       newSubject.trim() &&
@@ -96,6 +109,7 @@ export default function CondensedProfileForm({
     }
   };
 
+  // removes one subject from the list
   const removeSubject = (subject: string) => {
     const filtered = (localProfile.subjectsOfInterest || []).filter(
       (s) => s !== subject
@@ -103,6 +117,7 @@ export default function CondensedProfileForm({
     updateProfile({ subjectsOfInterest: filtered });
   };
 
+  // adds one language into the list
   const addLanguage = () => {
     if (
       newLanguage.trim() &&
@@ -117,6 +132,7 @@ export default function CondensedProfileForm({
     }
   };
 
+  // removes one language from the list
   const removeLanguage = (language: string) => {
     const filtered = (localProfile.languages_spoken || []).filter(
       (l) => l !== language

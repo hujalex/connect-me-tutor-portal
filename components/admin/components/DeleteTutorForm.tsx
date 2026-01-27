@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+// delete tutor flow
+// pick a tutor then confirm
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,9 +23,13 @@ import { Profile } from "@/types";
 import { Combobox } from "@/components/ui/combobox";
 
 interface DeleteTutorFormProps {
+  // list of tutors for the picker
   tutors: Profile[];
+  // selected tutor id lives in parent
   selectedTutorId: string | null;
+  // let parent know what tutor got picked
   setSelectedTutorId: (value: string | null) => void;
+  // parent does the actual delete
   handleDeleteTutor: () => void;
 }
 
@@ -33,8 +39,10 @@ const DeleteTutorForm = ({
   setSelectedTutorId,
   handleDeleteTutor,
 }: DeleteTutorFormProps) => {
+  // local modal open state so the dialog can open n close
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
 
+  // dialog ui for picking tutor then confirming delete
   return (
     <Dialog
       open={isDeactivateModalOpen}
@@ -53,6 +61,7 @@ const DeleteTutorForm = ({
           </Label>
           <div className="relative">
             <Combobox
+              // only show active tutors so we dont delete inactive ones by accident
               list={tutors
                 .filter((tutor) => tutor.status === "Active")
                 .map((tutor) => ({

@@ -36,33 +36,59 @@ import { Check, ChevronDown, Circle, Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 
 interface EnrollmentFormProps {
+  // controls student dropdown popover
   openStudentOptions: boolean;
+  // sets student dropdown popover open state
   setOpenStudentOptions: (value: boolean) => void;
+  // selected student id
   selectedStudentId: string;
+  // sets selected student id
   setSelectedStudentId: (value: string) => void;
+  // quick map for student info lookup
   studentsMap: Record<string, Profile>;
+  // student search text
   studentSearch: string;
+  // sets student search text
   setStudentSearch: (value: string) => void;
+  // student list for picker
   students: Profile[];
+  // controls tutor dropdown popover
   openTutorOptions: boolean;
+  // sets tutor dropdown popover open state
   setOpenTutorOptions: (value: boolean) => void;
+  // selected tutor id
   selectedTutorId: string;
+  // sets selected tutor id
   setSelectedTutorId: (value: string) => void;
+  // tutor list for picker
   tutors: Profile[];
+  // tutor search text
   tutorSearch: string;
+  // sets tutor search text
   setTutorSearch: (value: string) => void;
+  // availability list for enrollment
   availabilityList: Availability[];
+  // sets availability list
   setAvailabilityList: (value: Availability[]) => void;
+  // draft enrollment object
   newEnrollment: Enrollment;
+  // sets draft enrollment object
   setNewEnrollment: (value: Enrollment) => void;
+  // handles select changes like frequency
   handleInputSelectionChange: (value: string, type: string) => void;
+  // triggers meeting availability calc in parent
   setAvailableMeetingsForEnrollments: (value: Enrollment) => void;
+  // disables inputs while checking meetings
   isCheckingMeetingAvailability: boolean;
+  // meeting list for meeting id select
   meetings: Meeting[];
+  // map of meeting id to availability
   meetingAvailability: {
     [key: string]: boolean;
   };
+  // basic input change passthrough
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
+  // submit enrollment action
   handleAddEnrollment: () => void;
 }
 
@@ -94,6 +120,7 @@ const EnrollmentForm = ({
   handleInputChange,
   handleAddEnrollment,
 }: EnrollmentFormProps) => {
+  // modal open state for add enrollment
   const [isModalOpen, setIsAddModalOpen] = useState(false);
 
   return (
@@ -261,7 +288,6 @@ const EnrollmentForm = ({
               </Popover>
             </div>
             <AvailabilityForm
-              // availabilityList={newEnrollment.availability}
               availabilityList={availabilityList} // new enrollment by default will not have an availability
               setAvailabilityList={(availability) => {
                 setAvailabilityList(availability);
@@ -339,7 +365,6 @@ const EnrollmentForm = ({
                 type="date"
                 value={newEnrollment.startDate}
                 onChange={handleInputChange}
-                // className="col-span-3"
               />
               {/* <Label htmlFor="endDate" className="text-right">
                           End Date
@@ -350,7 +375,6 @@ const EnrollmentForm = ({
                           type="date"
                           value={newEnrollment.endDate}
                           onChange={handleInputChange}
-                          // className="col-span-3"
                         /> */}
             </div>
             <div>
