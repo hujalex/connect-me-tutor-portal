@@ -1,10 +1,14 @@
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import DashboardProviders from "./dashboardprovider";
-import { cachedGetProfile, getUserProfiles } from "@/lib/actions/profile.server.actions";
+import {
+  cachedGetProfile,
+  getUserProfiles,
+} from "@/lib/actions/profile.server.actions";
 import { redirect } from "next/navigation";
+import CurrentSessionsTable from "@/components/student/components/CurrentSessionsTable";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default async function Layout({
   children,
@@ -24,13 +28,17 @@ export default async function Layout({
     redirect("/");
   }
 
-  const userProfiles = getUserProfiles(profile.userId)
+  const userProfiles = getUserProfiles(profile.userId);
 
   return (
     <>
-      <DashboardProviders initialProfile={profile}>
+      <DashboardProviders
+        initialProfile={profile}
+      >
         {" "}
-        <DashboardLayout profile={profile} userProfilesPromise = {userProfiles}>{children}</DashboardLayout>
+        <DashboardLayout profile={profile} userProfilesPromise={userProfiles}>
+          {children}
+        </DashboardLayout>
       </DashboardProviders>
     </>
   );

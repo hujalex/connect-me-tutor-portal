@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { format, parseISO, isAfter } from "date-fns";
 import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
+import { useDashboardContext } from "@/contexts/dashboardContext";
 // import SessionExitForm from "./SessionExitForm";
 // import RescheduleForm from "./RescheduleDialog";
 // import CancellationForm from "./CancellationForm";
@@ -88,45 +89,22 @@ interface CurrentSessionTableProps {
   handleReschedule: (
     sessionId: string,
     newDate: string,
-    meetingId: string
+    meetingId: string,
   ) => void;
   handleSessionComplete: (
     session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
-    isFirstSession: boolean
+    isFirstSession: boolean,
   ) => void;
   handlePageChange: (page: number) => void;
   handleRowsPerPageChange: (value: string) => void;
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
 }
 
-const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
-  currentSessions,
-  filteredSessions,
-  meetings,
-  currentPage,
-  totalPages,
-  rowsPerPage,
-  selectedSession,
-  selectedSessionDate,
-  isDialogOpen,
-  isSessionExitFormOpen,
-  notes,
-  nextClassConfirmed,
-  setSelectedSession,
-  setSelectedSessionDate,
-  setIsDialogOpen,
-  setIsSessionExitFormOpen,
-  setNotes,
-  setNextClassConfirmed,
-  handleStatusChange,
-  handleReschedule,
-  handleSessionComplete,
-  handlePageChange,
-  handleRowsPerPageChange,
-  handleInputChange,
-}) => {
+const CurrentSessionsTable = () => {
+  const SC = useDashboardContext();
+
   return (
     <>
       <Table>
@@ -140,7 +118,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentSessions.map((session, index) => (
+          {SC.currentSessions.map((session, index) => (
             <TableRow
               key={index}
 
@@ -202,21 +180,7 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                   </>
                 )}
               </TableCell>
-              <TableCell>
-                {/* <SessionExitForm
-                  currSession={session}
-                  isSessionExitFormOpen={isSessionExitFormOpen}
-                  setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                  selectedSession={selectedSession}
-                  setSelectedSession={setSelectedSession}
-                  notes={notes}
-                  setNotes={setNotes}
-                  nextClassConfirmed={nextClassConfirmed}
-                  setNextClassConfirmed={setNextClassConfirmed}
-                  handleSessionComplete={handleSessionComplete}
-                  handleStatusChange={handleStatusChange}
-                /> */}
-              </TableCell>
+              <TableCell></TableCell>
             </TableRow>
           ))}
         </TableBody>

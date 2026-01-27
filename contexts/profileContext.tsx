@@ -16,6 +16,11 @@ const ProfileContext = createContext<ProfileContextValue | null>(null);
 export function ProfileContextProvider({ children, initialProfile }: { children: ReactNode, initialProfile: Profile | null }) {
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
 
+  // Sync with server-side profile when it changes
+  if (initialProfile && profile?.id !== initialProfile.id) {
+    setProfile(initialProfile);
+  }
+
   const contextValue: ProfileContextValue = {
     profile,
     setProfile,
