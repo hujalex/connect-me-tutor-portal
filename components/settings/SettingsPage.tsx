@@ -23,7 +23,7 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Profile } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
-import { switchProfile } from "@/lib/actions/profile.server.actions";
+import { switchProfile, getProfileUncached } from "@/lib/actions/profile.server.actions";
 import { useProfile } from "@/contexts/profileContext";
 import { getUserProfiles } from "@/lib/actions/profile.server.actions";
 import { NetworkAccessProfileListInstance } from "twilio/lib/rest/supersim/v1/networkAccessProfile";
@@ -62,6 +62,10 @@ export default function SettingsPage({
       ? (profile as any).languages_spoken.join(", ")
       : "",
   }));
+  // track account status stae for students so they can toggle their own active inactive status in settings without admin help
+  const [accountStatus, setAccountStatus] = useState<Profile["status"]>(
+    profile?.status === "Inactive" ? "Inactive" : "Active"
+  );
   const [sessionReminders, setSessionReminders] = useState(false);
   const [sessionEmailNotifications, setSessionEmailNotifications] =
     useState(false);
@@ -107,6 +111,8 @@ export default function SettingsPage({
         ? (profile as any).languages_spoken.join(", ")
         : "",
     });
+    // sync account status when profile loads so the selector actually shows the current saved value instead of defaults
+    setAccountStatus(profile.status === "Inactive" ? "Inactive" : "Active");
   }, [profile]);
 
   const toList = (value: string) => {
@@ -198,6 +204,10 @@ export default function SettingsPage({
         subjects_of_interest: toList(accountForm.subjectsOfInterest),
         languages_spoken: toList(accountForm.languagesSpoken),
       };
+      // only add status to update if students so tutors dont get this control in settings and keep the admin level stuff
+      if (profile.role === "Student") {
+        updatePayload.status = accountStatus;
+      }
 
       const { error } = await supabase
         .from("Profiles")
@@ -251,7 +261,7 @@ export default function SettingsPage({
           getProfileWithProfileId(lastActiveProfileId),
         ]);
         setProfile(newProfileData);
-        // router.refresh()
+        router.refresh()
       }
       toast.success("Switched Profile");
     } catch (error) {
@@ -435,6 +445,29 @@ export default function SettingsPage({
             </p>
 
             <form onSubmit={handleProfileSubmit} className="space-y-6">
+              {/* students can toggle their own active inactive status here without needing admin intervention to deactivate account */}
+              {profile?.role === "Student" && (
+                <div>
+                  <Label htmlFor="account-status" className="text-sm font-medium">
+                    Account Status
+                  </Label>
+                  <Select
+                    value={accountStatus}
+                    onValueChange={(value) =>
+                      setAccountStatus(value as Profile["status"])
+                    }
+                  >
+                    <SelectTrigger id="account-status" className="mt-1">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="first-name" className="text-sm font-medium">

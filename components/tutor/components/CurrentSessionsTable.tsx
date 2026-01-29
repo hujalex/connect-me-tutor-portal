@@ -69,6 +69,8 @@ import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 import SessionExitForm from "./SessionExitForm";
 import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
+import { useRouter } from "next/navigation";
+import { useDashboardContext } from "@/contexts/dashboardContext";
 
 interface CurrentSessionTableProps {
   currentSessions: Session[];
@@ -93,13 +95,13 @@ interface CurrentSessionTableProps {
   handleReschedule: (
     sessionId: string,
     newDate: string,
-    meetingId: string
+    meetingId: string,
   ) => void;
   handleSessionComplete: (
     session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
-    isFirstSession: boolean
+    isFirstSession: boolean,
   ) => void;
   handlePageChange: (page: number) => void;
   handleRowsPerPageChange: (value: string) => void;
@@ -107,25 +109,25 @@ interface CurrentSessionTableProps {
   handleUndoCancel?: (sessionId: string) => void;
 }
 
-const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
-  currentSessions,
-  filteredSessions,
+const CurrentSessionsTable = ({
+  // currentSessions,
+  // filteredSessions,
   meetings,
-  currentPage,
+  // currentPage,
   totalPages,
-  rowsPerPage,
-  selectedSession,
-  selectedSessionDate,
-  isDialogOpen,
-  isSessionExitFormOpen,
-  notes,
-  nextClassConfirmed,
-  setSelectedSession,
-  setSelectedSessionDate,
-  setIsDialogOpen,
-  setIsSessionExitFormOpen,
-  setNotes,
-  setNextClassConfirmed,
+  // rowsPerPage,
+  // selectedSession,
+  // selectedSessionDate,
+  // isDialogOpen,
+  // isSessionExitFormOpen,
+  // notes,
+  // nextClassConfirmed,
+  // setSelectedSession,
+  // setSelectedSessionDate,
+  // setIsDialogOpen,
+  // setIsSessionExitFormOpen,
+  // setNotes,
+  // setNextClassConfirmed,
   handleStatusChange,
   handleReschedule,
   handleSessionComplete,
@@ -133,7 +135,19 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
   handleRowsPerPageChange,
   handleInputChange,
   handleUndoCancel,
-}) => {
+}: any) => {
+  const router = useRouter();
+
+  const handleRescheduleWithRefresh = async (
+    sessionId: string,
+    newDate: string,
+    meetingId: string
+  ) => {
+    await handleReschedule(sessionId, newDate, meetingId);
+    router.refresh();
+  };
+
+  const TC = useDashboardContext();
   return (
     <>
       <Table>
@@ -150,19 +164,9 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentSessions.map((session, index) => (
+          {TC.currentSessions.map((session, index) => (
             <TableRow
               key={index}
-
-              // className={
-              //     session.status === "Active"
-              //     ? "bg-blue-200 opacity-20"
-              //     : session.status === "Complete"
-              //     ? "bg-green-200 opacity-50"
-              //     : session.status === "Cancelled"
-              //     ? "bg-red-100 opacity-50 "
-              //     : ""
-              // }
             >
               <TableCell>
                 {session.status === "Active" ? (
@@ -216,21 +220,23 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
               <TableCell>
                 <SessionExitForm
                   currSession={session}
-                  isSessionExitFormOpen={isSessionExitFormOpen}
-                  setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                  selectedSession={selectedSession}
-                  setSelectedSession={setSelectedSession}
-                  notes={notes}
-                  setNotes={setNotes}
-                  nextClassConfirmed={nextClassConfirmed}
-                  setNextClassConfirmed={setNextClassConfirmed}
+                  // isSessionExitFormOpen={isSessionExitFormOpen}
+                  // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
+                  // selectedSession={selectedSession}
+                  // setSelectedSession={setSelectedSession}
+                  // notes={notes}
+                  // setNotes={setNotes}
+                  // nextClassConfirmed={nextClassConfirmed}
+                  // setNextClassConfirmed={setNextClassConfirmed}
                   handleSessionComplete={handleSessionComplete}
                   handleStatusChange={handleStatusChange}
                 />
               </TableCell>
               <TableCell className="flex content-center">
-                {/* changed to show all icons - X for cancelled sessions, trash for active */}
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog
+                  open={TC.isDialogOpen}
+                  onOpenChange={TC.setIsDialogOpen}
+                >
                   <DialogTrigger asChild>
                     <HoverCard>
                       <HoverCardTrigger>
@@ -238,9 +244,9 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedSession(session);
-                            setIsDialogOpen(true);
-                            setSelectedSessionDate(session.date);
+                            TC.setSelectedSession(session);
+                            TC.setIsDialogOpen(true);
+                            TC.setSelectedSessionDate(session.date);
                           }}
                         >
                           <CalendarDays color="#3b82f6" className="h-4 w-4" />
@@ -252,16 +258,12 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     </HoverCard>
                   </DialogTrigger>
                   <RescheduleForm
-                    session={session}
-                    isDialogOpen={isDialogOpen}
-                    selectedSession={selectedSession}
-                    selectedSessionDate={selectedSessionDate}
+                    selectedSession={TC.selectedSession}
+                    selectedSessionDate={TC.selectedSessionDate}
                     meetings={meetings}
-                    setIsDialogOpen={setIsDialogOpen}
-                    setSelectedSession={setSelectedSession}
-                    setSelectedSessionDate={setSelectedSessionDate}
+                    setSelectedSessionDate={TC.setSelectedSessionDate}
                     handleInputChange={handleInputChange}
-                    handleReschedule={handleReschedule}
+                    handleReschedule={handleRescheduleWithRefresh}
                   />
                 </Dialog>
 
@@ -282,7 +284,6 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                     <center>Request a Substitute</center>
                   </HoverCardContent>
                 </HoverCard>
-
                 {/* changed to show X icon for cancelled sessions, trash for active */}
                 {session.status === "Cancelled" ? (
                   <HoverCard>

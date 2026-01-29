@@ -97,9 +97,7 @@ const EmailManager = () => {
 
   const listScheduledMessages = async () => {
     try {
-
       const data = await fetchScheduledMessages();
-      console.log(data)
 
     } catch (error) {
       console.error("Error listing messages:", error);

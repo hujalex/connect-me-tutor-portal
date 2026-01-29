@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import TutorCalendar from "../TutorCalendar";
 import { Input } from "@/components/ui/input";
 import SessionsTable from "../components/ActiveSessionsTable";
@@ -10,224 +11,60 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { getProfile } from "@/lib/actions/user.actions";
 import {
   updateSession,
-  getMeetings,
-  getAllSessions,
 } from "@/lib/actions/admin.actions";
 import {
-  getTutorSessions,
-  rescheduleSession,
   recordSessionExitForm,
   undoCancelSession,
 } from "@/lib/actions/tutor.actions";
+import {
+  rescheduleSession
+} from "@/lib/actions/session.server.actions"
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
-import {
-  parseISO,
-  addHours,
-  areIntervalsOverlapping,
-  isValid,
-  startOfWeek,
-  endOfWeek,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
-import { SelectSeparator } from "@radix-ui/react-select";
-import { Description } from "@radix-ui/react-dialog";
-
-const TutorDashboard = ({
-  initialProfile,
-  currentSessionsPromise,
-  activeSessionsPromise,
-  pastSessionsPromise,
-  meetingsPromise,
-}: any) => {
-  const currentSessionsData: Session[] = use(currentSessionsPromise)
-  const activeSessionsData: Session[] = use(activeSessionsPromise)
-  const pastSessionsData: Session[] = use(pastSessionsPromise)
-  const meetings: Meeting[] = use(meetingsPromise)
+import { useDashboardContext } from "@/contexts/dashboardContext";
 
 
-  const supabase = createClientComponentClient();
-  const [sessions, setSessions] = useState<Session[]>(activeSessionsData);
-  const [currentSessions, setCurrentSessions] = useState<Session[]>(currentSessionsData);
-  const [pastSessions, setPastSessions] = useState<Session[]>(pastSessionsData);
-  const [filteredSessions, setFilteredSessions] = useState<Session[]>(activeSessionsData);
-  const [filteredPastSessions, setFilteredPastSessions] = useState<Session[]>(
-    pastSessionsData
-  );
-  const [profile, setProfile] = useState<Profile | null>(initialProfile);
-
-  const [allSessions, setAllSessions] = useState<Session[]>([]);
- 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [filterValueActiveSessions, setFilterValueActiveSessions] =
-    useState("");
-  const [filterValuePastSessions, setFilterValuePastSessions] = useState("");
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(
-    null
-  );
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSessionExitFormOpen, setIsSessionExitFormOpen] = useState(false);
-
-  const [notes, setNotes] = useState<string>("");
-  const [nextClassConfirmed, setNextClassConfirmed] = useState<boolean>(false);
+const TutorDashboard = () => {
+  const router = useRouter();
+  const TC = useDashboardContext()
 
   useEffect(() => {
-    // getUserData();
-    // fetchMeetings();
-  }, []);
-
-  // const fetchMeetings = async () => {
-  //   try {
-  //     const fetchedMeetings = await getMeetings();
-  //     if (fetchedMeetings) {
-  //       setMeetings(fetchedMeetings);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to fetch meetings:", error);
-  //     toast.error("Failed to load meetings");
-  //   }
-  // };
-
-  const getUserData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw new Error(userError.message);
-      if (!user) throw new Error("No user found");
-
-      const profileData = await getProfile(user.id);
-      if (!profileData) throw new Error("No profile found");
-
-      setProfile(profileData);
-
-      const currentSessionData = await getTutorSessions(
-        profileData.id,
-        startOfWeek(new Date()).toISOString(),
-        endOfWeek(new Date()).toISOString(),
-        undefined,
-        "date",
-        true
-      );
-
-      setCurrentSessions(currentSessionData);
-
-      const activeSessionData = await getTutorSessions(
-        profileData.id,
-        undefined,
-        undefined,
-        "Active",
-        "date",
-        true
-      );
-
-      setSessions(activeSessionData);
-      setFilteredSessions(activeSessionData);
-
-      const pastSessionData = await getTutorSessions(
-        profileData.id,
-        undefined,
-        undefined,
-        ["Complete", "Cancelled"],
-        "date",
-        false
-      );
-      setPastSessions(pastSessionData);
-      setFilteredPastSessions(pastSessionData);
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAllSessionsFromSchedule = async () => {
-    try {
-      const data = await getAllSessions(undefined, undefined, "date", false);
-      if (!data) throw new Error("Unable to retrieve all sessions");
-      setAllSessions(data);
-    } catch (error) {
-      console.error("Failed to fetch all sessions", error);
-      throw error;
-    }
-  };
-
-  const fetchDaySessionsFromSchedule = (session: Session) => {
-    if (selectedSessionDate) {
-      try {
-        const startDateSearch = addHours(
-          parseISO(selectedSessionDate),
-          -12
-        ).toISOString();
-
-        const endDateSearch = addHours(
-          parseISO(selectedSessionDate),
-          12
-        ).toISOString();
-        getAllSessions(startDateSearch, endDateSearch)
-          .then((data) => {
-            setAllSessions(data);
-          })
-          .catch((error) => {
-            console.error("Failed to fetch sessions for day");
-          });
-      } catch (error) {
-        console.error("Failed to fetch sessions for day");
-        throw error;
-      }
-    }
-  };
-
-  useEffect(() => {
-    const filtered = sessions.filter(
+    const filtered = TC.sessions.filter(
       (session) =>
         session.student?.firstName
           .toLowerCase()
-          .includes(filterValueActiveSessions.toLowerCase()) ||
+          .includes(TC.filterValueActiveSessions.toLowerCase()) ||
         session.student?.lastName
           .toLowerCase()
-          .includes(filterValueActiveSessions.toLowerCase())
+          .includes(TC.filterValueActiveSessions.toLowerCase())
     );
-    setFilteredSessions(filtered);
-    setCurrentPage(1);
-  }, [filterValueActiveSessions, sessions]);
+    TC.setFilteredSessions(filtered);
+    TC.setCurrentPage(1);
+  }, [TC.filterValueActiveSessions, TC.sessions]);
 
   useEffect(() => {
-    const filtered = pastSessions.filter(
+    const filtered = TC.pastSessions.filter(
       (session) =>
         session.student?.firstName
           .toLowerCase()
-          .includes(filterValuePastSessions.toLowerCase()) ||
+          .includes(TC.filterValuePastSessions.toLowerCase()) ||
         session.student?.lastName
           .toLowerCase()
-          .includes(filterValuePastSessions.toLowerCase())
+          .includes(TC.filterValuePastSessions.toLowerCase())
     );
-    setFilteredPastSessions(filtered);
-    setCurrentPage(1);
-  }, [filterValuePastSessions, sessions, pastSessions]);
+    TC.setFilteredPastSessions(filtered);
+    TC.setCurrentPage(1);
+  }, [TC.filterValuePastSessions, TC.sessions, TC.pastSessions]);
 
-  const totalPages = Math.ceil(filteredSessions.length / rowsPerPage);
+  const totalPages = Math.ceil(TC.filteredSessions.length / TC.rowsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
+    TC.setCurrentPage(newPage);
   };
 
   const handleRowsPerPageChange = (value: string) => {
-    setRowsPerPage(parseInt(value));
-    setCurrentPage(1);
+    TC.setRowsPerPage(parseInt(value));
+    TC.setCurrentPage(1);
   };
 
   const handleReschedule = async (
@@ -236,7 +73,7 @@ const TutorDashboard = ({
     meetingId: string
   ) => {
     try {
-      if (!profile || !profile.id) {
+      if (!TC.profile || !TC.profile.id) {
         console.error("No profile found cannot reschedule");
         return;
       }
@@ -248,20 +85,19 @@ const TutorDashboard = ({
       );
 
       if (updatedSession) {
-        setCurrentSessions(
-          currentSessions.map((e: Session) =>
+        TC.setCurrentSessions(
+          TC.currentSessions.map((e: Session) =>
             e.id === updatedSession.id ? updatedSession : e
           )
         );
-        setSessions(
-          sessions.map((e: Session) =>
+        TC.setSessions(
+          TC.sessions.map((e: Session) =>
             e.id === updatedSession.id ? updatedSession : e
           )
         );
       }
-      // getUserData();
-      setSelectedSession(null);
-      setIsDialogOpen(false);
+      TC.setSelectedSession(null);
+      TC.setIsDialogOpen(false);
       toast.success("Session updated successfully");
     } catch (error) {
       console.error("Error requesting session reschedule:", error);
@@ -272,13 +108,13 @@ const TutorDashboard = ({
   const handleStatusChange = async (updatedSession: Session) => {
     try {
       await updateSession(updatedSession);
-      setCurrentSessions(
-        currentSessions.map((e: Session) =>
+      TC.setCurrentSessions(
+        TC.currentSessions.map((e: Session) =>
           e.id === updatedSession.id ? updatedSession : e
         )
       );
-      setSessions(
-        sessions.map((e: Session) =>
+      TC.setSessions(
+        TC.sessions.map((e: Session) =>
           e.id === updatedSession.id ? updatedSession : e
         )
       );
@@ -302,20 +138,20 @@ const TutorDashboard = ({
       updatedSession.isQuestionOrConcern = isQuestionOrConcern;
       updatedSession.isFirstSession = isFirstSession;
       await updateSession(updatedSession);
-      setCurrentSessions(
-        currentSessions.map((e: Session) =>
+      TC.setCurrentSessions(
+        TC.currentSessions.map((e: Session) =>
           e.id === updatedSession.id ? updatedSession : e
         )
       );
-      setSessions(
-        sessions.map((e: Session) =>
+      TC.setSessions(
+        TC.sessions.map((e: Session) =>
           e.id === updatedSession.id ? updatedSession : e
         )
       );
       toast.success("Session Marked Complete");
-      setIsSessionExitFormOpen(false);
-      setNotes("");
-      setNextClassConfirmed(false);
+      TC.setIsSessionExitFormOpen(false);
+      TC.setNotes("");
+      TC.setNextClassConfirmed(false);
 
       //API Call to update operation logs
 
@@ -355,16 +191,16 @@ const TutorDashboard = ({
   const handleUndoCancel = async (sessionId: string) => {
     try {
       await undoCancelSession(sessionId, "Active");
-      setCurrentSessions(
-        currentSessions.map((s) =>
+      TC.setCurrentSessions(
+        TC.currentSessions.map((s) =>
           s.id === sessionId ? { ...s, status: "Active" } : s
         )
       );
-      setPastSessions(
-        pastSessions.filter((s) => s.id !== sessionId)
+      TC.setPastSessions(
+        TC.pastSessions.filter((s) => s.id !== sessionId)
       );
-      setFilteredPastSessions(
-        filteredPastSessions.filter((s) => s.id !== sessionId)
+      TC.setFilteredPastSessions(
+        TC.filteredPastSessions.filter((s) => s.id !== sessionId)
       );
       toast.success("Session cancellation undone");
     } catch (error) {
@@ -373,14 +209,14 @@ const TutorDashboard = ({
     }
   };
 
-  const paginatedSessions = filteredSessions.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+  const paginatedSessions = TC.filteredSessions.slice(
+    (TC.currentPage - 1) * TC.rowsPerPage,
+    TC.currentPage * TC.rowsPerPage
   );
 
-  const paginatedPastSessions = filteredPastSessions.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+  const paginatedPastSessions = TC.filteredPastSessions.slice(
+    (TC.currentPage - 1) * TC.rowsPerPage,
+    TC.currentPage * TC.rowsPerPage
   );
 
   const handleInputChange = (e: {
@@ -405,8 +241,8 @@ const TutorDashboard = ({
       return { ...obj };
     };
 
-    if (selectedSession) {
-      setSelectedSession((prevState) =>
+    if (TC.selectedSession) {
+      TC.setSelectedSession((prevState) =>
         handleNestedChange({ ...prevState }, name, value)
       );
     }
@@ -419,24 +255,8 @@ const TutorDashboard = ({
         <div className="flex space-x-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <CurrentSessionsTable
-              currentSessions={currentSessions}
-              filteredSessions={filteredSessions}
-              meetings={meetings}
-              currentPage={currentPage}
+              meetings={TC.meetings}
               totalPages={totalPages}
-              rowsPerPage={rowsPerPage.toString()}
-              selectedSession={selectedSession}
-              selectedSessionDate={selectedSessionDate}
-              isDialogOpen={isDialogOpen}
-              isSessionExitFormOpen={isSessionExitFormOpen}
-              notes={notes}
-              nextClassConfirmed={nextClassConfirmed}
-              setSelectedSession={setSelectedSession}
-              setSelectedSessionDate={setSelectedSessionDate}
-              setIsDialogOpen={setIsDialogOpen}
-              setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-              setNotes={setNotes}
-              setNextClassConfirmed={setNextClassConfirmed}
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
@@ -459,31 +279,16 @@ const TutorDashboard = ({
                   type="text"
                   placeholder="Filter sessions..."
                   className="w-64"
-                  value={filterValueActiveSessions}
-                  onChange={(e) => setFilterValueActiveSessions(e.target.value)}
+                  value={TC.filterValueActiveSessions}
+                  onChange={(e) => TC.setFilterValueActiveSessions(e.target.value)}
                 />
               </div>
             </div>
 
             <ActiveSessionsTable
               paginatedSessions={paginatedSessions}
-              filteredSessions={filteredSessions}
-              meetings={meetings}
-              currentPage={currentPage}
+              meetings={TC.meetings}
               totalPages={totalPages}
-              rowsPerPage={rowsPerPage.toString()}
-              selectedSession={selectedSession}
-              selectedSessionDate={selectedSessionDate}
-              isDialogOpen={isDialogOpen}
-              isSessionExitFormOpen={isSessionExitFormOpen}
-              notes={notes}
-              nextClassConfirmed={nextClassConfirmed}
-              setSelectedSession={setSelectedSession}
-              setSelectedSessionDate={setSelectedSessionDate}
-              setIsDialogOpen={setIsDialogOpen}
-              setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-              setNotes={setNotes}
-              setNextClassConfirmed={setNextClassConfirmed}
               handleStatusChange={handleStatusChange}
               handleReschedule={handleReschedule}
               handleSessionComplete={handleSessionComplete}
@@ -493,9 +298,6 @@ const TutorDashboard = ({
             />
           </div>
 
-          {/* <div className="w-80">
-            <TutorCalendar sessions={sessions} />
-          </div> */}
         </div>
       </div>
       <div className="p-8">
@@ -509,20 +311,20 @@ const TutorDashboard = ({
                   type="text"
                   placeholder="Filter sessions..."
                   className="w-64"
-                  value={filterValuePastSessions}
-                  onChange={(e) => setFilterValuePastSessions(e.target.value)}
+                  value={TC.filterValuePastSessions}
+                  onChange={(e) => TC.setFilterValuePastSessions(e.target.value)}
                 />
               </div>
             </div>
 
             <CompletedSessionsTable
               paginatedSessions={paginatedPastSessions}
-              filteredSessions={filteredPastSessions}
-              currentPage={currentPage}
+              // filteredSessions={filteredPastSessions}
+              // currentPage={currentPage}
               totalPages={totalPages}
-              rowsPerPage={rowsPerPage.toString()}
-              selectedSession={selectedSession}
-              setSelectedSession={setSelectedSession}
+              // rowsPerPage={rowsPerPage.toString()}
+              // selectedSession={selectedSession}
+              // setSelectedSession={setSelectedSession}
               handlePageChange={handlePageChange}
               handleRowsPerPageChange={handleRowsPerPageChange}
             />

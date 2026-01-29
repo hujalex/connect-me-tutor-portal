@@ -46,6 +46,7 @@ import {
   ChartColumn,
   FileSpreadsheet,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,11 @@ export default function DashboardLayout({
       href: "/dashboard/pairings",
       icon: <LinkIcon className="h-5 w-5" />,
     },
+    // {
+    //   title: "AI Chatbot",
+    //   href: "/dashboard/ai-chatbot",
+    //   icon: <Sparkles className="h-5 w-5" />,
+    // },
     {
       title: "Profile",
       href: "/dashboard/profile",
@@ -286,10 +292,8 @@ export default function DashboardLayout({
       if (profile) {
         await Promise.all([
           switchProfile(profile?.userId, newProfileId),
-          // getProfileWithProfileId(newProfileId),
         ]);
         router.refresh()
-        // setProfile(newProfileData);
         toast.success("Switched Profile")
       }
     } catch (error) {
