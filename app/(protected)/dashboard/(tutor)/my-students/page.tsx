@@ -6,15 +6,17 @@ import {
   getTutorStudents,
 } from "@/lib/actions/profile.server.actions";
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 async function MyStudentsData() {
   const user = await cachedGetUser();
+  if (!user) redirect("/")
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("Profile not found");
   const students = await getTutorStudents(profile.id);
 
-  return <StudentList initialStudents={students} />;
+  return <StudentList key = {profile.id} initialStudents={students} />;
 }
 
 export default async function MyStudentsPage() {
