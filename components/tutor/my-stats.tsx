@@ -24,6 +24,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
+
 interface EnrollmentDetails {
   studentId: string;
   firstName: string;
@@ -141,7 +142,6 @@ const Stats = ({ enrollmentDetailsPromise, eventDetailsPromise }: {enrollmentDet
 
       {activeTab === "cards" && (
         <div className="space-y-6">
-          {/* <div className="text-lg font-semibold">Card</div> */}
           <Card>
             <CardHeader>
               <CardTitle>Hours Summary</CardTitle>

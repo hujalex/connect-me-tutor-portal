@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scrollarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X } from "lucide-react";
 import { Profile } from "@/types";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 const DAYS_OF_WEEK = [
   "Monday",

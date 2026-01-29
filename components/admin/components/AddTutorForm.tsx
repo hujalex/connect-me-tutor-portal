@@ -23,7 +23,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { X, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scrollarea";
 import { Switch } from "@/components/ui/switch";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 interface AddTutorFormProps {
   newTutor: Partial<Profile>;

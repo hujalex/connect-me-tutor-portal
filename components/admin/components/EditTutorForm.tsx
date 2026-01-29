@@ -22,7 +22,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { UserAvailabilities } from "@/components/ui/UserAvailabilities";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 interface EditTutorFormProps {
   isReactivateModalOpen: boolean;
@@ -294,7 +294,6 @@ const EditTutorForm = ({
               {/* Extended Profile Tab */}
               {activeTab === "extended" && (
                 <div className="space-y-6">
-                  {/* added status selector so admins can toggle tutors between active n inactive without digging thru deactivate utils */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Status</h3>
                     <Select
