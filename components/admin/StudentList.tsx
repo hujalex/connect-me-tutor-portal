@@ -47,10 +47,10 @@ import {
   getAllProfiles,
   deactivateUser,
   reactivateUser,
-  editUser,
   getUserFromId,
   resendEmailConfirmation,
 } from "@/lib/actions/admin.actions";
+import { editProfile } from "@/lib/actions/profile.server.actions"
 import { deleteUser } from "@/lib/actions/auth.server.actions";
 import { addUser } from "@/lib/actions/auth.actions";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -464,7 +464,7 @@ const StudentList = ({ initialStudents }: any) =>
     const handleEditStudent = async () => {
       if (selectedStudent) {
         try {
-          await editUser(selectedStudent);
+          await editProfile(selectedStudent);
           toast.success("Tutor Edited Successfully");
           setIsEditModalOpen(false);
           setSelectedStudent(null);

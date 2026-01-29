@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { getTutorSessions } from "@/lib/actions/tutor.actions";
 import { getEvents } from "@/lib/actions/event.server.actions";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -24,6 +24,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
+
 interface EnrollmentDetails {
   studentId: string;
   firstName: string;
@@ -38,16 +39,10 @@ interface EventDetails {
   summary: string;
 }
 
-const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
-  const supabase = createClientComponentClient();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [enrollmentDetails, setEnrollmentDetails] = useState<
-    EnrollmentDetails[]
-  >([]);
+const Stats = ({ enrollmentDetailsPromise, eventDetailsPromise }: {enrollmentDetailsPromise: Promise<EnrollmentDetails[]>, eventDetailsPromise: Promise<{[key: string]: EventDetails[]}>}) => {
 
-  const [eventDetails, setEventDetails] = useState<{
-    [key: string]: EventDetails[];
-  }>({});
+  const enrollmentDetails = use(enrollmentDetailsPromise)
+  const eventDetails = use(eventDetailsPromise)
 
   const [activeTab, setActiveTab] = useState("cards");
   const [expandedSections, setExpandedSections] = useState(
@@ -78,38 +73,6 @@ const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
 
   const totalAllHours = totalSessionHours + totalEventHours;
 
-  // const [eventHours, setEventHours] = useState<Map<string, number>>(new Map());
-
-  // //testing
-  // const [HoursInRange, setHoursInRange] = useState<number>(0);
-  // const [totalHoursWithStudent, setTotalHoursWithStudent] = useState<number>(0);
-
-  useEffect(() => {
-    //Fetches total tutoring hours where each session and event counts as one hour each
-    setEnrollmentDetails(initialEnrollmentDetails);
-    setEventDetails(initialEventDetails);
-    setLoading(false);
-  }, []);
-
-  // const fetchEnrollmentDetails = async (tutorId: string) => {
-  //   try {
-  //     const data: EnrollmentDetails[] = await getSessionHoursByStudent(tutorId);
-
-  //     setEnrollmentDetails(data);
-  //   } catch (error) {
-  //     toast.error("Unable to fetch enrollment details");
-  //   }
-  // };
-
-  // const fetchEventDetails = async (tutorId: string) => {
-  //   try {
-  //     const data: { [key: string]: EventDetails[] } =
-  //       await getAllEventDetailsForTutor(tutorId);
-  //     setEventDetails(data);
-  //   } catch (error) {
-  //     toast.error("Unable to fetch event details");
-  //   }
-  // };
 
   return (
     <>
@@ -179,7 +142,6 @@ const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
 
       {activeTab === "cards" && (
         <div className="space-y-6">
-          {/* <div className="text-lg font-semibold">Card</div> */}
           <Card>
             <CardHeader>
               <CardTitle>Hours Summary</CardTitle>
