@@ -656,7 +656,7 @@ const HoursManager = () => {
                   onOpenChange={setIsAddEventModalOpen}
                 >
                   <DialogTrigger asChild>
-                    <Button onClick={() => setIsAddEventModalOpen(true)}>
+                    <Button className = "bg-connect-me-blue-2" onClick={() => setIsAddEventModalOpen(true)}>
                       Add Event
                     </Button>
                   </DialogTrigger>
@@ -728,7 +728,7 @@ const HoursManager = () => {
                       }
                       placeholder="Summary"
                     />
-                    <Button onClick={handleAddEvent}>Add Event</Button>
+                    <Button className = "bg-connect-me-blue-2" onClick={handleAddEvent}>Add Event</Button>
                   </DialogContent>
                 </Dialog>
                 <Dialog
@@ -736,7 +736,7 @@ const HoursManager = () => {
                   onOpenChange={setIsRemoveEventModalOpen}
                 >
                   <DialogTrigger asChild>
-                    <Button onClick={() => setIsRemoveEventModalOpen(true)}>
+                    <Button className = "bg-connect-me-blue-3" onClick={() => setIsRemoveEventModalOpen(true)}>
                       Remove Event
                     </Button>
                   </DialogTrigger>
@@ -780,13 +780,14 @@ const HoursManager = () => {
                         </SelectContent>
                       </Select>
                     )}
-                    <Button onClick={handleRemoveEvent}>Remove Event</Button>
+                    <Button className = "bg-connect-me-3" onClick={handleRemoveEvent}>Remove Event</Button>
                   </DialogContent>
                 </Dialog>
 
                 <Button
                   disabled={reportLoading}
                   onClick={handleDownloadHoursReport}
+                  className = "bg-connect-me-blue-4"
                 >
                   Download Report
                   {reportLoading ? (
