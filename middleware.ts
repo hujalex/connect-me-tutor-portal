@@ -20,8 +20,6 @@ export async function middleware(req: NextRequest) {
     else if (!session && path.startsWith("/dashboard")) {
       return NextResponse.redirect(new URL("/", req.url))
     }
-  
-
     return res;
 }
 

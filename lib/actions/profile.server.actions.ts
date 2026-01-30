@@ -9,6 +9,7 @@ import { getSupabase } from "../supabase-server/serverClient";
 import { revalidatePath } from "next/cache";
 import { cache } from "react";
 import { tableToInterfaceProfiles } from "../type-utils";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 export const switchProfile = async (userId: string, profileId: string) => {
   try {
@@ -283,6 +284,23 @@ export const getTutorStudents = cache(async (tutorId: string) => {
   }
 });
 
+export const editEmail = async (params: {
+  prevEmail: string;
+  email: string;
+  supabase?: SupabaseClient;
+}) => {
+  const { prevEmail, email } = params;
+
+  const supabase = params.supabase ? params.supabase : await createClient();
+
+  if (prevEmail != email) {
+    const { error } = await supabase.auth.updateUser({ email: email });
+    if (error) throw error;
+  } else {
+    throw new Error("Emails are the same");
+  }
+};
+
 export async function editProfile(profile: Profile) {
   const supabase = await createClient();
   const {
@@ -313,9 +331,11 @@ export async function editProfile(profile: Profile) {
       .single()
       .throwOnError();
 
-    if (emailData.email != email) {
-      await supabase.auth.updateUser({email: email})
-    }
+    editEmail({
+      prevEmail: emailData.email,
+      email: email,
+      supabase: supabase,
+    });
 
     const { data, error } = await supabase
       .from(Table.Profiles)
