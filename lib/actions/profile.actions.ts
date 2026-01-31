@@ -134,6 +134,13 @@ export const switchAndGetProfileInfo = async () => {
 
 }
 
+/**
+ * The following function has been placed under a 'use client' to benefit from {window.location.origin}
+ * 
+ * @param prevEmail - previous user email
+ * @param email - email to update to
+ * @returns void
+ */
 
 export const editEmail = async (params: {
   prevEmail: string;
@@ -151,6 +158,7 @@ export const editEmail = async (params: {
     throw new Error("Emails are the same");
   }
 };
+
 
 export async function editProfile(profile: Profile) {
   const {
