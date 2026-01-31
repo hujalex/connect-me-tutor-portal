@@ -215,7 +215,6 @@ export const deleteUser = async (profileId: string) => {
       );
     }
 
-    // Delete from profiles table
     await adminSupabase
       .from(Table.Profiles)
       .delete()

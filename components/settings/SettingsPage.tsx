@@ -23,10 +23,21 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Profile } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
-import { switchProfile } from "@/lib/actions/profile.server.actions";
+import { switchProfile, getProfileUncached } from "@/lib/actions/profile.server.actions";
 import { useProfile } from "@/contexts/profileContext";
 import { getUserProfiles } from "@/lib/actions/profile.server.actions";
 import { NetworkAccessProfileListInstance } from "twilio/lib/rest/supersim/v1/networkAccessProfile";
+
+interface AccountFormType {
+  firstName: string,
+  lastName: string,
+  phoneNumber: string,
+  age: string,
+  email: string,
+  subjectsOfInterest: string,
+  languagesSpoken: string,
+}
+
 
 export default function SettingsPage({
   profilePromise,
@@ -261,7 +272,7 @@ export default function SettingsPage({
           getProfileWithProfileId(lastActiveProfileId),
         ]);
         setProfile(newProfileData);
-        // router.refresh()
+        router.refresh()
       }
       toast.success("Switched Profile");
     } catch (error) {
@@ -422,7 +433,6 @@ export default function SettingsPage({
                 )}
               </div>
             </div>
-
             <Button
               onClick={handleSaveNotifications}
               className="mt-6 w-full sm:w-auto"
@@ -430,8 +440,6 @@ export default function SettingsPage({
               Save Notification Settings
             </Button>
           </section>
-
-          {/* Profile Section */}
           <section className="bg-white rounded-lg border p-6">
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-2xl font-bold">Account Settings</h2>
@@ -439,11 +447,9 @@ export default function SettingsPage({
                 In Development
               </span>
             </div>
-
             <p className="text-gray-600 mb-6">
               Manage your information and account preferences.
             </p>
-
             <form onSubmit={handleProfileSubmit} className="space-y-6">
               {/* students can toggle their own active inactive status here without needing admin intervention to deactivate account */}
               {profile?.role === "Student" && (
@@ -467,7 +473,6 @@ export default function SettingsPage({
                   </Select>
                 </div>
               )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="first-name" className="text-sm font-medium">
@@ -486,7 +491,6 @@ export default function SettingsPage({
                     }
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="last-name" className="text-sm font-medium">
                     Last Name
@@ -505,7 +509,6 @@ export default function SettingsPage({
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="phone-number" className="text-sm font-medium">
@@ -525,9 +528,7 @@ export default function SettingsPage({
                     }
                   />
                 </div>
-
                 <div>
-                  {/* hi */}
                   <Label htmlFor="age" className="text-sm font-medium">
                     Age
                   </Label>
@@ -546,7 +547,6 @@ export default function SettingsPage({
                   />
                 </div>
               </div>
-
               <div>
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email Address
@@ -565,7 +565,6 @@ export default function SettingsPage({
                   }
                 />
               </div>
-
               <div>
                 <Label htmlFor="bio" className="text-sm font-medium">
                   Bio
@@ -578,7 +577,6 @@ export default function SettingsPage({
                   disabled
                 />
               </div>
-
               <div>
                 <Label htmlFor="subjects" className="text-sm font-medium">
                   Subjects of Interest

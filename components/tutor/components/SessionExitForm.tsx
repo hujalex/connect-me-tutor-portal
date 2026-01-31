@@ -25,6 +25,7 @@ import { isAfter, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import CancellationForm from "./CancellationForm";
+import { useDashboardContext } from "@/contexts/dashboardContext";
 
 interface SessionExitFormProps {
   currSession: Session;
@@ -45,26 +46,29 @@ interface SessionExitFormProps {
   handleStatusChange: (session: Session) => void;
 }
 
-const SessionExitForm: React.FC<SessionExitFormProps> = ({
+const SessionExitForm = ({
   currSession,
-  isSessionExitFormOpen,
-  setIsSessionExitFormOpen,
-  selectedSession,
-  setSelectedSession,
-  notes,
-  setNotes,
-  nextClassConfirmed,
-  setNextClassConfirmed,
+  // isSessionExitFormOpen,
+  // setIsSessionExitFormOpen,
+  // selectedSession,
+  // setSelectedSession,
+  // notes,
+  // setNotes,
+  // nextClassConfirmed,
+  // setNextClassConfirmed,
   handleSessionComplete,
   handleStatusChange,
-}) => {
+}: any) => {
+
+  const TC = useDashboardContext()
+
   const [isCancellation, setisCancellation] = useState(false);
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [isQuestionOrConcern, setIsQuestionOrConcern] = useState(false);
   return (
     <Dialog
-      open={isSessionExitFormOpen}
-      onOpenChange={setIsSessionExitFormOpen}
+      open={TC.isSessionExitFormOpen}
+      onOpenChange={TC.setIsSessionExitFormOpen}
     >
       <DialogTrigger asChild>
         <HoverCard>
@@ -76,8 +80,8 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
                 currSession.status !== "Active"
               }
               onClick={() => {
-                setSelectedSession(currSession);
-                setIsSessionExitFormOpen(true);
+                TC.setSelectedSession(currSession);
+                TC.setIsSessionExitFormOpen(true);
               }}
               className=""
             >
@@ -99,11 +103,11 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
               <AlertDialogTrigger>
                 <Button variant="outline">The session did not happen</Button>
               </AlertDialogTrigger>
-              {selectedSession ? (
+              {TC.selectedSession ? (
                 <CancellationForm
-                  session={selectedSession}
+                  session={TC.selectedSession}
                   handleStatusChange={handleStatusChange}
-                  onClose={() => setIsSessionExitFormOpen(false)}
+                  onClose={() => TC.setIsSessionExitFormOpen(false)}
                 />
               ) : (
                 ""
@@ -125,8 +129,8 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
           </label>
         </div>
         <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          value={TC.notes}
+          onChange={(e) => TC.setNotes(e.target.value)}
           placeholder={
             isQuestionOrConcern
               ? "What is your question or concern?"
@@ -138,9 +142,9 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="next-class"
-              checked={nextClassConfirmed}
+              checked={TC.nextClassConfirmed}
               onCheckedChange={(checked) =>
-                setNextClassConfirmed(checked === true)
+                TC.setNextClassConfirmed(checked === true)
               }
             />
             <label htmlFor="next-class" className="text-sm font-medium flex">
@@ -151,16 +155,16 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
         </div>
         <Button
           onClick={() => {
-            if (selectedSession) {
+            if (TC.selectedSession) {
               handleSessionComplete(
-                selectedSession,
-                notes,
+                TC.selectedSession,
+                TC.notes,
                 isQuestionOrConcern,
                 isFirstSession
               );
             }
           }}
-          disabled={!notes || (!nextClassConfirmed && !isQuestionOrConcern)}
+          disabled={!TC.notes || (!TC.nextClassConfirmed && !isQuestionOrConcern)}
         >
           Submit
         </Button>

@@ -133,3 +133,4 @@ export async function updateProfileDetails({
 export const switchAndGetProfileInfo = async () => {
 
 }
+

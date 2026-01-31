@@ -292,10 +292,8 @@ export default function DashboardLayout({
       if (profile) {
         await Promise.all([
           switchProfile(profile?.userId, newProfileId),
-          // getProfileWithProfileId(newProfileId),
         ]);
         router.refresh()
-        // setProfile(newProfileData);
         toast.success("Switched Profile")
       }
     } catch (error) {

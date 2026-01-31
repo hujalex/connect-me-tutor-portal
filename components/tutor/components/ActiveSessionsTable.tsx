@@ -68,6 +68,7 @@ import SessionExitForm from "./SessionExitForm";
 import RescheduleForm from "./RescheduleDialog";
 import CancellationForm from "./CancellationForm";
 import { boolean } from "zod";
+import { useDashboardContext } from "@/contexts/dashboardContext";
 
 interface SessionsTableProps {
   paginatedSessions: Session[];
@@ -105,32 +106,33 @@ interface SessionsTableProps {
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
 }
 
-const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
+const ActiveSessionsTable = ({
   paginatedSessions,
-  filteredSessions,
+  // filteredSessions,
   meetings,
-  currentPage,
+  // currentPage,
   totalPages,
-  rowsPerPage,
-  selectedSession,
-  selectedSessionDate,
-  isDialogOpen,
-  isSessionExitFormOpen,
-  notes,
-  nextClassConfirmed,
-  setSelectedSession,
-  setSelectedSessionDate,
-  setIsDialogOpen,
-  setIsSessionExitFormOpen,
-  setNotes,
-  setNextClassConfirmed,
+  // rowsPerPage,
+  // selectedSession,
+  // selectedSessionDate,
+  // isDialogOpen,
+  // isSessionExitFormOpen,
+  // notes,
+  // nextClassConfirmed,
+  // setSelectedSession,
+  // setSelectedSessionDate,
+  // setIsDialogOpen,
+  // setIsSessionExitFormOpen,
+  // setNotes,
+  // setNextClassConfirmed,
   handleStatusChange,
   handleReschedule,
   handleSessionComplete,
   handlePageChange,
   handleRowsPerPageChange,
   handleInputChange,
-}) => {
+}: any) => {
+  const TC = useDashboardContext()
   return (
     <>
       <Table>
@@ -147,7 +149,7 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedSessions.map((session, index) => (
+          {paginatedSessions.map((session: Session, index: number) => (
             <TableRow key={index}>
               <TableCell>
                 {session.status === "Active" ? (
@@ -206,20 +208,20 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
               <TableCell>
                 <SessionExitForm
                   currSession={session}
-                  isSessionExitFormOpen={isSessionExitFormOpen}
-                  setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                  selectedSession={selectedSession}
-                  setSelectedSession={setSelectedSession}
-                  notes={notes}
-                  setNotes={setNotes}
-                  nextClassConfirmed={nextClassConfirmed}
-                  setNextClassConfirmed={setNextClassConfirmed}
+                  // isSessionExitFormOpen={isSessionExitFormOpen}
+                  // setIsSessionExitFormOpen={setIsSessionExitFormOpen}
+                  // selectedSession={selectedSession}
+                  // setSelectedSession={setSelectedSession}
+                  // notes={notes}
+                  // setNotes={setNotes}
+                  // nextClassConfirmed={nextClassConfirmed}
+                  // setNextClassConfirmed={setNextClassConfirmed}
                   handleSessionComplete={handleSessionComplete}
                   handleStatusChange={handleStatusChange}
                 />
               </TableCell>
               <TableCell className="flex content-center">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={TC.isDialogOpen} onOpenChange={TC.setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <HoverCard>
                       <HoverCardTrigger>
@@ -227,9 +229,9 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedSession(session);
-                            setIsDialogOpen(true);
-                            setSelectedSessionDate(session.date);
+                            TC.setSelectedSession(session);
+                            TC.setIsDialogOpen(true);
+                            TC.setSelectedSessionDate(session.date);
                           }}
                         >
                           <CalendarDays color="#3b82f6" className="h-4 w-4" />
@@ -241,14 +243,14 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
                     </HoverCard>
                   </DialogTrigger>
                   <RescheduleForm
-                    session={session}
-                    isDialogOpen={isDialogOpen}
-                    selectedSession={selectedSession}
-                    selectedSessionDate={selectedSessionDate}
+                    // session={session}
+                    // isDialogOpen={isDialogOpen}
+                    selectedSession={TC.selectedSession}
+                    selectedSessionDate={TC.selectedSessionDate}
                     meetings={meetings}
-                    setIsDialogOpen={setIsDialogOpen}
-                    setSelectedSession={setSelectedSession}
-                    setSelectedSessionDate={setSelectedSessionDate}
+                    // setIsDialogOpen={setIsDialogOpen}
+                    // setSelectedSession={setSelectedSession}
+                    setSelectedSessionDate={TC.setSelectedSessionDate}
                     handleInputChange={handleInputChange}
                     handleReschedule={handleReschedule}
                   />
@@ -283,15 +285,15 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
       </Table>
 
       <div className="mt-4 flex justify-between items-center">
-        <span>{filteredSessions.length} row(s) total.</span>
+        <span>{TC.filteredSessions.length} row(s) total.</span>
         <div className="flex items-center space-x-2">
           <span>Rows per page</span>
           <Select
-            value={rowsPerPage.toString()}
+            value={TC.rowsPerPage.toString()}
             onValueChange={handleRowsPerPageChange}
           >
             <SelectTrigger className="w-[70px]">
-              <SelectValue placeholder={rowsPerPage.toString()} />
+              <SelectValue placeholder={TC.rowsPerPage.toString()} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="5">5</SelectItem>
@@ -300,30 +302,30 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
             </SelectContent>
           </Select>
           <span>
-            Page {currentPage} of {totalPages}
+            Page {TC.currentPage} of {totalPages}
           </span>
           <div className="flex space-x-1">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
+              disabled={TC.currentPage === 1}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(TC.currentPage - 1)}
+              disabled={TC.currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(TC.currentPage + 1)}
+              disabled={TC.currentPage === totalPages}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -331,7 +333,7 @@ const ActiveSessionsTable: React.FC<SessionsTableProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
+              disabled={TC.currentPage === totalPages}
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

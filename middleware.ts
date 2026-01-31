@@ -6,7 +6,7 @@ export async function middleware(req: NextRequest) {
     const res = NextResponse.next()
     const path = req.nextUrl.pathname 
     const publicUrls = ["/set-password", "/auth", "/contact"]
-    if (publicUrls.includes(path)) {
+    if (publicUrls.some((url) => path.startsWith(url))) {
         return res;
     }
 

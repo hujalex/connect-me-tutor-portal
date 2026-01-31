@@ -2,7 +2,12 @@ import { Inter } from "next/font/google";
 
 import { redirect } from "next/navigation";
 
-import { getSessionUserProfile } from "@/lib/actions/user.actions";
+import { cachedGetUser } from "@/lib/actions/user.server.actions";
+import { cachedGetProfile } from "@/lib/actions/profile.server.actions";
+import { getStudentSessions } from "@/lib/actions/session.server.actions";
+import { endOfWeek, startOfWeek } from "date-fns";
+import StudentContextProvider from "./studentContextProvider";
+import { getMeetings } from "@/lib/actions/meeting.server.actions";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
@@ -10,14 +15,15 @@ export const metadata = {
   description: "Instructors can create courses here",
 };
 
-export default async function Layout({ children }:{children:React.ReactNode}) {
-  // const data = await getSessionUserProfile();
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
 
-  // const role = data?.role;
-
-  /*if (role === "Tutor") {
-    return redirect("/dashboard");
-  }*/
-
-  return <>{children}</>;
+  return (
+    <>
+        {children}
+    </>
+  );
 }

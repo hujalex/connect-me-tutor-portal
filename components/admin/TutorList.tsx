@@ -55,9 +55,9 @@ import {
   reactivateUser,
   getEventsWithTutorMonth,
   getUserFromId,
-  editUser,
   resendEmailConfirmation,
 } from "@/lib/actions/admin.actions";
+import { editProfile } from "@/lib/actions/profile.server.actions";
 import { getEvents } from "@/lib/actions/event.server.actions";
 import { deleteUser } from "@/lib/actions/auth.server.actions";
 import { addUser } from "@/lib/actions/auth.actions";
@@ -86,7 +86,8 @@ import { UserAvailabilities } from "../ui/UserAvailabilities";
 const TutorList = ({ initialTutors }: any) => {
   const supabase = createClientComponentClient();
   const [tutors, setTutors] = useState<Profile[]>(initialTutors);
-  const [filteredTutors, setFilteredTutors] = useState<Profile[]>(initialTutors);
+  const [filteredTutors, setFilteredTutors] =
+    useState<Profile[]>(initialTutors);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,7 +124,7 @@ const TutorList = ({ initialTutors }: any) => {
   }>({});
   const [eventsData, setEventsData] = useState<{ [key: string]: Event[] }>({});
   const [allTimeHours, setAllTimeHours] = useState<{ [key: string]: number }>(
-    {}
+    {},
   );
   const [addingTutor, setAddingTutor] = useState(false);
 
@@ -140,7 +141,7 @@ const TutorList = ({ initialTutors }: any) => {
     } catch (error) {
       console.error("Error fetching tutor data:", error);
       setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
+        error instanceof Error ? error.message : "An unknown error occurred",
       );
     } finally {
       setLoading(false);
@@ -187,19 +188,19 @@ const TutorList = ({ initialTutors }: any) => {
 
   const handleTimeZoneForEdit = (value: string) => {
     setSelectedTutor((prev) =>
-      prev ? ({ ...prev, timeZone: value } as Profile) : null
+      prev ? ({ ...prev, timeZone: value } as Profile) : null,
     );
   };
 
   const paginatedTutors = filteredTutors.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setNewTutor((prev) => ({ ...prev, [name]: value }));
@@ -208,23 +209,23 @@ const TutorList = ({ initialTutors }: any) => {
   const handleInputChangeForEdit = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setSelectedTutor((prev) =>
-      prev ? ({ ...prev, [name]: value } as Profile) : null
+      prev ? ({ ...prev, [name]: value } as Profile) : null,
     );
   };
 
   const handleComplexFieldsForEdit = (name: string, value: any) => {
     setSelectedTutor((prev) =>
-      prev ? ({ ...prev, [name]: value } as Profile) : null
+      prev ? ({ ...prev, [name]: value } as Profile) : null,
     );
   };
 
   const handleAvailabilityChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     const { name, value } = e.target;
     setNewTutor((prev) => {
@@ -334,7 +335,7 @@ const TutorList = ({ initialTutors }: any) => {
   const handleEditTutor = async () => {
     if (selectedTutor) {
       try {
-        await editUser(selectedTutor);
+        await editProfile(selectedTutor);
         toast.success("Tutor Edited Successfully");
         setIsEditModalOpen(false);
         setSelectedTutor(null);
@@ -364,191 +365,187 @@ const TutorList = ({ initialTutors }: any) => {
   return (
     <>
       {" "}
-   
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-2">
-              <Input
-                type="text"
-                placeholder="Filter tutors..."
-                className="w-64"
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-              />
-              {/*Add Tutor*/}
-              <AddTutorForm
-                newTutor={newTutor}
-                setNewTutor={setNewTutor}
-                addingTutor={addingTutor}
-                handleInputChange={handleInputChange}
-                handleAddTutor={handleAddTutorWithParam}
-                handleTimeZone={handleTimeZone}
-              />
-              {/*Delete Student*/}
-              <DeleteTutorForm
-                tutors={tutors}
-                selectedTutorId={selectedTutorId}
-                setSelectedTutorId={setSelectedTutorId}
-                handleDeleteTutor={handleDeleteTutor}
-              />
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex space-x-2">
+          <Input
+            type="text"
+            placeholder="Filter tutors..."
+            className="w-64"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+          />
+          {/*Add Tutor*/}
+          <AddTutorForm
+            newTutor={newTutor}
+            setNewTutor={setNewTutor}
+            addingTutor={addingTutor}
+            handleInputChange={handleInputChange}
+            handleAddTutor={handleAddTutorWithParam}
+            handleTimeZone={handleTimeZone}
+          />
+          {/*Delete Student*/}
+          <DeleteTutorForm
+            tutors={tutors}
+            selectedTutorId={selectedTutorId}
+            setSelectedTutorId={setSelectedTutorId}
+            handleDeleteTutor={handleDeleteTutor}
+          />
 
-              {/*Reactivate Student*/}
-              <EditTutorForm
-                isReactivateModalOpen={isReactivateModalOpen}
-                setIsReactivateModalOpen={setIsReactivateModalOpen}
-                isEditModalOpen={isEditModalOpen}
-                setIsEditModalOpen={setIsEditModalOpen}
-                tutors={tutors}
-                selectedTutor={selectedTutor}
-                selectedTutorId={selectedTutorId}
-                setSelectedTutor={setSelectedTutor}
-                setSelectedTutorId={setSelectedTutorId}
-                handleEditTutor={handleEditTutor}
-                handleGetSelectedTutor={handleGetSelectedTutor}
-                handleInputChangeForEdit={handleInputChangeForEdit}
-                handleComplexFieldsForEdit={handleComplexFieldsForEdit}
-                handleTimeZoneForEdit={handleTimeZoneForEdit}
-              />
-              {/*Edit Page*/}
-            </div>
-          </div>
+          {/*Reactivate Student*/}
+          <EditTutorForm
+            isReactivateModalOpen={isReactivateModalOpen}
+            setIsReactivateModalOpen={setIsReactivateModalOpen}
+            isEditModalOpen={isEditModalOpen}
+            setIsEditModalOpen={setIsEditModalOpen}
+            tutors={tutors}
+            selectedTutor={selectedTutor}
+            selectedTutorId={selectedTutorId}
+            setSelectedTutor={setSelectedTutor}
+            setSelectedTutorId={setSelectedTutorId}
+            handleEditTutor={handleEditTutor}
+            handleGetSelectedTutor={handleGetSelectedTutor}
+            handleInputChangeForEdit={handleInputChangeForEdit}
+            handleComplexFieldsForEdit={handleComplexFieldsForEdit}
+            handleTimeZoneForEdit={handleTimeZoneForEdit}
+          />
+          {/*Edit Page*/}
+        </div>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Status</TableHead>
+            <TableHead>Start Date</TableHead>
+            <TableHead>Tutor Name</TableHead>
+            <TableHead>Availability</TableHead>
+            <TableHead>Subjects Teaching </TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Phone Number</TableHead>
+            <TableHead>Gender</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedTutors.map((tutor, index) => (
+            <TableRow key={index}>
+              <TableCell>{tutor.status}</TableCell>
+              <TableCell>{tutor.startDate}</TableCell>
+              <TableCell>
+                {tutor.firstName} {tutor.lastName}
+              </TableCell>
+              <TableCell>
+                <UserAvailabilities user={tutor} />
+              </TableCell>
+              <TableCell className="flex flex-col">
+                {tutor.subjects_of_interest?.map((item, index) => (
+                  <span key={index}>{item}</span>
+                ))}
+              </TableCell>
+              <TableCell>{tutor.email}</TableCell>
+              <TableCell>{tutor.phoneNumber}</TableCell>
+              <TableCell>{capitalizeFirstLetter(tutor.gender)}</TableCell>
+              <TableCell>
+                <AlertDialog>
+                  <AlertDialogTrigger>
+                    {" "}
+                    <Button variant="ghost" size="icon">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>Tutor Name</TableHead>
-                <TableHead>Availability</TableHead>
-                <TableHead>Subjects Teaching </TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone Number</TableHead>
-                <TableHead>Gender</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedTutors.map((tutor, index) => (
-                <TableRow key={index}>
-                  <TableCell>{tutor.status}</TableCell>
-                  <TableCell>{tutor.startDate}</TableCell>
-                  <TableCell>
-                    {tutor.firstName} {tutor.lastName}
-                  </TableCell>
-                  <TableCell>
-                    <UserAvailabilities user={tutor} />
-                  </TableCell>
-                  <TableCell className="flex flex-col">
-                    {tutor.subjects_of_interest?.map((item, index) => (
-                      <span key={index}>{item}</span>
-                    ))}
-                  </TableCell>
-                  <TableCell>{tutor.email}</TableCell>
-                  <TableCell>{tutor.phoneNumber}</TableCell>
-                  <TableCell>{capitalizeFirstLetter(tutor.gender)}</TableCell>
-                  <TableCell>
-                    <AlertDialog>
-                      <AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
                         {" "}
-                        <Button variant="ghost" size="icon">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            {" "}
-                            Resend Confirmation Email for {tutor.firstName}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Note: Will not resend confirmation email if the user
-                            has already signed in before
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>{" "}
-                        <AlertDialogFooter>
-                          {" "}
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => {
-                              resendEmailConfirmation(tutor.email)
-                                .then(() => {
-                                  toast.success("Resent Email Confirmation");
-                                })
-                                .catch(() => {
-                                  toast.error(
-                                    "Failed to resend email confirmation"
-                                  );
-                                });
-                            }}
-                          >
-                            Resend
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <div className="mt-4 flex justify-between items-center">
-            <span>{filteredTutors.length} row(s) total.</span>
-            <div className="flex items-center space-x-2">
-              <span>Rows per page</span>
-              <Select
-                value={rowsPerPage.toString()}
-                onValueChange={handleRowsPerPageChange}
-              >
-                <SelectTrigger className="w-[70px]">
-                  <SelectValue placeholder={rowsPerPage.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex space-x-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                        Resend Confirmation Email for {tutor.firstName}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Note: Will not resend confirmation email if the user has
+                        already signed in before
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>{" "}
+                    <AlertDialogFooter>
+                      {" "}
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          resendEmailConfirmation(tutor.email)
+                            .then(() => {
+                              toast.success("Resent Email Confirmation");
+                            })
+                            .catch(() => {
+                              toast.error(
+                                "Failed to resend email confirmation",
+                              );
+                            });
+                        }}
+                      >
+                        Resend
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="mt-4 flex justify-between items-center">
+        <span>{filteredTutors.length} row(s) total.</span>
+        <div className="flex items-center space-x-2">
+          <span>Rows per page</span>
+          <Select
+            value={rowsPerPage.toString()}
+            onValueChange={handleRowsPerPageChange}
+          >
+            <SelectTrigger className="w-[70px]">
+              <SelectValue placeholder={rowsPerPage.toString()} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex space-x-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
           </div>
-   
+        </div>
+      </div>
       <Toaster />
     </>
   );
