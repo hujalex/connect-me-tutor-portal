@@ -57,7 +57,7 @@ import {
   getUserFromId,
   resendEmailConfirmation,
 } from "@/lib/actions/admin.actions";
-import { editProfile } from "@/lib/actions/profile.server.actions";
+import { editProfile } from "@/lib/actions/profile.actions";
 import { getEvents } from "@/lib/actions/event.server.actions";
 import { deleteUser } from "@/lib/actions/auth.server.actions";
 import { addUser } from "@/lib/actions/auth.actions";

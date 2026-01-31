@@ -65,7 +65,6 @@ interface Notification {
   status: "Active" | "Resolved";
 }
 
-// Type for Events
 interface Event {
   createdAt: string;
   date: string;
@@ -76,7 +75,6 @@ interface Event {
   type: string;
 }
 
-// Type for Student s
 interface Enrollment {
   id: string;
   createdAt: string;
@@ -86,6 +84,9 @@ interface Enrollment {
   startDate: string;
   endDate: string | null;
   availability: Availability[]; 
+  day?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   meetingId: string;
   paused: boolean;
   duration: number;
