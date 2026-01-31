@@ -86,6 +86,9 @@ interface Enrollment {
   startDate: string;
   endDate: string | null;
   availability: Availability[]; 
+  day?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   meetingId: string;
   paused: boolean;
   duration: number;
