@@ -690,7 +690,7 @@ const EnrollmentList = ({
                                         student.firstName,
                                         student.lastName,
                                         student.email,
-                                      ]}
+                                      ].filter(Boolean).filter(Boolean)}
                                       onSelect={() => {
                                         setSelectedStudentId(student.id);
                                         handleInputChange({
@@ -773,7 +773,7 @@ const EnrollmentList = ({
                                         tutor.firstName,
                                         tutor.lastName,
                                         tutor.email,
-                                      ]}
+                                      ].filter(Boolean).filter(Boolean)}
                                       onSelect={() => {
                                         setSelectedTutorId(tutor.id);
                                         handleInputChange({
