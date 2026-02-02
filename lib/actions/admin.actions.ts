@@ -249,62 +249,6 @@ export async function getUserFromId(profileId: string) {
   }
 }
 
-//---updateUser
-export async function editUser(profile: Profile) {
-  const {
-    id,
-    role,
-    firstName,
-    lastName,
-    age,
-    grade,
-    gender,
-    email,
-    // dateOfBirth,
-    startDate,
-    parentName,
-    parentPhone,
-    parentEmail,
-    timeZone,
-    availability,
-    subjects_of_interest,
-    languages_spoken,
-    studentNumber,
-    status, // pull status out so we can actually persist it instead of just ignoring
-  } = profile;
-  try {
-    const { data, error } = await supabase
-      .from(Table.Profiles)
-      .update({
-        role: role,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        age: age,
-        grade: grade,
-        gender: gender,
-        email: email,
-        // date_of_birth: dateOfBirth,
-        start_date: startDate,
-        parent_name: parentName,
-        parent_email: parentEmail,
-        parent_phone: parentPhone,
-        timezone: timeZone,
-        student_number: studentNumber,
-        availability: availability,
-        subjects_of_interest: subjects_of_interest,
-        languages_spoken: languages_spoken,
-        status: status, // without this, status changes from the edit form just get ignored and dont hit db
-      })
-      .eq("id", id)
-      .single();
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error("Error updating user", error);
-    throw new Error("Unable to edit User");
-  }
-}
-
 export async function deactivateUser(profileId: string) {
   try {
     const { data, error } = await supabase

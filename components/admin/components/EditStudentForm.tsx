@@ -22,7 +22,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { ScrollArea } from "@/components/ui/scrollarea";
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 interface EditStudentFormProps {
   students: Profile[];

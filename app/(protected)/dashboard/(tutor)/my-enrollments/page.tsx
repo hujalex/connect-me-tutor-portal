@@ -25,8 +25,8 @@ const fetchUserProfile = async () => {
   return profileData;
 };
 
-const fetchEnrollments = async (profileData: Profile) => {
-  const enrollmentsData = await cachedGetEnrollments(profileData.id);
+const fetchEnrollments = async (profile: Profile) => {
+  const enrollmentsData = await cachedGetEnrollments(profile.id);
   if (!enrollmentsData) throw new Error("No enrollments found");
 
   const sortedEnrollments = enrollmentsData.sort(
@@ -36,15 +36,16 @@ const fetchEnrollments = async (profileData: Profile) => {
 };
 
 async function MyEnrollmentsData() {
-  const profileData = await fetchUserProfile();
+  const profile = await fetchUserProfile();
 
-  const sortedEnrollments = fetchEnrollments(profileData);
+  const sortedEnrollments = fetchEnrollments(profile);
   const meetings = getMeetings();
-  const students = getTutorStudents(profileData.id);
+  const students = getTutorStudents(profile.id);
 
   return (
     <EnrollmentsList
-      profile={profileData}
+      key = {profile.id}
+      profile={profile}
       enrollmentsPromise={sortedEnrollments}
       meetingsPromise={meetings}
       studentsPromise={students}

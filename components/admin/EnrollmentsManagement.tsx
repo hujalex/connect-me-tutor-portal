@@ -152,6 +152,9 @@ const EnrollmentList = ({
     startDate: "",
     endDate: null,
     availability: [{ day: "", startTime: "", endTime: "" }],
+    day: null,
+    startTime: null,
+    endTime: null,
     meetingId: "",
     paused: false,
     duration: 1,
@@ -687,7 +690,7 @@ const EnrollmentList = ({
                                         student.firstName,
                                         student.lastName,
                                         student.email,
-                                      ]}
+                                      ].filter(Boolean).filter(Boolean)}
                                       onSelect={() => {
                                         setSelectedStudentId(student.id);
                                         handleInputChange({
@@ -770,7 +773,7 @@ const EnrollmentList = ({
                                         tutor.firstName,
                                         tutor.lastName,
                                         tutor.email,
-                                      ]}
+                                      ].filter(Boolean).filter(Boolean)}
                                       onSelect={() => {
                                         setSelectedTutorId(tutor.id);
                                         handleInputChange({
@@ -1083,7 +1086,7 @@ const EnrollmentList = ({
                           Paused
                         </span>
                       ) : (
-                        <span className="px-3 py-1 inline-flex items-center rounded-full bg-green-100 text-green-800 border border-green-200">
+                        <span className="px-3 py-1 inline-flex items-center rounded-full bg-connect-me-blue-1 text-connect-me-black border border-connect-me-blue-3">
                           <Timer size={14} className="mr-1" />
                           Ongoing
                         </span>

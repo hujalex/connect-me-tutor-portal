@@ -15,6 +15,7 @@ import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { DashboardContextProvider } from "@/contexts/dashboardContext";
 
 async function TutorDashboardPage({
   profile,
@@ -23,34 +24,42 @@ async function TutorDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentSessionData = getTutorSessions(profile.id, {
+  const currentTutorSessions = getTutorSessions(profile.id, {
     startDate: startOfWeek(new Date()).toISOString(),
     endDate: endOfWeek(new Date()).toISOString(),
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
-  const activeSessionData = getTutorSessions(profile.id, {
+  const activeTutorSessions = getTutorSessions(profile.id, {
     status: "Active",
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
-  const pastSessionData = getTutorSessions(profile.id, {
+  const pastTutorSessions = getTutorSessions(profile.id, {
     status: ["Complete", "Cancelled"],
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   return (
-    <TutorDashboard
-      key={profile.id}
-      initialProfile={profile}
-      currentSessionsPromise={currentSessionData}
-      activeSessionsPromise={activeSessionData}
-      pastSessionsPromise={pastSessionData}
-      meetingsPromise={meetings}
-    />
+    <Suspense fallback={<SkeletonTable />}>
+      <DashboardContextProvider
+        key = {profile.id}
+        initialProfile={profile}
+        promises = {{
+          currentSessionsPromise: currentTutorSessions,
+          activeSessionsPromise: activeTutorSessions,
+          pastSessionsPromise: pastTutorSessions,
+          meetingsPromise: meetings
+        }}
+      >
+        <TutorDashboard
+          key={profile.id}
+        />
+      </DashboardContextProvider>
+    </Suspense>
   );
 }
 
@@ -65,31 +74,37 @@ async function StudentDashboardPage({
     startDate: startOfWeek(new Date()).toISOString(),
     endDate: endOfWeek(new Date()).toISOString(),
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const activeStudentSessions = getStudentSessions(profile.id, {
     status: "Active",
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   const pastStudentSessions = getStudentSessions(profile.id, {
     status: ["Complete", "Cancelled"],
     orderBy: "date",
-    ascending: false,
+    ascending: true,
   });
 
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <StudentDashboard
+      <DashboardContextProvider
         key={profile.id}
         initialProfile={profile}
-        currentSessionsPromise={currentStudentSessions}
-        activeSessionsPromise={activeStudentSessions}
-        pastSessionsPromise={pastStudentSessions}
-        meetingsPromise={meetings}
-      />
+        promises={{
+          currentSessionsPromise: currentStudentSessions,
+          activeSessionsPromise: activeStudentSessions,
+          pastSessionsPromise: pastStudentSessions,
+          meetingsPromise: meetings,
+        }}
+      >
+        <StudentDashboard
+          key={profile.id}
+        />
+      </DashboardContextProvider>
     </Suspense>
   );
 }
@@ -97,22 +112,25 @@ async function StudentDashboardPage({
 export default async function DashboardPage() {
   const user = await cachedGetUser();
   if (!user) redirect("/");
-
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("No Profile found");
-
   const meetings = getMeetings();
 
   return (
     <>
-      {/* <Dashboard /> */}
       {profile.role === "Student" && (
-        <StudentDashboardPage profile={profile} meetings={meetings} />
+        <StudentDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Tutor" && (
-        <Suspense fallback={<SkeletonTable />}>
-          <TutorDashboardPage profile={profile} meetings={meetings} />{" "}
-        </Suspense>
+        <TutorDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Admin" && <AdminDashboard />}
     </>
