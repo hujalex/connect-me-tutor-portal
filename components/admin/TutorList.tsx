@@ -446,8 +446,7 @@ const TutorList = ({ initialTutors }: any) => {
               <TableCell>{capitalizeFirstLetter(tutor.gender)}</TableCell>
               <TableCell>
                 <AlertDialog>
-                  <AlertDialogTrigger>
-                    {" "}
+                  <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <RefreshCw className="h-4 w-4" />
                     </Button>

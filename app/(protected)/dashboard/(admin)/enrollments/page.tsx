@@ -19,12 +19,8 @@ async function MyEnrollmentsData() {
 
   const enrollments = getAllEnrollments();
   const meetings = getMeetings();
-  const students = getAllProfiles("Student").then((s) =>
-    s ? s.filter((s) => s.status === "Active") : null
-  );
-  const tutors = getAllProfiles("Tutor").then((s) =>
-    s ? s.filter((s) => s.status === "Active") : null
-  );
+  const students = getAllProfiles("Student")
+  const tutors = getAllProfiles("Tutor")
 
   return (
     <EnrollmentsManager
