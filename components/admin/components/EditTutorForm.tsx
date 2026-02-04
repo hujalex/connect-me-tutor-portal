@@ -161,7 +161,7 @@ const EditTutorForm = ({
       onOpenChange={setIsReactivateModalOpen}
     >
       <DialogTrigger asChild>
-        <Button className="bg-blue-500">Edit Tutor</Button>
+        <Button className = "bg-connect-me-blue-4">Edit Tutor</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

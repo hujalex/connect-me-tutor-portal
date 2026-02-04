@@ -37,7 +37,7 @@ interface AddStudentFormProps {
   handleInputChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleGradeChange: (value: string) => void;
 
@@ -57,7 +57,7 @@ const AddStudentForm = ({
   addingStudent,
 }: AddStudentFormProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("basic");
+  const [activeTab, setActiveTab] = useState("basic2");
 
   // Mock student state - replace with your actual state management
 
@@ -83,7 +83,7 @@ const AddStudentForm = ({
   const updateAvailabilitySlot = (
     index: number,
     field: keyof (typeof availability)[0],
-    value: string
+    value: string,
   ) => {
     const updated = [...availability];
     updated[index] = { ...updated[index], [field]: value };
@@ -136,7 +136,7 @@ const AddStudentForm = ({
   return (
     <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <DialogTrigger asChild>
-        <Button>Add Student</Button>
+        <Button className="bg-connect-me-blue-2">Add Student</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
         <DialogHeader className="px-6 py-4 border-b bg-gray-50/50 shrink-0">
@@ -156,6 +156,17 @@ const AddStudentForm = ({
                 : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
             }`}
           >
+            Basic Information (vertical)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("basic2")}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "basic2"
+                ? "border-blue-500 text-blue-600 bg-blue-50/30"
+                : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+            }`}
+          >
             Basic Information
           </button>
           <button
@@ -171,9 +182,210 @@ const AddStudentForm = ({
           </button>
         </div>
 
+        {/* Vertical Form */}
+
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
           {activeTab === "basic" && (
+            <ScrollArea className="h-[calc(90vh-200px)] px-6 py-10">
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="studentNumber" className=" text-right">
+                    Student #
+                  </Label>
+                  <Input
+                    id="studentNumber"
+                    name="studentNumber"
+                    value={newStudent.studentNumber || ""}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="Enter student number"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="firstName" className="text-right">
+                    First Name
+                  </Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    value={newStudent.firstName}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="Enter First Name"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="lastName" className="text-right">
+                    Last Name
+                  </Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={newStudent.lastName}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="Enter Last Name"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="age" className="text-right">
+                    Age
+                  </Label>
+                  <Input
+                    id="age"
+                    name="age"
+                    type="number"
+                    value={newStudent.age}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="Age"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="grade" className="text-right">
+                    Grade
+                  </Label>
+                  <Select
+                    name="grade"
+                    value={newStudent.grade}
+                    onValueChange={handleGradeChange}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Kindergarten">Kindergarten</SelectItem>
+                      <SelectItem value="K">K</SelectItem>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <SelectItem
+                          key={i}
+                          value={`${i + 1}${getOrdinalSuffix(i + 1)}-grade`}
+                        >
+                          {`${i + 1}${getOrdinalSuffix(i + 1)} Grade`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="gender" className="text-right">
+                    Gender
+                  </Label>
+                  <Select
+                    name="gender"
+                    value={newStudent.gender}
+                    onValueChange={handleGender}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right">
+                    Student Email
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={newStudent.email}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="Enter Student Email"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="phoneNumber" className="text-right">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    type="phonenumber"
+                    value={newStudent.phoneNumber}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="startDate" className="text-right">
+                    Start Date
+                  </Label>
+                  <Input
+                    id="startDate"
+                    name="startDate"
+                    type="date"
+                    value={newStudent.startDate}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="parentName" className="text-right">
+                    Parent/Guardian Name
+                  </Label>
+                  <Input
+                    id="parentName"
+                    name="parentName"
+                    value={newStudent.parentName}
+                    onChange={handleInputChange}
+                    placeholder="Enter parent/guardian name"
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="parentPhone" className="text-right">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="parentPhone"
+                    name="parentPhone"
+                    type="tel"
+                    value={newStudent.parentPhone}
+                    onChange={handleInputChange}
+                    placeholder="(555) 123-4567"
+                    className="col-span-3"
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="parentEmail" className="text-right">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="parentEmail"
+                    name="parentEmail"
+                    type="email"
+                    value={newStudent.parentEmail}
+                    onChange={handleInputChange}
+                    placeholder="parent@example.com"
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="timeZone" className="text-right">
+                    Time Zone
+                  </Label>
+                  <div className="col-span-3">
+                    <TimeZoneSelector
+                      profile={newStudent}
+                      handleTimeZone={handleTimeZone}
+                    />
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          {activeTab === "basic2" && (
             <ScrollArea className="h-[calc(90vh-200px)] px-6 py-10">
               <div className="space-y-6">
                 {/* Student ID Section */}
@@ -411,7 +623,10 @@ const AddStudentForm = ({
                     >
                       Time Zone
                     </Label>
-                   <TimeZoneSelector profile={newStudent} handleTimeZone={handleTimeZone} />
+                    <TimeZoneSelector
+                      profile={newStudent}
+                      handleTimeZone={handleTimeZone}
+                    />
                   </div>
                 </div>
               </div>
@@ -481,7 +696,7 @@ const AddStudentForm = ({
                                 updateAvailabilitySlot(
                                   index,
                                   "startTime",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-32"
@@ -494,7 +709,7 @@ const AddStudentForm = ({
                                 updateAvailabilitySlot(
                                   index,
                                   "endTime",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-32"

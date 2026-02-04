@@ -162,7 +162,7 @@ const EditStudentForm = ({
       onOpenChange={setIsReactivateModalOpen}
     >
       <DialogTrigger asChild>
-        <Button className="bg-blue-500">Edit Student</Button>
+        <Button className="bg-connect-me-blue-4">Edit Student</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md overflow-auto">
         <DialogHeader>

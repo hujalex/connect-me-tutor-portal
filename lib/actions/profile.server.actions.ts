@@ -1,7 +1,7 @@
 "use server";
 
 import { Profile } from "@/types";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { Table } from "../supabase/tables";
 
 import axios from "axios";
@@ -97,7 +97,7 @@ export async function getAllProfiles(
     let query = supabase
       .from(Table.Profiles)
       .select(profileFields)
-      .eq("role", role);
+      .eq("role", role)
 
     if (status) {
       query = query.eq("status", status);

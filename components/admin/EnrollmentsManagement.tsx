@@ -109,7 +109,7 @@ const EnrollmentList = ({
   const initialStudents: Profile[] = use(studentsPromise);
   const initialTutors: Profile[] = use(tutorsPromise);
 
-  const queryClient = new QueryClient()
+
 
   const [enrollments, setEnrollments] =
     useState<Enrollment[]>(initialEnrollments);
@@ -175,18 +175,6 @@ const EnrollmentList = ({
   const router = useRouter();
 
   useEffect(() => {
-    const fetchData = () => {
-      setEnrollments(initialEnrollments);
-      setFilteredEnrollments(initialEnrollments);
-      setStudents(initialStudents);
-      setTutors(initialTutors);
-      setMeetings(initialMeetings);
-    };
-    fetchData();
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
     const filtered = enrollments.filter((enrollment) => {
       const searchTerm = filterValue.toLowerCase().trim();
 
@@ -216,7 +204,8 @@ const EnrollmentList = ({
     setCurrentPage(1);
   }, [filterValue, enrollments]);
 
-  const studentsMap = useMemo(() => {
+  const studentsMap = 
+  useMemo(() => {
     return students.reduce(
       (map, student) => {
         map[student.id] = student;
@@ -690,7 +679,9 @@ const EnrollmentList = ({
                                         student.firstName,
                                         student.lastName,
                                         student.email,
-                                      ].filter(Boolean).filter(Boolean)}
+                                      ]
+                                      .filter(Boolean).filter(Boolean)
+                                    }
                                       onSelect={() => {
                                         setSelectedStudentId(student.id);
                                         handleInputChange({

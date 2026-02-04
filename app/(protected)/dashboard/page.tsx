@@ -114,7 +114,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/");
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("No Profile found");
-  const meetings = getMeetings();
+  const meetings = getMeetings({omit : ["Zoom Link HQ"]});
 
   return (
     <>

@@ -39,7 +39,7 @@ async function MyEnrollmentsData() {
   const profile = await fetchUserProfile();
 
   const sortedEnrollments = fetchEnrollments(profile);
-  const meetings = getMeetings();
+  const meetings = getMeetings({omit : ["Zoom Link HQ"]});
   const students = getTutorStudents(profile.id);
 
   return (
