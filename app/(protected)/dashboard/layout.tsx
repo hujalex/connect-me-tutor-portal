@@ -6,7 +6,6 @@ import {
   getUserProfiles,
 } from "@/lib/actions/profile.server.actions";
 import { redirect } from "next/navigation";
-import CurrentSessionsTable from "@/components/student/components/CurrentSessionsTable";
 
 export const dynamic = "force-dynamic";
 

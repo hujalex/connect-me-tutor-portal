@@ -150,7 +150,7 @@ const AddTutorForm = ({
     <>
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogTrigger asChild>
-          <Button>Add Tutor</Button>
+          <Button className = "bg-connect-me-blue-2">Add Tutor</Button>
         </DialogTrigger>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -265,7 +265,6 @@ const AddTutorForm = ({
                 </div>
               </ScrollArea>
             )}
-
             {/* Extended Profile Tab */}
             {activeTab === "extended" && (
               <ScrollArea className="max-h-[calc(70vh-120px)] pr-4">

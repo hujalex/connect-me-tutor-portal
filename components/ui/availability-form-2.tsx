@@ -332,7 +332,7 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
         <Label className="text-lg font-semibold">
           Manage Availability (EST)
         </Label>
-        <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        {/* <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <Info className="h-4 w-4 text-blue-600" />
           <span className="text-sm text-blue-800">
             You can only select times within the available time slots shown. You
@@ -344,7 +344,7 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
               (student availabilities)
             </a>
           </span>
-        </div>
+        </div> */}
       </div>
 
       {/* Show Available Time Slots */}

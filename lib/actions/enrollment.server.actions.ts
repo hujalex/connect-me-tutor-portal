@@ -332,7 +332,7 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
             meeting_id: enrollment.meetingId,
           })
           .eq("enrollment_id", enrollment.id)
-          .gt("date", now);
+          .gte("date", now);
 
       if (updateSessionError) {
         console.error("Error updating sessions: ", updateSessionError);

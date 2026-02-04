@@ -550,6 +550,7 @@ const StudentList = ({ initialStudents }: any) =>
               <TableHead>Availability</TableHead>
               <TableHead>Subjects Learning</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Parent Email</TableHead>
               <TableHead>Parent Phone</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -573,10 +574,11 @@ const StudentList = ({ initialStudents }: any) =>
                   ))}
                 </TableCell>
                 <TableCell>{student.email}</TableCell>
+                <TableCell>{student.parentEmail || ""}</TableCell>
                 <TableCell>{student.parentPhone}</TableCell>
                 <TableCell>
                   <AlertDialog>
-                    <AlertDialogTrigger>
+                    <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon">
                         <RefreshCcw className="h-4 w-4" />
                       </Button>

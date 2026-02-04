@@ -704,7 +704,7 @@ const Schedule = ({
           <Button
             onClick={handleUpdateWeek}
             disabled={isLoading}
-            className="mb-4"
+            className="mb-4 bg-connect-me-blue-2"
           >
             {isLoading ? (
               <>
@@ -717,7 +717,7 @@ const Schedule = ({
           </Button>
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="mx-4" variant="secondary">
+              <Button className="mx-4 bg-connect-me-blue-3" >
                 Add Session
               </Button>
             </DialogTrigger>
@@ -873,6 +873,7 @@ const Schedule = ({
                   <Button
                     onClick={handleAddSession}
                     disabled={isCheckingMeetingAvailability}
+                    className = "bg-connect-me-blue-3"
                   >
                     {isCheckingMeetingAvailability ? (
                       <>
@@ -887,7 +888,7 @@ const Schedule = ({
               </ScrollArea>
             </DialogContent>
           </Dialog>
-          <Button onClick={() => handleGetMissingSEF()}>Function Tester</Button>
+          <Button className = "bg-connect-me-blue-4" onClick={() => handleGetMissingSEF()}>Function Tester</Button>
 
           {isLoading ? (
             <div className="text-center py-10">

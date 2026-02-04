@@ -7,7 +7,6 @@ import axios from "axios";
 import { getProfile } from "./user.actions";
 import { createServerClient } from "../supabase/server";
 import { getUserFromAction } from "./user.server.actions";
-import { TutorMatchingNotificationEmailProps } from "@/components/emails/tutor-matching-notification";
 import { IncomingPairingMatch } from "./pairing.actions";
 import { NextResponse } from "next/server";
 import { PairingLogSchemaType } from "../pairing/types";
