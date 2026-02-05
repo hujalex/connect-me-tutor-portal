@@ -24,7 +24,7 @@ const fetchUserProfile = async () => {
   if (!profileData) throw new Error("No profile found");
   return profileData;
 };
-
+ 
 const fetchEnrollments = async (profile: Profile) => {
   const enrollmentsData = await cachedGetEnrollments(profile.id);
   if (!enrollmentsData) throw new Error("No enrollments found");
