@@ -11,16 +11,14 @@ export async function middleware(req: NextRequest) {
     }
 
     const supabase = createMiddlewareClient({req, res})
-    const { data: { session }} = await supabase.auth.getSession()
+    const { data : { user }} = await supabase.auth.getUser()
     
-    if (session && path === "/") {
+    if (user && path === '/') {
       return NextResponse.redirect(new URL("/dashboard", req.url))
     }
-
-    else if (!session && path.startsWith("/dashboard")) {
+    else if (!user && path.startsWith("/dashboard")) {
       return NextResponse.redirect(new URL("/", req.url))
     }
-  
 
     return res;
 }
