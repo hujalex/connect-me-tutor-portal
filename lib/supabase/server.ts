@@ -6,6 +6,8 @@ import {
 import { createServerClient as makeServerClient } from "@supabase/ssr";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
+import { cachedGetUser } from "../actions/user.server.actions";
+import { cachedGetProfile } from "../actions/profile.server.actions";
 
 export async function createServerClient() {
   const cookieStore = await cookies();
@@ -47,9 +49,14 @@ export async function createClient() {
 }
 
 export async function createAdminClient() {
+  const user = await cachedGetUser()
+  if (!user) throw new Error("No Valid Session")
+  const profile = await cachedGetProfile(user.id)
+  if (!profile || profile.role !== 'Admin') throw new Error("Invalid Permmisions")
+
   const adminSupabase = createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ✅ Server-only environment variable
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, 
     {
       auth: {
         autoRefreshToken: false,
