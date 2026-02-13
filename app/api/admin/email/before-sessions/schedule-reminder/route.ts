@@ -5,11 +5,13 @@ import { createClient } from "@/lib/supabase/server"
 import { addMinutes, subMinutes, parseISO } from "date-fns";
 import { scheduleEmail } from "@/lib/actions/email.server.actions";
 import { getSupabase } from "@/lib/supabase-server/serverClient";
+import { verifyAdmin } from "@/lib/actions/auth.server.actions";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    await verifyAdmin()
     const supabase = await createClient();
 
     const data = await request.json();

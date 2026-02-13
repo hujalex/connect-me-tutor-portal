@@ -19,11 +19,12 @@ export default async function Layout({
     redirect("/");
   });
 
-  if (!user) redirect("/");
+  if (!user) throw new Error("Unauthenticated request");
 
   const profile = await cachedGetProfile(user.id);
 
   if (!profile || !profile.role) {
+    console.log("Redirecting back to root")
     redirect("/");
   }
 

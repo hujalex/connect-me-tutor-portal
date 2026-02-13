@@ -6,11 +6,13 @@ import { Enrollment, Session } from "@/types";
 import { createClient } from "@/lib/supabase/server";
 import { fromZonedTime } from "date-fns-tz";
 import { Table } from "@/lib/supabase/tables";
+import { verifyAdmin } from "@/lib/actions/auth.server.actions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await verifyAdmin()
     const newSessions = await handleUpdateWeek();
 
     return NextResponse.json({ newSessions: newSessions }, { status: 200 });

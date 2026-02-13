@@ -8,6 +8,7 @@ import { Resend } from "resend";
 import { ideahub } from "googleapis/build/src/apis/ideahub";
 import { getSupabase } from "@/lib/supabase-server/serverClient";
 import { Table } from "@/lib/supabase/tables";
+import { verifyAdmin } from "@/lib/actions/auth.server.actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
+    await verifyAdmin()
     const supabase = await createClient();
 
     const { to, subject, body, sessionId } = await request.json();
