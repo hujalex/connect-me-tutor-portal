@@ -59,7 +59,7 @@ async function sendSessionReminderEmail(session: Session, user: Profile) {
       student: session.student,
     };
 
-    const response = await fetch("/api/email/send-session-reminder", {
+    const response = await fetch("/api/admin/email/send-session-reminder", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -42,7 +42,7 @@ export async function sendScheduledEmailsBeforeSessions(
 
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/api/email/before-sessions/schedule-reminder`,
+            `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/before-sessions/schedule-reminder`,
             {
               method: "POST",
               body: JSON.stringify({ session }),
@@ -106,7 +106,7 @@ export async function updateScheduledEmailBeforeSessions(session: Session) {
 export async function deleteScheduledEmailBeforeSessions(sessionId: string) {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/email/before-sessions/delete-reminder`,
+      `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/before-sessions/delete-reminder`,
       {
         method: "POST",
         body: JSON.stringify({ sessionId }),
@@ -150,7 +150,7 @@ export async function scheduleEmail({
   try {
     const qstash = new Client({ token: process.env.QSTASH_TOKEN });
     const result = await qstash.publishJSON({
-      url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/email/send-email`,
+      url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/send-email`,
       notBefore: notBefore,
       body: {
         to: to,
