@@ -66,35 +66,6 @@ const EmailManager = () => {
   }
 
 
-  // const sendEmail = async () => {
-  //   try {
-  //     const now = new Date();
-
-  //     const response = await fetch(
-  //       "/api/email/before-sessions/schedule-reminders-weekly",
-  //       {
-  //         method: "GET",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //         },
-  //       }
-  //     );
-
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       throw new Error(data.message || `Error: ${response.status}`);
-  //     }
-
-  //     toast.success("Email sent");
-  //   } catch (error) {
-  //     toast.error(
-  //       `${error instanceof Error ? error.message : "Unknown error"}`
-  //     );
-  //     console.error("Unable to send email", error);
-  //   }
-  // };
-
   const listScheduledMessages = async () => {
     try {
       const data = await fetchScheduledMessages();
