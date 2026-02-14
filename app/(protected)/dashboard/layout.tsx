@@ -19,7 +19,7 @@ export default async function Layout({
     redirect("/");
   });
 
-  if (!user) throw new Error("Unauthenticated request");
+  if (!user) redirect("/")
 
   const profile = await cachedGetProfile(user.id);
 
