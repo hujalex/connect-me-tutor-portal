@@ -7,7 +7,7 @@ export type ProcessDMPayload = {
   metadata?: Record<string, unknown>;
 };
 
-const WORKER_URL = "https://connect-me-ai.ahu-4e8.workers.dev/process-dm";
+const WORKER_URL = `${process.env.CHATBOT_URL}/process-dm`;
 
 
 export async function processDMStream(
