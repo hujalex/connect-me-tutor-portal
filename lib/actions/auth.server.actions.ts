@@ -34,26 +34,9 @@ interface UserMetadata {
   languages_spoken: string[];
 }
 
-// export async function (request: NextRequest) {
-//   try {
-//     const newProfileData: CreatedProfileData = await request.json();
-
-//     const profileData: Partial<Profile> = await createUser(newProfileData);
-//     return profileData
-//   } catch (error) {
-//     const err = error as Error;
-//     console.error(err.message)
-//     throw error
-//   }
-// }
-export const verifyBearerToken = async (request: NextRequest) => {
+export const isAuthorized = async (request: NextRequest) => {
   const authHeader = request.headers.get("authorization");
   return authHeader !== `Bearer ${process.env.BEARER_TOKEN}`
-    ? NextResponse.json(
-        { message: "Unauthorized bearer token" },
-        { status: 401 },
-      )
-    : NextResponse.json({ status: 200 });
 };
 
 export const verifyAdmin = async () => {

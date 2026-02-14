@@ -14,7 +14,7 @@ import {
 import { createClient } from "../supabase/server";
 
 export const fetchScheduledMessages = async () => {
-  const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+  const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
 
   const messages = await qstash.schedules.list();
   return messages;
@@ -126,7 +126,7 @@ export async function deleteScheduledEmailBeforeSessions(sessionId: string) {
 }
 
 export async function deleteMsg(messageId: string) {
-  const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+  const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
   try {
     await qstash.messages.delete(messageId);
   } catch (qstashError: any) {
@@ -148,7 +148,7 @@ export async function scheduleEmail({
   sessionId: string;
 }) {
   try {
-    const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+    const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
     const result = await qstash.publishJSON({
       url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/send-email`,
       notBefore: notBefore,
@@ -158,6 +158,9 @@ export async function scheduleEmail({
         body: body,
         sessionId: sessionId,
       },
+      headers: {
+        "authorization" : `Bearer ${process.env.BEARER_TOKEN}`
+      }
     });
 
     if (result && result.messageId) {
