@@ -34,25 +34,18 @@ interface UserMetadata {
   languages_spoken: string[];
 }
 
-// export async function (request: NextRequest) {
-//   try {
-//     const newProfileData: CreatedProfileData = await request.json();
-
-//     const profileData: Partial<Profile> = await createUser(newProfileData);
-//     return profileData
-//   } catch (error) {
-//     const err = error as Error;
-//     console.error(err.message)
-//     throw error
-//   }
-// }
+export const isAuthorized = async (request: NextRequest) => {
+  const authHeader = request.headers.get("authorization");
+  return authHeader === `Bearer ${process.env.BEARER_TOKEN}`
+};
 
 export const verifyAdmin = async () => {
-    const user = await cachedGetUser()
-    if (!user) throw new Error("Unauthenticated access")
-    const profile = await cachedGetProfile(user.id)
-    if (!profile || profile.role !== 'Admin') throw new Error("Unauthorized Access")
-}
+  const user = await cachedGetUser();
+  if (!user) throw new Error("Unauthenticated access");
+  const profile = await cachedGetProfile(user.id);
+  if (!profile || profile.role !== "Admin")
+    throw new Error("Unauthorized Access");
+};
 
 export const getUser = async () => {
   const supabase = await createClient();
@@ -151,16 +144,16 @@ export const createUser = async (newProfileData: CreatedProfileData) => {
 const replaceLastActiveProfile = async (
   userId: string,
   lastActiveProfileId: string,
-  userProfileIds: { id: string }[]
+  userProfileIds: { id: string }[],
 ) => {
   const supabase = await createClient();
   try {
     const availableProfile = userProfileIds.find(
-      (profile) => profile.id != lastActiveProfileId
+      (profile) => profile.id != lastActiveProfileId,
     );
     if (availableProfile === undefined)
       throw new Error(
-        "Called replaceLastActiveProfile with only one or zero profileIds attached to userId"
+        "Called replaceLastActiveProfile with only one or zero profileIds attached to userId",
       );
 
     await supabase
@@ -197,7 +190,7 @@ export const deleteUser = async (profileId: string) => {
           `
         user_id,
         last_active_profile_id
-        `
+        `,
         )
         .eq("last_active_profile_id", profileId)
         .maybeSingle()
@@ -209,7 +202,7 @@ export const deleteUser = async (profileId: string) => {
 
     if (relatedProfiles.length == 1) {
       const { error: authError } = await adminSupabase.auth.admin.deleteUser(
-        relatedProfiles[0].user_id
+        relatedProfiles[0].user_id,
       );
 
       if (authError) throw authError;
@@ -220,7 +213,7 @@ export const deleteUser = async (profileId: string) => {
       replaceLastActiveProfile(
         userSettings.user_id,
         userSettings.last_active_profile_id,
-        relatedProfiles
+        relatedProfiles,
       );
     }
 

@@ -8,19 +8,30 @@ import { Resend } from "resend";
 import { ideahub } from "googleapis/build/src/apis/ideahub";
 import { getSupabase } from "@/lib/supabase-server/serverClient";
 import { Table } from "@/lib/supabase/tables";
-import { verifyAdmin } from "@/lib/actions/auth.server.actions";
+import { isAuthorized, verifyAdmin } from "@/lib/actions/auth.server.actions";
+import { z } from "zod"
 
 export const dynamic = "force-dynamic";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const emailSchema = z.object({
+  to: z.string().trim(),
+  subject: z.string().trim(),
+  body: z.string().trim(),
+  sessionId: z.string().trim()
+})
+
 export async function POST(request: NextRequest) {
   try {
-    await verifyAdmin()
+    // await verifyAdmin()
+    if (!isAuthorized(request)) return; 
+    
     const supabase = await createClient();
 
-    const { to, subject, body, sessionId } = await request.json();
-
+    const data = await request.json()
+    const { to, subject, body, sessionId } = emailSchema.parse(data);
+ 
     const { data: session, error: sessionError } = await supabase
       .from(Table.Sessions)
       .select("*")
@@ -74,6 +85,7 @@ export async function POST(request: NextRequest) {
     console.error("Error sending email:", error);
     return NextResponse.json({
       status: 500,
+      error: error,
       message: "Unable to send email or fetch email settings",
     });
   }
