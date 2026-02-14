@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions/email.server.actions";
 import { getSessions } from "@/lib/actions/session.server.actions";
 import { addDays } from "date-fns";
+import { verifyAdmin } from "@/lib/actions/auth.server.actions";
 
 export const dynamic = "force-dynamic"; // prevent prerendering from calling the api and scheduling sessions
 
@@ -16,6 +17,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function GET(request: NextRequest) {
   try {
+    await verifyAdmin()
     const now = new Date();
     const weekLater = addDays(now, 7);
     const sessionsNextWeek: Session[] = await getSessions(

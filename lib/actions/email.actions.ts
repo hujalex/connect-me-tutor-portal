@@ -26,7 +26,7 @@ export async function sendScheduledEmailsBeforeSessions(
 
         try {
           const response = await fetch(
-            "/api/email/before-sessions/schedule-reminder",
+            "/api/admin/email/before-sessions/schedule-reminder",
             {
               method: "POST",
               body: JSON.stringify({ session }),
@@ -90,7 +90,7 @@ export async function updateScheduledEmailBeforeSessions(session: Session) {
  */
 export async function deleteScheduledEmailBeforeSessions(sessionId: string) {
   try {
-    const response = await fetch("/api/email/before-sessions/delete-reminder", {
+    const response = await fetch("/api/admin/email/before-sessions/delete-reminder", {
       method: "POST",
       body: JSON.stringify({ sessionId }),
       headers: {

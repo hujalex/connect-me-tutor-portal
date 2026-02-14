@@ -111,7 +111,10 @@ async function StudentDashboardPage({
 
 export default async function DashboardPage() {
   const user = await cachedGetUser();
-  if (!user) redirect("/");
+  if (!user) {
+    console.log("Redirecting back to root")
+    redirect("/");
+  }
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("No Profile found");
   const meetings = getMeetings({omit : ["Zoom Link HQ"]});

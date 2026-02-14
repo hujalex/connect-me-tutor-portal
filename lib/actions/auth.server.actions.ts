@@ -9,6 +9,8 @@ import { admin } from "googleapis/build/src/apis/admin";
 import { profile } from "console";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { createPassword } from "../utils";
+import { cachedGetUser } from "./user.server.actions";
+import { cachedGetProfile } from "./profile.server.actions";
 
 interface UserMetadata {
   email: string;
@@ -44,6 +46,13 @@ interface UserMetadata {
 //     throw error
 //   }
 // }
+
+export const verifyAdmin = async () => {
+    const user = await cachedGetUser()
+    if (!user) throw new Error("Unauthenticated access")
+    const profile = await cachedGetProfile(user.id)
+    if (!profile || profile.role !== 'Admin') throw new Error("Unauthorized Access")
+}
 
 export const getUser = async () => {
   const supabase = await createClient();

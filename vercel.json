@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/email/before-sessions/schedule-reminders-weekly",
+      "path": "/api/admin/email/before-sessions/schedule-reminders-weekly",
       "schedule": "30 23 * * 6"
     },
     {
