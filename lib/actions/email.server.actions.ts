@@ -163,7 +163,7 @@ export async function scheduleEmail({
   try {
     const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
     const result = await qstash.publishJSON({
-      url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/send-email`,
+      url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/send-email-reminder`,
       notBefore: notBefore,
       body: {
         to: to,

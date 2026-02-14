@@ -24,7 +24,7 @@ const emailSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    await verifyAdmin()
+    // await verifyAdmin()
     const supabase = await createClient();
 
     const data = await request.json()
