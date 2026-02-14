@@ -36,7 +36,7 @@ interface UserMetadata {
 
 export const isAuthorized = async (request: NextRequest) => {
   const authHeader = request.headers.get("authorization");
-  return authHeader !== `Bearer ${process.env.BEARER_TOKEN}`
+  return authHeader === `Bearer ${process.env.BEARER_TOKEN}`
 };
 
 export const verifyAdmin = async () => {
