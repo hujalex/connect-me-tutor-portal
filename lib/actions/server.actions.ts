@@ -12,17 +12,16 @@ const WORKER_URL = `${process.env.CHATBOT_URL}/process-dm`;
 
 export async function processDMStream(
   payload: ProcessDMPayload,
-  timeoutMs = 30_000
 ) {
   // Ensure timeoutMs cannot cause excessively long-lived timers
   const DEFAULT_TIMEOUT_MS = 30_000;
-  const MAX_TIMEOUT_MS = 60_000;
-  let safeTimeout = Number.isFinite(timeoutMs) ? timeoutMs : DEFAULT_TIMEOUT_MS;
-  if (safeTimeout < 0) safeTimeout = 0;
-  if (safeTimeout > MAX_TIMEOUT_MS) safeTimeout = MAX_TIMEOUT_MS;
+  // const MAX_TIMEOUT_MS = 60_000;
+  // let safeTimeout = DEFAULT_TIMEOUT_MS;
+  // if (safeTimeout < 0) safeTimeout = 0;
+  // if (safeTimeout > MAX_TIMEOUT_MS) safeTimeout = MAX_TIMEOUT_MS;
 
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), safeTimeout);
+  const id = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
     const res = await fetch(WORKER_URL, {
