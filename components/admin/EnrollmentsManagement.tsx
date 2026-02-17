@@ -74,7 +74,7 @@ import {
   getMeetings,
   pauseEnrollmentOverSummer,
 } from "@/lib/actions/admin.actions";
-import { addEnrollment } from "@/lib/actions/enrollment.actions";
+import { addEnrollment } from "@/lib/actions/enrollment.server.actions";
 import {
   removeEnrollment,
   updateEnrollment,

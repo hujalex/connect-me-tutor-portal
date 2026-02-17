@@ -17,7 +17,7 @@ import {
   sendStudentPairingConfirmationEmail,
   sendTutorPairingConfirmationEmail,
 } from "./email.server.actions";
-import { addEnrollment } from "./enrollment.actions";
+import { addEnrollment } from "./enrollment.server.actions";
 import { getOverlappingAvailabilites } from "./enrollment.actions";
 import { getSupabase } from "../supabase-server/serverClient";
 import { number } from "zod";

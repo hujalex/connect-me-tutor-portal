@@ -78,9 +78,9 @@ import {
 import {
   removeEnrollment,
   updateEnrollment,
+  addEnrollment,
 } from "@/lib/actions/enrollment.server.actions";
 import {
-  addEnrollment,
   getEnrollments,
   getOverlappingAvailabilites,
 } from "@/lib/actions/enrollment.actions";

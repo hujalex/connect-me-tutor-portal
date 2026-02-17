@@ -896,12 +896,6 @@ export async function getMeeting(id: string): Promise<Meeting | null> {
   }
 }
 
-export const isValidUUID = (uuid: string): boolean => {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-};
-
 export async function getEventsWithTutorMonth(
   tutorId: string,
   selectedMonth: string,

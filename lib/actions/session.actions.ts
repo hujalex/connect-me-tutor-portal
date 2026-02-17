@@ -1,6 +1,3 @@
-// lib/admins.actions.ts
-
-// lib/student.actions.ts
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   Profile,
@@ -42,12 +39,8 @@ import {
   tableToInterfaceMeetings,
   tableToInterfaceProfiles,
 } from "../type-utils";
+import { supabase } from "@/lib/supabase/client";
 // import { getMeeting } from "./meeting.actions";
-
-const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-});
 
 /**
  * Fetches all sessions within a 24-hour window around the requested date
@@ -97,58 +90,6 @@ export async function getSessionKeys(data?: Session[]) {
   });
 
   return sessionKeys;
-}
-
-export async function addOneSession(
-  session: Session,
-  scheduleEmail: boolean = true,
-): Promise<void> {
-  try {
-    const newSession = {
-      date: session.date,
-      enrollment_id: null, //omdependent of enrollment date
-      student_id: session.student?.id,
-      tutor_id: session.tutor?.id,
-      status: "Active",
-      summary: session.summary,
-      meeting_id: session.meeting?.id,
-      duration: 1,
-    };
-
-    const { data, error } = await supabase
-      .from(Table.Sessions)
-      .insert(newSession)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (!data) toast.error("No Data");
-
-    if (data && scheduleEmail) {
-      const addedSession: Session = {
-        id: data.id,
-        enrollmentId: data.enrollment_id,
-        createdAt: data.created_at,
-        environment: data.environment,
-        date: data.date,
-        summary: data.summary,
-        meeting: await getMeeting(data.meeting_id),
-        student: await getProfileWithProfileId(data.student_id),
-        tutor: await getProfileWithProfileId(data.tutor_id),
-        status: data.status,
-        session_exit_form: data.session_exit_form || null,
-        isQuestionOrConcern: data.isQuestionOrConcern,
-        isFirstSession: data.isFirstSession,
-        duration: 1, //default //! might fix
-      };
-
-      sendScheduledEmailsBeforeSessions([addedSession]);
-    }
-  } catch (error) {
-    console.error("Unable to add one session", error);
-    throw error;
-  }
 }
 
 /**

@@ -41,8 +41,7 @@ import { Table } from "../supabase/tables";
 import { StdioNull } from "node:child_process";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { SharedEnrollment } from "@/types/enrollment";
-import { handleCalculateDuration } from "../utils";
-import { isValidUUID } from "./admin.actions";
+import { handleCalculateDuration, isValidUUID } from "../utils";
 // import { getMeeting } from "./meeting.actions";
 
 export async function getEnrollments(
@@ -228,67 +227,3 @@ const sql = `
  SELECT * FROM ${Table.Enrollments} LEFT JOIN ${Table.Profiles} ON ${Table.Profiles}.user_id = some inputted ID  WHERE tutor_id = ${Table.Profiles}.id OR student_id = ${Table.Profiles}.id
  ORDER BY created_at DESC
 `;
-
-export const addEnrollment = async (
-  enrollment: Omit<Enrollment, "id" | "createdAt">,
-  sendEmail?: boolean,
-) => {
-  try {
-    const duration = await handleCalculateDuration(
-      enrollment.availability[0].startTime,
-      enrollment.availability[0].endTime,
-    );
-
-    if (enrollment.duration <= 0)
-      throw new Error("Duration should be a positive amount");
-
-    // if (duration >= 3) {
-    //   throw new Error(
-    //     "Please consult an Exec Team member about sessions longer than 3 hours"
-    //   );
-    // }
-
-    if (!enrollment.student) throw new Error("Please select a Student");
-
-    if (enrollment.meetingId && !isValidUUID(enrollment.meetingId)) {
-      throw new Error("Invalid or no meeting link");
-    }
-
-    const { data, error } = await supabase
-      .from(Table.Enrollments)
-      .insert({
-        student_id: enrollment.student?.id,
-        tutor_id: enrollment.tutor?.id,
-        summary: enrollment.summary,
-        start_date: enrollment.startDate,
-        end_date: enrollment.endDate,
-        availability: enrollment.availability,
-        meetingId: enrollment.meetingId,
-        duration: duration, //default
-        frequency: enrollment.frequency,
-      })
-      .select(`*`)
-      .single();
-
-    if (error) {
-      console.error("Error adding enrollment:", error);
-      throw error;
-    }
-
-    return {
-      createdAt: data.created_at,
-      id: data.id,
-      summary: data.summary,
-      student: await getProfileWithProfileId(data.student_id),
-      tutor: await getProfileWithProfileId(data.tutor_id),
-      startDate: data.start_date,
-      endDate: data.end_date,
-      availability: data.availability,
-      meetingId: data.meetingId,
-      duration: data.duration,
-      frequency: data.frequency,
-    };
-  } catch (error) {
-    throw error;
-  }
-};
