@@ -109,29 +109,49 @@ export const getProfileRole = async (
   }
 
   try {
-    const { data } = await supabase
+    // first, check if user_settings exists for this user
+    const { data, error } = await supabase
       .from("user_settings")
       .select(
         `
         profile:Profiles!last_active_profile_id(role)
       `
       )
-      .eq("user_id", userId)
-      .single()
-      .throwOnError();
+      .eq("user_id", userId);
 
-    const profileRole: { profile: { role: string } } = data as any;
-
-    if (!profileRole || !profileRole.profile || !profileRole.profile.role) {
-      console.error("No role identified");
+    if (error) {
+      console.error(`Database error fetching user_settings for ${userId}:`, error.message);
       return null;
     }
 
-    const result = profileRole?.profile.role || null;
+    // handle no user_settings record
+    if (!data || data.length === 0) {
+      console.warn(`No user_settings record found for user ${userId}. User/profile mismatch.`);
+      return null;
+    }
 
-    return result;
+    // handle multiple user_settings records (should take the first one)
+    if (data.length > 1) {
+      console.warn(`Multiple user_settings records found for user ${userId}. Using first record.`);
+    }
+
+    const profileRole: { profile: { role: string } | null } = data[0] as any;
+
+    // landle missing profile
+    if (!profileRole || !profileRole.profile) {
+      console.warn(`User ${userId} has user_settings but no associated profile. User/profile mismatch.`);
+      return null;
+    }
+
+    // landle missing role
+    if (!profileRole.profile.role) {
+      console.warn(`User ${userId} has profile but no role assigned.`);
+      return null;
+    }
+
+    return profileRole.profile.role;
   } catch (error) {
-    console.error("Unexpected error in getProfileRole:", error);
+    console.error(`Unexpected error in getProfileRole for user ${userId}:`, error);
     return null;
   }
 };

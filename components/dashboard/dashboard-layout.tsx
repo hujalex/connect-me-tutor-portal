@@ -6,9 +6,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
-  getProfileRole,
-  getProfileWithProfileId,
-  getSessionUserProfile,
   logoutUser,
 } from "@/lib/actions/user.actions";
 import { Skeleton } from "@/components/ui/skeleton";
