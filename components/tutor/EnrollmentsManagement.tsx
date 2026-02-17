@@ -71,7 +71,6 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   getAllEnrollments,
-  addEnrollment,
   getAllProfiles,
   getMeetings,
   pauseEnrollmentOverSummer,
@@ -81,6 +80,7 @@ import {
   updateEnrollment,
 } from "@/lib/actions/enrollment.server.actions";
 import {
+  addEnrollment,
   getEnrollments,
   getOverlappingAvailabilites,
 } from "@/lib/actions/enrollment.actions";

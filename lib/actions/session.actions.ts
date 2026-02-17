@@ -35,7 +35,7 @@ import { withCoalescedInvoke } from "next/dist/lib/coalesced-function";
 import toast from "react-hot-toast";
 import { DatabaseIcon } from "lucide-react";
 import { SYSTEM_ENTRYPOINTS } from "next/dist/shared/lib/constants";
-import { getAllSessions } from "./admin.actions";
+import { getAllSessions, getMeeting } from "./admin.actions";
 import { fromZonedTime } from "date-fns-tz";
 import { Table } from "../supabase/tables";
 import {
@@ -97,6 +97,58 @@ export async function getSessionKeys(data?: Session[]) {
   });
 
   return sessionKeys;
+}
+
+export async function addOneSession(
+  session: Session,
+  scheduleEmail: boolean = true,
+): Promise<void> {
+  try {
+    const newSession = {
+      date: session.date,
+      enrollment_id: null, //omdependent of enrollment date
+      student_id: session.student?.id,
+      tutor_id: session.tutor?.id,
+      status: "Active",
+      summary: session.summary,
+      meeting_id: session.meeting?.id,
+      duration: 1,
+    };
+
+    const { data, error } = await supabase
+      .from(Table.Sessions)
+      .insert(newSession)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) toast.error("No Data");
+
+    if (data && scheduleEmail) {
+      const addedSession: Session = {
+        id: data.id,
+        enrollmentId: data.enrollment_id,
+        createdAt: data.created_at,
+        environment: data.environment,
+        date: data.date,
+        summary: data.summary,
+        meeting: await getMeeting(data.meeting_id),
+        student: await getProfileWithProfileId(data.student_id),
+        tutor: await getProfileWithProfileId(data.tutor_id),
+        status: data.status,
+        session_exit_form: data.session_exit_form || null,
+        isQuestionOrConcern: data.isQuestionOrConcern,
+        isFirstSession: data.isFirstSession,
+        duration: 1, //default //! might fix
+      };
+
+      sendScheduledEmailsBeforeSessions([addedSession]);
+    }
+  } catch (error) {
+    console.error("Unable to add one session", error);
+    throw error;
+  }
 }
 
 /**
@@ -382,19 +434,19 @@ export async function getStudentSessions(
   return sessions;
 }
 
-
 export async function getTutorSessions(
   profileId: string,
   params: {
-    startDate?: string,
-    endDate?: string,
-    status?: string | string[],
-    orderBy?: string,
-    ascending?: boolean,
-  }
+    startDate?: string;
+    endDate?: string;
+    status?: string | string[];
+    orderBy?: string;
+    ascending?: boolean;
+  },
 ): Promise<Session[]> {
-  
-  const { startDate, endDate, status, orderBy, ascending } = params ? params : {}
+  const { startDate, endDate, status, orderBy, ascending } = params
+    ? params
+    : {};
 
   let query = supabase
     .from(Table.Sessions)
@@ -404,7 +456,7 @@ export async function getTutorSessions(
      meeting:Meetings!meeting_id(*),
      student:Profiles!student_id(*),
      tutor:Profiles!tutor_id(*)
-    `
+    `,
     )
     .eq("tutor_id", profileId);
 
