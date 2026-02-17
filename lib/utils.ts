@@ -110,7 +110,7 @@ export function formatDateWithOptions(
       | "longOffset"
       | "shortGeneric"
       | "longGeneric";
-  }
+  },
 ): string {
   const date: Date = new Date(dateString);
 
@@ -133,7 +133,7 @@ export function formatDateAdmin(
   params?: {
     includeTime?: boolean;
     includeDate?: boolean;
-  }
+  },
 ): string {
   const { includeTime = true, includeDate = true } = params
     ? params
@@ -164,7 +164,7 @@ export function formatDateUTC(
   params: {
     includeTime?: boolean;
     includeDate?: boolean;
-  }
+  },
 ) {
   const date: Date = new Date(dateString);
 
@@ -356,9 +356,11 @@ export function capitalizeFirstLetter(word: string | undefined) {
 
 export const handleCalculateDuration = async (
   startTime: string,
-  endTime: string
+  endTime: string,
 ) => {
   try {
+    console.log("Start Time", startTime);
+    console.log("End Time", endTime);
     const startTimeNumber: number = timeStrToHours(startTime);
     const endTimeNumber: number = timeStrToHours(endTime);
     let difference = endTimeNumber - startTimeNumber;
@@ -369,6 +371,7 @@ export const handleCalculateDuration = async (
     return difference;
   } catch (error) {
     console.error("Unable to calculate duration", error);
+    throw error;
   }
 };
 
@@ -434,7 +437,6 @@ export const toDateTime = (time: string, day: Number) => {
   return parsedDate;
 };
 
-
 export const formatAvailabilityAsDate = (date: Availability): Date[] => {
   try {
     type DayName =
@@ -469,4 +471,10 @@ export const formatAvailabilityAsDate = (date: Availability): Date[] => {
     const date5am = new Date(2024, 1, 23, 5, 0, 0, 0);
     return [date5am, date5am];
   }
+};
+
+export const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
 };
