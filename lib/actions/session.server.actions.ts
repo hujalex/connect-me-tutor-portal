@@ -803,13 +803,14 @@ export async function addOneSession(
   try {
     const newSession = {
       date: session.date,
-      enrollment_id: null, //omdependent of enrollment date
+      enrollment_id: session.enrollmentId || null, //omdependent of enrollment date
       student_id: session.student?.id,
       tutor_id: session.tutor?.id,
-      status: "Active",
+      status: session.status || "Active",
       summary: session.summary,
       meeting_id: session.meeting?.id,
-      duration: 1,
+      duration: session.duration || 1,
+      environment: session.environment || "Virtual",
     };
 
     const { data, error } = await supabase

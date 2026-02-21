@@ -1,11 +1,13 @@
 "use server";
-import { Enrollment } from "@/types";
+import { Enrollment, Session } from "@/types";
 import { createAdminClient, createClient } from "../supabase/server";
 import { Table } from "../supabase/tables";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { cache } from "react";
 import { handleCalculateDuration, isValidUUID } from "../utils";
 import { subWeeks } from "date-fns";
+import { addOneSession } from "./session.server.actions";
+import { getMeeting } from "./meeting.server.actions";
 
 /* ENROLLMENTS */
 export async function getAllActiveEnrollmentsServer(
@@ -449,6 +451,27 @@ export const addEnrollment = async (
     if (error) {
       console.error("Error adding enrollment:", error);
       throw error;
+    }
+
+    if (data) {
+      const meeting = await getMeeting(data.meetingId);
+      const firstSession: Session = {
+        id: "",
+        enrollmentId: data.id,
+        createdAt: new Date().toISOString(),
+        date: data.start_date,
+        summary: data.summary,
+        student: tableToInterfaceProfiles(data.student),
+        tutor: tableToInterfaceProfiles(data.tutor),
+        meeting: meeting,
+        status: (enrollment as any).status || "Active",
+        session_exit_form: "",
+        isQuestionOrConcern: false,
+        isFirstSession: true,
+        duration: data.duration,
+        environment: (enrollment as any).environment || "Virtual",
+      };
+      await addOneSession(firstSession, sendEmail);
     }
 
     return {
