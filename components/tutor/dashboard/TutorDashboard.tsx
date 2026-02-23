@@ -22,6 +22,7 @@ import {
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
 import { useDashboardContext } from "@/contexts/dashboardContext";
+import { undoSessionExitForm } from "@/lib/actions/tutor.actions";
 
 
 const TutorDashboard = () => {
@@ -83,6 +84,7 @@ const TutorDashboard = () => {
         newDate,
         meetingId
       );
+     console.log("Updated session:", updatedSession);
 
       if (updatedSession) {
         TC.setCurrentSessions(
@@ -186,6 +188,32 @@ const TutorDashboard = () => {
       toast.error("Failed to record Session Exit Form");
     }
   };
+
+  const handleUndoSessionExitForm = async (sessionId: string) => {
+    console.log("Undo clicked:", sessionId);
+  try {
+    const session = await undoSessionExitForm(sessionId);
+    if (!session) return;
+
+    TC.setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? session : s))
+    );
+
+
+    TC.setPastSessions((prev) =>
+      prev.filter((s) => s.id !== sessionId)
+    );
+    TC.setCurrentSessions((prev) => [
+      session,
+      ...prev.filter((s) => s.id !== sessionId),
+    ]);
+
+    toast.success("Session exit form undone");
+  } catch (err) {
+    console.error("Undo exit form failed:", err);
+    toast.error("Could not undo session exit form");
+  }
+};
 
   // why: restore cancelled session to active status and update UI state
   const handleUndoCancel = async (sessionId: string) => {
@@ -327,6 +355,7 @@ const TutorDashboard = () => {
               // setSelectedSession={setSelectedSession}
               handlePageChange={handlePageChange}
               handleRowsPerPageChange={handleRowsPerPageChange}
+              handleUndoSessionExitForm={handleUndoSessionExitForm}
             />
           </div>
 
