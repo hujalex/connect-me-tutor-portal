@@ -53,7 +53,7 @@ export default function PriorityQueue() {
 
     await removePairingRequest(id);
     setPairingRequests((pairingRequests) =>
-      pairingRequests.filter((request) => request.request_id !== id)
+      pairingRequests.filter((request) => request.request_id !== id),
     );
   };
 
@@ -66,16 +66,17 @@ export default function PriorityQueue() {
     }
     (async () => {
       const { data, error } = await getAllPairingRequests(
-        currentView === "students" ? "student" : "tutor"
+        currentView === "students" ? "student" : "tutor",
       );
       if (data) {
+        console.log("Data", data);
         requestsCache.current[currentView] = data;
         setPairingRequests(data);
         return;
       }
       if (error) {
         toast.error("Failed to load pairing que");
-        console.error("Failed to load pairing queue", error)
+        console.error("Failed to load pairing queue", error);
       }
     })();
   }, [currentView]);
@@ -89,13 +90,13 @@ export default function PriorityQueue() {
               priority: newPriority,
               profile: { ...request.profile, priorityLevel: newPriority },
             }
-          : request
-      )
+          : request,
+      ),
     );
   };
 
   const sortedRequests = [...pairingRequests].sort(
-    (a, b) => a.priority - b.priority
+    (a, b) => a.priority - b.priority,
   );
   const tutors = sortedRequests.filter((r) => r.type === "tutor");
   const students = sortedRequests.filter((r) => r.type === "student");
@@ -316,7 +317,7 @@ export default function PriorityQueue() {
                               onValueChange={(value) =>
                                 updatePriority(
                                   request.request_id,
-                                  Number.parseInt(value)
+                                  Number.parseInt(value),
                                 )
                               }
                             >

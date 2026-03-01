@@ -239,7 +239,13 @@ export function PairingInterface() {
           </TabsContent>
 
           <TabsContent value="requests">
-            {profile && <PairingRequestCard userId={profile.userId} />}
+            {profile && (
+              <PairingRequestCard
+                userId={profile.userId}
+                profileId={profile.id}
+                role={profile.role ?? ""}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>

@@ -107,6 +107,24 @@ export const deleteAllPairingRequests = async () => {
   }
 };
 
+/** Returns tutor profile IDs that have previously rejected this student (pairing_matches where tutor_status = 'rejected'). */
+export const getRejectedTutorIdsForStudent = async (
+  studentProfileId: string,
+): Promise<string[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pairing_matches")
+    .select("tutor_id")
+    .eq("student_id", studentProfileId)
+    .eq("tutor_status", "rejected");
+
+  if (error) {
+    console.error("getRejectedTutorIdsForStudent error", error);
+    return [];
+  }
+  return (data ?? []).map((row) => row.tutor_id as string);
+};
+
 export const resetPairingQueues = async () => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||

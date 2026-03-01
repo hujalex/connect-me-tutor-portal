@@ -26,7 +26,7 @@ import { getMeeting } from "./meeting.actions";
 import { sendPairingAlertToWebhook } from "./pairing.server.actions";
 
 export const getAllPairingRequests = async (
-  profileType: "student" | "tutor"
+  profileType: "student" | "tutor",
 ) => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -37,18 +37,32 @@ export const getAllPairingRequests = async (
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
   const { data, error } = await supabase.rpc("get_all_pairing_requests", {
     p_type: profileType,
   });
 
+  console.log("error", error);
 
   return { data: data as PairingRequest[], error };
 };
 
-export const createPairingRequest = async (userId: string, notes: string) => {
+export type MyPairingRequest = {
+  id: string;
+  request_id: string;
+  type: "student" | "tutor";
+  status: string;
+  priority: number;
+  notes: string | null;
+  createdAt: string;
+  excludeRejectedTutors: boolean;
+};
+
+export const getMyPairingRequest = async (
+  profileId: string,
+): Promise<MyPairingRequest | null> => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -56,10 +70,52 @@ export const createPairingRequest = async (userId: string, notes: string) => {
     throw new Error("Missing Supabase environment variables");
   }
 
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+
+  const { data, error } = await supabase
+    .from(Table.PairingRequests)
+    .select("id, type, status, priority, notes, created_at, exclude_rejected_tutors")
+    .eq("user_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getMyPairingRequest error", error);
+    return null;
+  }
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    request_id: data.id,
+    type: data.type as "student" | "tutor",
+    status: data.status ?? "pending",
+    priority: data.priority ?? 2,
+    notes: data.notes ?? null,
+    createdAt: data.created_at ?? new Date().toISOString(),
+    excludeRejectedTutors: data.exclude_rejected_tutors ?? true,
+  };
+};
+
+export const createPairingRequest = async (
+  userId: string,
+  notes: string,
+  excludeRejectedTutors: boolean = true,
+) => {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    throw new Error("Missing Supabase environment variables");
+  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
   const [profile, enrollments] = await Promise.all([
@@ -67,12 +123,10 @@ export const createPairingRequest = async (userId: string, notes: string) => {
     getAccountEnrollments(userId),
   ]);
 
-
   if (!enrollments) throw new Error("cannot locate account enrollments");
   if (!profile) throw new Error("failed to validate profile role");
 
   const priority = enrollments.length < 1 ? 1 : 2;
-
 
   const result = await supabase.from(Table.PairingRequests).insert([
     {
@@ -80,6 +134,7 @@ export const createPairingRequest = async (userId: string, notes: string) => {
       type: profile.role.toLowerCase(),
       priority,
       notes,
+      exclude_rejected_tutors: excludeRejectedTutors,
     },
   ]);
 
@@ -95,7 +150,6 @@ export const createPairingRequest = async (userId: string, notes: string) => {
       } as PairingLogSchemaType,
     ]);
   }
-
 };
 
 export const removePairingRequest = async (id: string) => {
@@ -111,11 +165,42 @@ export const removePairingRequest = async (id: string) => {
   }
 };
 
+export const updatePairingRequest = async (
+  requestId: string,
+  updates: { notes?: string; exclude_rejected_tutors?: boolean },
+) => {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+
+  const payload: Record<string, unknown> = {};
+  if (updates.notes !== undefined) payload.notes = updates.notes;
+  if (updates.exclude_rejected_tutors !== undefined)
+    payload.exclude_rejected_tutors = updates.exclude_rejected_tutors;
+
+  if (Object.keys(payload).length === 0) return;
+
+  const { error } = await supabase
+    .from("pairing_requests")
+    .update(payload)
+    .eq("id", requestId);
+
+  if (error) throw error;
+};
+
 export const acceptStudentMatch = () => {};
 
 export const getPairingLogs = async (
   start_time: string,
-  end_time: string
+  end_time: string,
 ): Promise<PairingLog[]> => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -126,15 +211,13 @@ export const getPairingLogs = async (
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
   const { data: logs, error } = await supabase.rpc("get_pairing_logs", {
     start_time,
     end_time,
   });
-
-
 
   return logs;
 };
@@ -159,22 +242,20 @@ export const getIncomingPairingMatches = async (profileId: string) => {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   const { data, error } = await supabase.rpc(
     "get_pairing_matches_with_profiles",
     {
       requestor: profileId,
-    }
+    },
   );
-
 
   return data;
 };
 
 export const deletePairing = async (tutorId: string, studentId: string) => {
   try {
-
     const { data, error } = await supabase
       .from("Pairings")
       .delete()
@@ -182,7 +263,6 @@ export const deletePairing = async (tutorId: string, studentId: string) => {
       .eq("student_id", studentId);
 
     if (error) throw error;
-
   } catch (error) {
     console.error("Failed to delete pairing", error);
     throw error;
@@ -223,7 +303,7 @@ function minutesToTime(totalMinutes: number): string {
 function getAverageTimeWithDuration(
   startTime: string,
   endTime: string,
-  day: string
+  day: string,
 ): {
   startTime: string;
   endTime: string;
@@ -254,7 +334,7 @@ const isOverlap = (
   start1: number,
   end1: number,
   start2: number,
-  end2: number
+  end2: number,
 ) => {
   try {
     return start1 < end2 && start2 < end1;
@@ -266,10 +346,9 @@ const isOverlap = (
 export const getAvailableMeetingLink = async (
   start: string,
   end: string,
-  day: string
+  day: string,
 ) => {
   try {
-
     // Get all enrollments since we can't easily filter JSON arrays in Supabase
     const { data: allEnrollments, error } = await supabase
       .from("Enrollments")
@@ -277,13 +356,12 @@ export const getAvailableMeetingLink = async (
 
     if (error) throw error;
 
-
     // Filter in JavaScript for arrays
     const availableMeetings =
       allEnrollments?.filter((enrollment) => {
         // Check if this enrollment has any availability slots for the requested day
         const daySlots = enrollment.availability.filter(
-          (slot: { day: string }) => slot.day === day
+          (slot: { day: string }) => slot.day === day,
         );
 
         if (daySlots.length === 0) {
@@ -297,14 +375,13 @@ export const getAvailableMeetingLink = async (
             // Two ranges overlap if: slot.start < end AND slot.end > start
             const overlap = slot.startTime < end && slot.endTime > start;
             return overlap;
-          }
+          },
         );
 
         // Return true if NO conflict (available)
         return !hasConflict;
       }) || [];
 
-   
     return availableMeetings.length > 0 ? availableMeetings[0] : null;
   } catch (error) {
     console.error("Full error:", error);
@@ -315,7 +392,7 @@ export const getAvailableMeetingLink = async (
 export const getAutoAvailableSessionTimes = async (
   start: string,
   end: string,
-  day: string
+  day: string,
 ) => {
   try {
     let autoAvailability = null;
@@ -326,7 +403,7 @@ export const getAutoAvailableSessionTimes = async (
       meetingId = await getAvailableMeetingLink(
         autoAvailability.startTime,
         autoAvailability.endTime,
-        autoAvailability.day
+        autoAvailability.day,
       );
       if (meetingId)
         return { availability: autoAvailability, meeting: meetingId };
@@ -337,12 +414,12 @@ export const getAutoAvailableSessionTimes = async (
 
 export const getAutomaticEnrollment = async (
   tutor: Profile,
-  student: Profile
+  student: Profile,
 ): Promise<Omit<Enrollment, "id" | "createdAt"> | null | undefined> => {
   try {
     const availabilities = await getOverlappingAvailabilites(
       tutor.availability!,
-      student.availability!
+      student.availability!,
     );
 
     if (availabilities) {
@@ -352,7 +429,7 @@ export const getAutomaticEnrollment = async (
       const autoAvailability = await getAutoAvailableSessionTimes(
         firstAvailability.startTime,
         firstAvailability.endTime,
-        firstAvailability.day
+        firstAvailability.day,
       );
 
       if (!autoAvailability)
@@ -384,7 +461,7 @@ export const updatePairingMatchStatus = async (
   profileId: string,
   matchId: string,
   status: "accepted" | "rejected",
-  enrollment: Enrollment | null = null
+  enrollment: Enrollment | null = null,
 ) => {
   const updateResponse = await supabase
     .from("pairing_matches")
@@ -409,7 +486,7 @@ export const updatePairingMatchStatus = async (
 
   if (status === "accepted") {
     const studentData: Profile | null = await getProfileWithProfileId(
-      student.id
+      student.id,
     );
     const tutorData: Profile | null = await getProfileWithProfileId(tutor.id);
 
@@ -436,7 +513,6 @@ export const updatePairingMatchStatus = async (
     if (tutor.availability || student.availability) {
       autoEnrollment = await getAutomaticEnrollment(tutorData, studentData);
 
-
       if (autoEnrollment) {
         const result = await addEnrollment(autoEnrollment, true);
       } else {
@@ -454,7 +530,7 @@ export const updatePairingMatchStatus = async (
     }
 
     const meetingData: Meeting | null = await getMeeting(
-      autoEnrollment.meetingId
+      autoEnrollment.meetingId,
     );
 
     if (!meetingData) throw new Error("Unable to get meeting information");
@@ -466,7 +542,6 @@ export const updatePairingMatchStatus = async (
       availability: autoEnrollment.availability[0],
       meeting: meetingData,
     };
-
 
     try {
       await sendStudentPairingConfirmationEmail(emailData, studentData.email);
@@ -502,7 +577,6 @@ export const updatePairingMatchStatus = async (
   }
   //reset tutor and student status to be auto placed in que
   else if (status === "rejected") {
-
     const { data, error } = await supabase
       .from("pairing_requests")
       .update({
@@ -512,9 +586,12 @@ export const updatePairingMatchStatus = async (
 
     if (error) throw error;
 
-    const { error: deleteMatchError} = await supabase.from("pairing_matches").delete().eq("id", matchId);
-    
-    if (deleteMatchError) throw deleteMatchError
+    const { error: deleteMatchError } = await supabase
+      .from("pairing_matches")
+      .delete()
+      .eq("id", matchId);
+
+    if (deleteMatchError) throw deleteMatchError;
 
     await supabase.from("pairing_logs").insert([
       {

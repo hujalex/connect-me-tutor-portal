@@ -1,24 +1,21 @@
 "use server"
 import { PairingMatch } from "@/types/pairing";
 import { createClient } from "../supabase/server";
-import { Table } from "../supabase/tables";
 import { Person } from "@/types/enrollment";
 import { PairingLogSchemaType } from "./types";
-import PairingRequestNotificationEmail from "@/components/emails/pairing-request-notification";
-import { PairingConfirmationEmailProps, PairingRequestNotificationEmailProps } from "@/types/email";
-import { getProfile, getProfileWithProfileId } from "../actions/user.actions";
+import { PairingRequestNotificationEmailProps } from "@/types/email";
+import { getProfileWithProfileId } from "../actions/user.actions";
 import {
   sendPairingRequestEmail,
 } from "../actions/email.server.actions";
+import { getRejectedTutorIdsForStudent } from "../actions/pairing.server.actions";
 import { Profile } from "@/types";
-import { getSupabase } from "../supabase-server/serverClient";
 
 type QueueItem = {
   pairing_request_id: string;
   profile_id: string;
 };
 
-type PairingRequests = {};
 
 type QueueItemMatch = QueueItem & {
   similarity: number;
@@ -45,9 +42,6 @@ const sendPairingRequestNotification = async (
   }
 };
 
-const updatePairingStatus = (supabase: any, requestId: string, status: "paired") => {
-    supabase.from("pairing_requests").update({ status }).eq("id", requestId);
-}
 
 const buildMatches = async (matches: QueueItemMatch[]): Promise<PairingMatch[]> => {
   return matches.map((match) => ({
@@ -73,36 +67,52 @@ export const runPairingWorkflow = async () => {
     studentQueueResult.data ?? [],
   ] as [QueueItem[], QueueItem[]];
 
-
-  // console.log("tutorQueue:", tutorQueue);
-  // console.log("studentQueue:", studentQueue);
-
-  // Helper to shuffle a queue
-
   // Alternate pairing: student, tutor, student, tutor
   const maxLength = Math.max(studentQueue.length, tutorQueue.length);
 
   const studentMatches: QueueItemMatch[] = [];
   const tutorMatches: QueueItemMatch[] = [];
 
-  // Track tutor request IDs that should be updated *after* all matches
-  const tutorsToUpdate: string[] = [];
-
   for (let i = 0; i < maxLength; i++) {
     // Handle students first (student → tutor)
     if (i < studentQueue.length) {
       const studentReq = studentQueue[i];
-      const { data, error } = await supabase
-        .rpc("get_best_match", {
-          request_type: "student",
-          request_id: studentReq.pairing_request_id,
-        })
+      // Fetch request row to check exclude_rejected_tutors preference
+      const { data: requestRow } = await supabase
+        .from("pairing_requests")
+        .select("exclude_rejected_tutors")
+        .eq("id", studentReq.pairing_request_id)
         .single();
 
-      const result = data as QueueItemMatch;
-      if (error) console.error("Student best_match error:", error);
+      const excludeRejected = requestRow?.exclude_rejected_tutors ?? true;
+      const excludedTutorIds: string[] =
+        excludeRejected ? await getRejectedTutorIdsForStudent(studentReq.profile_id) : [];
 
-      if (result) {
+      const rpcParams: { request_type: string; request_id: string; p_exclude_tutor_ids?: string[] } = {
+        request_type: "student",
+        request_id: studentReq.pairing_request_id,
+      };
+      if (excludedTutorIds.length > 0) {
+        rpcParams.p_exclude_tutor_ids = excludedTutorIds;
+      }
+
+      const { data, error } = await supabase
+        .rpc("get_best_match", rpcParams)
+        .single();
+
+      const result = data as QueueItemMatch | null;
+      // PGRST116 means no rows found, which is expected when there are no matches
+      if (error && error.code !== "PGRST116") {
+        console.error("Student best_match error:", error);
+      }
+
+      // Fallback: if RPC doesn't support p_exclude_tutor_ids, skip matches with rejected tutors
+      const isExcluded =
+        result &&
+        excludedTutorIds.length > 0 &&
+        excludedTutorIds.includes(result.match_profile.id);
+
+      if (result && !isExcluded) {
         const { requestor_profile, match_profile } = result;
         logs.push({
           message: `${requestor_profile.first_name} ${requestor_profile.last_name} matched with ${match_profile?.first_name} ${match_profile?.last_name}`,
@@ -114,18 +124,12 @@ export const runPairingWorkflow = async () => {
           },
         });
 
-
-        // * UNCOMMENT IN PROD
-
-        // await updatePairingStatus(supabase, studentReq.pairing_request_id, "paired");
-
-        // * UNCOMMENT IN PROD
-
-
         studentMatches.push(result);
       } else {
         logs.push({
-          message: "Failed to find pairing for student",
+          message: isExcluded
+            ? "Skipped match (tutor previously declined student)"
+            : "Failed to find pairing for student",
           type: "pairing-selection-failed",
           error: true,
           metadata: {
@@ -146,23 +150,15 @@ export const runPairingWorkflow = async () => {
         .single();
 
       const result = data as QueueItemMatch;
-      // console.log("Tutor match:", data);
-      if (error) console.error("Tutor best_match error:", error);
+      // PGRST116 means no rows found, which is expected when there are no matches
+      if (error && error.code !== 'PGRST116') {
+        console.error("Tutor best_match error:", error);
+      }
 
       if (result as QueueItemMatch) {
-        // * UNCOMMENT IN PROD
-        // * await updatePairingStatus(supabase, tutorReq.pairing_request_id, "paired");
-        
         console.log("MATCH", result.requestor_profile.id, result.match_profile.id)
         
-        // * UNCOMMENT IN PROD
-        // await sendPairingRequestNotification(
-        //   result.requestor_profile.id,
-        //   result.match_profile.id
-        // );
-
         tutorMatches.push(result as QueueItemMatch);
-        tutorsToUpdate.push(tutorReq.pairing_request_id);
         logs.push({
           message: `Tutor ${result.requestor_profile.first_name} matched with ${result.match_profile.first_name}`,
           type: "pairing-match",
@@ -188,76 +184,31 @@ export const runPairingWorkflow = async () => {
   // Build matches for DB insert
   const matchedStudents: PairingMatch[] = await buildMatches(studentMatches)
   const matchedTutors: PairingMatch[] = await buildMatches(tutorMatches)
-  // console.log(matchedStudents);
 
-  try {
-    const emailPromises = matchedStudents.map(async (match) => {
-      try {
-        return console.log("MATCH", match.tutor_id, match.student_id)
 
-      } catch (error) {
-        throw error
-      }
-      // try {
-      //   return await sendPairingRequestNotification(
-      //     match.tutor_id,
-      //     match.student_id
-      //   );
-      // } catch (error) {
-      //   throw error;
-      // }
-    });
-    const results = await Promise.allSettled(emailPromises);
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.error(`Failed to send match email${index}:`, result.reason);
-      }
-    });
-  } catch (error) {
-    console.error("Error processing matches", error);
+  // Insert pairing matches to track all suggested matches
+  // Handle duplicates gracefully (users stay in queue and may get same matches on subsequent runs)
+  const matchesToInsert = [...matchedStudents, ...matchedTutors].filter(
+    ({ similarity }) => similarity
+  );
+  
+  if (matchesToInsert.length > 0) {
+    const { data: matchesData, error: matchesError } = await supabase
+      .from("pairing_matches")
+      .insert(matchesToInsert);
+    
+    // 23505 is duplicate key error - expected when match already exists, so we ignore it
+    if (matchesError && matchesError.code !== '23505') {
+      console.error("Failed to insert pairing matches:", matchesError);
+    }
   }
 
-  // console.log(matchedTutors, matchedStudents);
-
-
-  // * UNCOMMENT IN PROD
-  // const {data: r1, error: r1Error} = await supabase
-  //   .from("pairing_matches")
-  //   .insert(
-  //     [...matchedStudents, ...matchedTutors].filter(
-  //       ({ similarity }) => similarity
-  //     )
-  //   );
-
-  // dummy insert
-  // if (r1Error) throw r1Error
-  // const {data: dummyData, error: dummyError} = await supabase.from("pairing_matches").insert(
-  //   {student_id: student_id,
-  //     tutor_id: tutor_id,
-  //     similarity: 0.8,
-  //   }
-  // )
-
-  // if (dummyError) {
-  //   console.error("FAILED DUMMY TEST", dummyError)
-  //   throw dummyError
-  // }
-
-
-  // // Insert logs
-  // const r2 = await supabase
-  //   .from("pairing_logs")
-  //   .insert(logs.filter((log) => !log.error));
-
-  // // ✅ Now mark tutors as paired (after all matching is done)
-  // if (tutorsToUpdate.length > 0) {
-  //   await supabase
-  //     .from("pairing_requests")
-  //     .update({ status: "paired" })
-  //     .in("id", tutorsToUpdate);
-  // }
-
-  // * UNCOMMENT IN PROD
-
-
+  // Insert logs for all match attempts (both successful and failed)
+  const { error: logError } = await supabase
+    .from("pairing_logs")
+    .insert(logs);
+  
+  if (logError) {
+    console.error("Failed to insert pairing logs:", logError);
+  }
 };

@@ -10,6 +10,8 @@ export type PairingRequest = {
   priority: number;
   createdAt: Date;
   profile: Profile;
+  /** When true (default), students are not matched with tutors who previously rejected them. */
+  excludeRejectedTutors?: boolean;
 };
 export type PairingMatch = {
   id: string; //uuid
