@@ -32,7 +32,17 @@ import {
   ChevronRight,
   CircleCheckBig,
   CircleX,
+  Ellipsis,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useDashboardContext } from "@/contexts/dashboardContext";
 
 const CompletedSessionsTable = ({
@@ -111,24 +121,33 @@ const CompletedSessionsTable = ({
                       </Textarea>
                     </DialogContent>
                   </Dialog>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (session.status === "Complete") {
-                        handleUndoSessionExitForm(session.id);
-                      } else {
-                        TC.setSelectedSession(session);
-                        TC.setIsSessionExitFormOpen(true);
-                      }
-                    }}
-                    className="text-blue-600 hover:text-blue-800 text-left"
-                  >
-                    {session.status === "Complete"
-                      ? "Undo Exit Form"
-                      : "Fill Out Exit Form"}
-                  </Button>
                 </div>
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Ellipsis />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (session.status === "Complete") {
+                            handleUndoSessionExitForm(session.id);
+                          } else {
+                            TC.setSelectedSession(session);
+                            TC.setIsSessionExitFormOpen(true);
+                          }
+                        }}
+                      >
+                        Undo
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

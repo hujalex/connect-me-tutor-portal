@@ -242,7 +242,6 @@ export function formatStandardToMilitaryTime(standardTime: string): string {
   if (period.toUpperCase() === "PM") {
     hours = (hours % 12) + 12;
   } else if (hours === 12) {
-    // handles edge case of 12 AM
     hours = 0;
   }
   return `${hours.toString().padStart(2, "0")}:${minutes
