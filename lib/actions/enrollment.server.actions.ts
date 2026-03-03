@@ -11,7 +11,6 @@ import { handleCalculateDuration, isValidUUID } from "../utils";
 import { addDays, format, subWeeks } from "date-fns";
 import { addOneSession } from "./session.server.actions";
 import { getMeeting } from "./meeting.server.actions";
-import { i } from "vite/dist/node/chunks/moduleRunnerTransport";
 import { fromZonedTime } from "date-fns-tz";
 
 /* ENROLLMENTS */
