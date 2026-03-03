@@ -1,13 +1,18 @@
 "use server";
-import { Enrollment, Session } from "@/types";
+import { Availability, Enrollment, Session } from "@/types";
 import { createAdminClient, createClient } from "../supabase/server";
 import { Table } from "../supabase/tables";
-import { tableToInterfaceProfiles } from "../type-utils";
+import {
+  tableToInterfaceMeetings,
+  tableToInterfaceProfiles,
+} from "../type-utils";
 import { cache } from "react";
 import { handleCalculateDuration, isValidUUID } from "../utils";
-import { subWeeks } from "date-fns";
+import { addDays, format, subWeeks } from "date-fns";
 import { addOneSession } from "./session.server.actions";
 import { getMeeting } from "./meeting.server.actions";
+import { i } from "vite/dist/node/chunks/moduleRunnerTransport";
+import { fromZonedTime } from "date-fns-tz";
 
 /* ENROLLMENTS */
 export async function getAllActiveEnrollmentsServer(
@@ -444,7 +449,9 @@ export const addEnrollment = async (
       .select(
         `*,
         student:Profiles!student_id(*),
-        tutor:Profiles!tutor_id(*)`,
+        tutor:Profiles!tutor_id(*),
+        meeting:Meetings!meetingId(*)
+        `,
       )
       .single();
 
@@ -454,15 +461,22 @@ export const addEnrollment = async (
     }
 
     if (data) {
-      const meeting = await getMeeting(data.meetingId);
+      const tutor = tableToInterfaceProfiles(data.tutor);
+      const student = tableToInterfaceProfiles(data.student);
+      const meeting = tableToInterfaceMeetings(data.meeting);
+      const date = await sessionTimeFromEnrollment(
+        data.availability[0],
+        data.start_date,
+      );
+
       const firstSession: Session = {
         id: "",
         enrollmentId: data.id,
         createdAt: new Date().toISOString(),
-        date: data.start_date,
+        date: date,
         summary: data.summary,
-        student: tableToInterfaceProfiles(data.student),
-        tutor: tableToInterfaceProfiles(data.tutor),
+        student: student,
+        tutor: tutor,
         meeting: meeting,
         status: (enrollment as any).status || "Active",
         session_exit_form: "",
@@ -471,7 +485,12 @@ export const addEnrollment = async (
         duration: data.duration,
         environment: (enrollment as any).environment || "Virtual",
       };
-      await addOneSession(firstSession, sendEmail);
+
+      await addOneSession(firstSession, sendEmail, {
+        meeting: meeting,
+        tutor: tutor,
+        student: student,
+      });
     }
 
     return {
@@ -488,6 +507,44 @@ export const addEnrollment = async (
       frequency: data.frequency,
     };
   } catch (error) {
+    throw error;
+  }
+};
+
+export const sessionTimeFromEnrollment = (
+  availability: Availability,
+  start: string,
+): string => {
+  console.log(availability);
+  console.log(start);
+
+  const dayMap: Record<string, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+
+  try {
+    const startDate: Date = new Date(start);
+    console.log("Start Date", startDate);
+    const startDateWeekDay: number = startDate.getDay();
+    const firstSessionWeekDay: number = dayMap[availability.day.toLowerCase()];
+
+    console.log("Start Date Week Day", startDate.getUTCDay());
+    console.log("First session week day", firstSessionWeekDay);
+    const additionalDays = firstSessionWeekDay >= startDateWeekDay ? 0 : 7;
+    const currentDate: Date = addDays(
+      startDate,
+      firstSessionWeekDay - startDateWeekDay + additionalDays,
+    );
+    const dateString = `${format(currentDate, "yyyy-MM-dd")}T${availability.startTime}:00`;
+    return fromZonedTime(dateString, "America/New_York").toISOString();
+  } catch (error) {
+    console.error("Unable to calculate session from enrollment");
     throw error;
   }
 };
