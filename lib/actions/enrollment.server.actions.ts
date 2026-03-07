@@ -533,3 +533,28 @@ export const sessionTimeFromEnrollment = (
     throw error;
   }
 };
+
+export async function deleteInactiveEnrollments() {
+  const supabase = await createClient();
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+  const targetEnrollments = await getEnrollmentsWithMissingSEF(oneMonthAgo, 4);
+
+  if (!targetEnrollments || targetEnrollments.length === 0) {
+    return { success: true, deleted: 0 };
+  }
+
+  const enrollmentIds = targetEnrollments.map((e) => e.id);
+
+  const { error: deleteError } = await supabase
+    .from("Enrollments")
+    .delete()
+    .in("id", enrollmentIds);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message, deleted: 0 };
+  }
+
+  return { success: true, deleted: enrollmentIds.length };
+}

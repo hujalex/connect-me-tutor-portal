@@ -10,12 +10,8 @@
       "schedule":  "0 9 * * *"
     },
     {
-      "path": "/api/cron/cancel-unsubmitted-sef",
+      "path": "/api/cron/cleanup-schedule",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/delete-inactive-enrollments",
-      "schedule": "0 0 * * * "
     }
   ],
   "functions": {
