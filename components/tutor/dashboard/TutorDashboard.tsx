@@ -1,19 +1,11 @@
 "use client";
 import React, { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
-import TutorCalendar from "../TutorCalendar";
 import { Input } from "@/components/ui/input";
-import SessionsTable from "../components/ActiveSessionsTable";
 import ActiveSessionsTable from "../components/ActiveSessionsTable";
 import CurrentSessionsTable from "../components/CurrentSessionsTable";
 import CompletedSessionsTable from "../components/CompletedSessionsTable";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { getProfile } from "@/lib/actions/user.actions";
 import { updateSession } from "@/lib/actions/admin.actions";
-import {
-  recordSessionExitForm,
-  undoCancelSession,
-} from "@/lib/actions/tutor.actions";
+import { undoCancelSession } from "@/lib/actions/tutor.actions";
 import { rescheduleSession } from "@/lib/actions/session.server.actions";
 import { Session, Profile, Meeting } from "@/types";
 import toast from "react-hot-toast";
