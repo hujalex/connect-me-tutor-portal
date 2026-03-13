@@ -110,24 +110,8 @@ interface CurrentSessionTableProps {
 }
 
 const CurrentSessionsTable = ({
-  // currentSessions,
-  // filteredSessions,
   meetings,
-  // currentPage,
   totalPages,
-  // rowsPerPage,
-  // selectedSession,
-  // selectedSessionDate,
-  // isDialogOpen,
-  // isSessionExitFormOpen,
-  // notes,
-  // nextClassConfirmed,
-  // setSelectedSession,
-  // setSelectedSessionDate,
-  // setIsDialogOpen,
-  // setIsSessionExitFormOpen,
-  // setNotes,
-  // setNextClassConfirmed,
   handleStatusChange,
   handleReschedule,
   handleSessionComplete,
@@ -141,7 +125,7 @@ const CurrentSessionsTable = ({
   const handleRescheduleWithRefresh = async (
     sessionId: string,
     newDate: string,
-    meetingId: string
+    meetingId: string,
   ) => {
     await handleReschedule(sessionId, newDate, meetingId);
     router.refresh();
@@ -165,9 +149,7 @@ const CurrentSessionsTable = ({
         </TableHeader>
         <TableBody>
           {TC.currentSessions.map((session, index) => (
-            <TableRow
-              key={index}
-            >
+            <TableRow key={index}>
               <TableCell>
                 {session.status === "Active" ? (
                   <span className="px-3 py-1 inline-flex items-center rounded-full bg-blue-100 text-blue-800 border border-blue-200">
