@@ -927,8 +927,8 @@ const EnrollmentList = ({
             </div>
           </div>
 
-          {/* table made for desktop viewers above 1650 px wide*/}
-          <div className="hidden min-[1650px]:block w-full">
+          {/* table made for desktop viewers above md wide*/}
+          <div className="hidden md:block w-full">
             <div className="w-full overflow-x-auto rounded-lg border">
               <Table className="min-w-[1100px]">
                 <TableHeader>
@@ -955,15 +955,20 @@ const EnrollmentList = ({
                   {paginatedEnrollments.map((enrollment) => (
                     <TableRow key={enrollment.id}>
                       <TableCell className="whitespace-nowrap">
-                        {enrollment.student?.firstName} {enrollment.student?.lastName}
+                        {enrollment.student?.firstName}{" "}
+                        {enrollment.student?.lastName}
                       </TableCell>
 
                       <TableCell className="whitespace-nowrap">
-                        {enrollment.tutor?.firstName} {enrollment.tutor?.lastName}
+                        {enrollment.tutor?.firstName}{" "}
+                        {enrollment.tutor?.lastName}
                       </TableCell>
 
                       <TableCell className="min-w-[180px]">
-                        <AvailabilityFormat availability={enrollment.availability} card={false} />
+                        <AvailabilityFormat
+                          availability={enrollment.availability}
+                          card={false}
+                        />
                       </TableCell>
 
                       <TableCell className="min-w-[200px]">
@@ -980,7 +985,9 @@ const EnrollmentList = ({
                       <TableCell className="whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => handleCopyMeetingLink(enrollment.meetingId)}
+                          onClick={() =>
+                            handleCopyMeetingLink(enrollment.meetingId)
+                          }
                           className="relative inline-flex items-center group cursor-pointer"
                         >
                           <span className="underline text-black transition-opacity duration-150 group-hover:opacity-0">
@@ -1036,7 +1043,9 @@ const EnrollmentList = ({
                         <Button
                           variant="outline"
                           onClick={() =>
-                            router.push(`/dashboard/enrollment/${enrollment.id}/chat`)
+                            router.push(
+                              `/dashboard/enrollment/${enrollment.id}/chat`,
+                            )
                           }
                         >
                           Chat
@@ -1049,8 +1058,8 @@ const EnrollmentList = ({
             </div>
           </div>
 
-          {/* mobile cards for those screens that are smaller than 1650 px wide*/}
-          <div className="min-[1650px]:hidden space-y-4">
+          {/* mobile cards for those screens that are smaller than md wide*/}
+          <div className="md:hidden space-y-4">
             {paginatedEnrollments.map((enrollment) => (
               <div
                 key={enrollment.id}
@@ -1061,14 +1070,16 @@ const EnrollmentList = ({
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  Tutor: {enrollment.tutor?.firstName} {enrollment.tutor?.lastName}
+                  Tutor: {enrollment.tutor?.firstName}{" "}
+                  {enrollment.tutor?.lastName}
                 </div>
 
-                <AvailabilityFormat availability={enrollment.availability} card />
+                <AvailabilityFormat
+                  availability={enrollment.availability}
+                  card
+                />
 
-                <div className="text-sm">
-                  Summary: {enrollment.summary}
-                </div>
+                <div className="text-sm">Summary: {enrollment.summary}</div>
 
                 <div className="text-sm">
                   Start Date:{" "}
@@ -1163,14 +1174,50 @@ const EnrollmentList = ({
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
 
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </div> 
-      </div>   
+        </div>
+      </div>
 
       {/* Edit Enrollment Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

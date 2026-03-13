@@ -38,7 +38,6 @@ import { UserAvailabilities } from "../ui/UserAvailabilities";
 import DeletePairingForm from "./components/DeletePairingForm";
 import { useProfile } from "@/contexts/profileContext";
 
-
 const StudentList = ({ initialStudents }: any) => {
   const supabase = createClientComponentClient();
   const { profile, setProfile } = useProfile();
@@ -55,11 +54,11 @@ const StudentList = ({ initialStudents }: any) => {
     setFilteredStudents(initialStudents);
   }, [supabase.auth]);
 
-useEffect(() => {
+  useEffect(() => {
     const filtered = students.filter(
       (student) =>
         student.firstName.toLowerCase().includes(filterValue.toLowerCase()) ||
-        student.lastName.toLowerCase().includes(filterValue.toLowerCase())
+        student.lastName.toLowerCase().includes(filterValue.toLowerCase()),
     );
     setFilteredStudents(filtered); // Update filteredStudents instead of students
     setCurrentPage(1);
@@ -78,7 +77,7 @@ useEffect(() => {
 
   const paginatedStudents = filteredStudents.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   return (
@@ -93,59 +92,55 @@ useEffect(() => {
         />
       </div>
 
-      <div className="hidden md:block w-full overflow-x-auto">
-        <Table className="min-w">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Start Date</TableHead>
-              <TableHead>Student Name</TableHead>
-              <TableHead>Availability</TableHead>
-              <TableHead>Subjects</TableHead>
-              <TableHead>Student Email</TableHead>
-              <TableHead>Parent Email</TableHead>
-              <TableHead>Parent Phone</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {paginatedStudents.map((student, index) => (
-              <TableRow key={index}>
-                <TableCell>{student.startDate}</TableCell>
-
-                <TableCell>
-                  {student.firstName} {student.lastName}
-                </TableCell>
-
-                <TableCell>
-                  <UserAvailabilities user={student} />
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex flex-col">
-                    {student.subjects_of_interest?.map((subject, i) => (
-                      <span key={i}>{subject}</span>
-                    ))}
-                  </div>
-                </TableCell>
-
-                <TableCell>{student.email}</TableCell>
-                <TableCell>{student.parentEmail}</TableCell>
-                <TableCell>{student.parentPhone}</TableCell>
-
-                <TableCell>
-                  <DeletePairingForm student={student} tutor={profile} />
-                </TableCell>
+      <div className="hidden md:block w-full">
+        <div className="w-full overflow-x-auto rounded-lg border">
+          <Table className="min-w-[1100px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Start Date</TableHead>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Availability</TableHead>
+                <TableHead>Subjects</TableHead>
+                <TableHead>Student Email</TableHead>
+                <TableHead>Parent Email</TableHead>
+                <TableHead>Parent Phone</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paginatedStudents.map((student, index) => (
+                <TableRow key={index}>
+                  <TableCell>{student.startDate}</TableCell>
+                  <TableCell>
+                    {student.firstName} {student.lastName}
+                  </TableCell>
+                  <TableCell>
+                    <UserAvailabilities user={student} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      {student.subjects_of_interest?.map((subject, i) => (
+                        <span key={i}>{subject}</span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>{student.email}</TableCell>
+                  <TableCell>{student.parentEmail}</TableCell>
+                  <TableCell>{student.parentPhone}</TableCell>
+                  <TableCell>
+                    <DeletePairingForm student={student} tutor={profile} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
       <div className="md:hidden space-y-4">
         {paginatedStudents.map((student, index) => (
           <div
             key={index}
-            className="border rounded-lg p-4 shadow-sm space-y-2"
+            className="bg-white rounded-xl shadow p-4 space-y-3 border"
           >
             <div className="flex justify-between items-start">
               <div className="font-semibold text-base">
@@ -153,21 +148,17 @@ useEffect(() => {
               </div>
               <DeletePairingForm student={student} tutor={profile} />
             </div>
-
             <div className="text-sm text-muted-foreground">
               Start Date: {student.startDate}
             </div>
-
             <div>
               <UserAvailabilities user={student} />
             </div>
-
             <div className="text-sm">
               <div>Email: {student.email}</div>
               <div>Parent Email: {student.parentEmail}</div>
               <div>Parent Phone: {student.parentPhone}</div>
             </div>
-
             {student.subjects_of_interest?.length > 0 && (
               <div className="text-sm">
                 <div className="font-medium">Subjects:</div>
@@ -186,73 +177,64 @@ useEffect(() => {
           </div>
         ))}
       </div>
+      <div className="flex justify-between mt-4">
+        <span>{filteredStudents.length} row(s) total.</span>
 
-    
-      <div className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center pt-4">
-        <span className="text-sm">
-          {filteredStudents.length} row(s) total.
-        </span>
+        <div className="flex items-center space-x-2">
+          <span>Rows per page</span>
+          <Select
+            value={rowsPerPage.toString()}
+            onValueChange={handleRowsPerPageChange}
+          >
+            <SelectTrigger className="w-[70px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Rows</span>
-            <Select
-              value={rowsPerPage.toString()}
-              onValueChange={handleRowsPerPageChange}
+        <div className="flex items-center gap-2">
+          <span className="text-sm">
+            Page {currentPage} of {totalPages || 1}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
             >
-              <SelectTrigger className="w-[70px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm">
-              Page {currentPage} of {totalPages || 1}
-            </span>
-
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
