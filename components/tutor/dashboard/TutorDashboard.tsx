@@ -22,7 +22,6 @@ import { undoSessionExitForm } from "@/lib/actions/tutor.actions";
 import { getSessionTimePassed } from "@/lib/actions/session.actions";
 
 const TutorDashboard = () => {
-  const router = useRouter();
   const TC = useDashboardContext();
 
   useEffect(() => {
