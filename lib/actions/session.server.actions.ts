@@ -898,7 +898,7 @@ export async function cancelUnsubmittedSEFCron() {
   }
 
   if (!sessions || sessions.length === 0) {
-    return { success: true, cancelled: 0 };
+    return { success: true, error: undefined, cancelled: 0 };
   }
 
   // Then update them
@@ -912,5 +912,5 @@ export async function cancelUnsubmittedSEFCron() {
     return { success: false, error: updateError.message, cancelled: 0 };
   }
 
-  return { success: true, cancelled: sessions.length };
+  return { success: true, error: undefined, cancelled: sessions.length };
 }

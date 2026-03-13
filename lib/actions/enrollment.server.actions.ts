@@ -1,5 +1,5 @@
 "use server";
-import { Availability, Enrollment, Session } from "@/types";
+import { Availability, Enrollment, Profile, Session } from "@/types";
 import { createAdminClient, createClient } from "../supabase/server";
 import { Table } from "../supabase/tables";
 import {
@@ -12,6 +12,8 @@ import { addDays, format, subWeeks } from "date-fns";
 import { addOneSession } from "./session.server.actions";
 import { getMeeting } from "./meeting.server.actions";
 import { fromZonedTime } from "date-fns-tz";
+import { Resend } from "resend";
+import RescheduleConfirmationEmail from "@/components/emails/inactve-enrollment-warning";
 
 /* ENROLLMENTS */
 export async function getAllActiveEnrollmentsServer(
@@ -542,7 +544,7 @@ export async function deleteInactiveEnrollments() {
   const targetEnrollments = await getEnrollmentsWithMissingSEF(oneMonthAgo, 4);
 
   if (!targetEnrollments || targetEnrollments.length === 0) {
-    return { success: true, deleted: 0 };
+    return { success: true, error: undefined, deleted: 0 };
   }
 
   const enrollmentIds = targetEnrollments.map((e) => e.id);
@@ -556,5 +558,91 @@ export async function deleteInactiveEnrollments() {
     return { success: false, error: deleteError.message, deleted: 0 };
   }
 
-  return { success: true, deleted: enrollmentIds.length };
+  return { success: true, error: undefined, deleted: enrollmentIds.length };
+}
+
+export async function warnInactiveEnrollments() {
+  const supabase = await createClient();
+  const threeWeeksAgo = new Date();
+  const targetEnrollments = await getEnrollmentsWithMissingSEF(
+    threeWeeksAgo,
+    3,
+  );
+
+  if (!targetEnrollments || targetEnrollments.length === 0) {
+    return [];
+  }
+
+  const enrollmentIds = targetEnrollments.map((e) => e.id);
+
+  const { data } = await supabase
+    .from(Table.Enrollments)
+    .select(
+      `
+        id,
+        created_at,
+        summary,
+        student_id,
+        tutor_id,
+        start_date,
+        end_date,
+        availability,
+        meetingId,
+        paused,
+        duration,
+        student:Profiles!student_id(*),
+        tutor:Profiles!tutor_id(*)
+    `,
+    )
+    .in("id", enrollmentIds)
+    .throwOnError();
+
+  const enrollments: Enrollment[] =
+    data?.map((enrollment: any) => ({
+      createdAt: enrollment.created_at,
+      id: enrollment.id,
+      summary: enrollment.summary,
+      student: tableToInterfaceProfiles(enrollment.student),
+      tutor: tableToInterfaceProfiles(enrollment.tutor),
+      startDate: enrollment.start_date,
+      endDate: enrollment.end_date,
+      availability: enrollment.availability,
+      meetingId: enrollment.meetingId,
+      paused: enrollment.paused,
+      duration: enrollment.duration,
+      frequency: enrollment.frequency,
+    })) ?? [];
+
+  await Promise.all(
+    enrollments
+      .filter((enrollment) => enrollment.tutor && enrollment.student)
+      .map((enrollment) =>
+        sendInactiveEnrollmentWarning({
+          tutor: enrollment.tutor!,
+          student: enrollment.student!,
+          enrollment: enrollment,
+        }),
+      ),
+  );
+
+  return enrollments;
+}
+
+export async function sendInactiveEnrollmentWarning(params: {
+  tutor: Profile;
+  student: Profile;
+  enrollment: Enrollment;
+}) {
+  try {
+    const { tutor, student, enrollment } = params;
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: "Connect Me Free Tutoring & Mentoring <reminder@connectmego.app>",
+      to: tutor.email,
+      subject: "Connect Me Inactive Enrollment",
+      html: RescheduleConfirmationEmail(params),
+    });
+  } catch (error) {
+    throw error;
+  }
 }

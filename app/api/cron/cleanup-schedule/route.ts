@@ -6,8 +6,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const results = {
-    cancelUnsubmittedSEF: { success: false as boolean, cancelled: 0, error: undefined as string | undefined },
-    deleteInactiveEnrollments: { success: false as boolean, deleted: 0, error: undefined as string | undefined },
+    cancelUnsubmittedSEF: {
+      success: false,
+      cancelled: 0,
+      error: undefined as string | undefined,
+    },
+    deleteInactiveEnrollments: {
+      success: false as boolean,
+      deleted: 0,
+      error: undefined as string | undefined,
+    },
   };
 
   // Task 1: Cancel unsubmitted SEFs
@@ -18,10 +26,17 @@ export async function GET() {
   const deleteResult = await deleteInactiveEnrollments();
   results.deleteInactiveEnrollments = deleteResult;
 
-  const hasErrors = !results.cancelUnsubmittedSEF.success || !results.deleteInactiveEnrollments.success;
+  const hasErrors =
+    !results.cancelUnsubmittedSEF.success ||
+    !results.deleteInactiveEnrollments.success;
 
-  return NextResponse.json({
-    message: hasErrors ? "Cleanup completed with errors" : "Cleanup completed successfully",
-    results,
-  }, { status: hasErrors ? 207 : 200 });
+  return NextResponse.json(
+    {
+      message: hasErrors
+        ? "Cleanup completed with errors"
+        : "Cleanup completed successfully",
+      results,
+    },
+    { status: hasErrors ? 207 : 200 },
+  );
 }
