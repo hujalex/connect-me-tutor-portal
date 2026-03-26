@@ -1561,7 +1561,7 @@ const EnrollmentList = ({
           <SessionHistoryPanel
             sessions={historySessions}
             loading={historyLoading}
-            title="Enrollment History"
+            title="SEF Enrollment History"
             subtitle={
               historyEnrollment
                 ? `${historyEnrollment.student?.firstName} ${historyEnrollment.student?.lastName} with ${historyEnrollment.tutor?.firstName} ${historyEnrollment.tutor?.lastName}`

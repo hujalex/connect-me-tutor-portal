@@ -20,6 +20,7 @@ import {
   isSameMonth,
   isToday,
   isValid,
+  startOfDay,
   previousDay,
   getDay,
 } from "date-fns";
@@ -681,7 +682,17 @@ const Schedule = ({
           ? "bg-green-50 border-l-green-500 text-green-900"
           : session.status === "Cancelled"
             ? "bg-red-50 border-l-red-500 text-red-900"
-            : "bg-blue-50 border-l-blue-500 text-blue-900"
+            : (() => {
+                try {
+                  const zonedDate = toZonedTime(parseISO(session.date), "America/New_York");
+                  const now = toZonedTime(new Date(), "America/New_York");
+                  return startOfDay(zonedDate) < startOfDay(now)
+                    ? "bg-orange-50 border-l-orange-400 text-orange-900"
+                    : "bg-blue-50 border-l-blue-500 text-blue-900";
+                } catch {
+                  return "bg-blue-50 border-l-blue-500 text-blue-900";
+                }
+              })()
       )}
     >
       <p className="font-medium truncate">
