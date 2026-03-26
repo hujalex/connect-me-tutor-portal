@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { format, parseISO } from "date-fns";
+import React, { useState, useMemo } from "react";
+import { format, parseISO, isPast, startOfDay } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { Session } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   CalendarDays,
-  CheckCircle2,
-  XCircle,
-  Clock,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,12 +24,50 @@ interface SessionHistoryPanelProps {
 
 const INITIAL_SHOW = 5;
 const LOAD_MORE_COUNT = 10;
+const TZ = "America/New_York";
 
-const getStatusDot = (status: string) => {
-  if (status === "Complete") return "bg-emerald-500";
-  if (status === "Cancelled") return "bg-red-400";
-  if (status === "Rescheduled") return "bg-amber-400";
-  return "bg-slate-400";
+type ResolvedStatus = "Complete" | "Cancelled" | "Rescheduled" | "Uncompleted" | "Upcoming";
+
+function resolveStatus(session: Session): ResolvedStatus {
+  if (session.status === "Complete") return "Complete";
+  if (session.status === "Cancelled") return "Cancelled";
+  if (session.status === "Rescheduled") return "Rescheduled";
+
+  try {
+    const zonedDate = toZonedTime(parseISO(session.date), TZ);
+    const now = toZonedTime(new Date(), TZ);
+    return startOfDay(zonedDate) < startOfDay(now) ? "Uncompleted" : "Upcoming";
+  } catch {
+    return "Upcoming";
+  }
+}
+
+const statusStyles: Record<ResolvedStatus, { card: string; badge: string; badgeText: string }> = {
+  Complete: {
+    card: "border-l-green-500 bg-green-50/40",
+    badge: "bg-green-100 text-green-700 border-green-200",
+    badgeText: "completed",
+  },
+  Cancelled: {
+    card: "border-l-red-400 bg-red-50/40",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    badgeText: "cancelled",
+  },
+  Rescheduled: {
+    card: "border-l-amber-400 bg-amber-50/40",
+    badge: "bg-amber-100 text-amber-700 border-amber-200",
+    badgeText: "rescheduled",
+  },
+  Uncompleted: {
+    card: "border-l-orange-400 bg-orange-50/40",
+    badge: "bg-orange-100 text-orange-700 border-orange-200",
+    badgeText: "uncompleted",
+  },
+  Upcoming: {
+    card: "border-l-blue-400 bg-blue-50/40",
+    badge: "bg-blue-100 text-blue-700 border-blue-200",
+    badgeText: "upcoming",
+  },
 };
 
 export default function SessionHistoryPanel({
@@ -43,6 +78,19 @@ export default function SessionHistoryPanel({
 }: SessionHistoryPanelProps) {
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(INITIAL_SHOW);
+
+  const counts = useMemo(() => {
+    if (!sessions) return { completed: 0, cancelled: 0, uncompleted: 0, upcoming: 0, total: 0 };
+    let completed = 0, cancelled = 0, uncompleted = 0, upcoming = 0;
+    for (const s of sessions) {
+      const rs = resolveStatus(s);
+      if (rs === "Complete") completed++;
+      else if (rs === "Cancelled") cancelled++;
+      else if (rs === "Uncompleted") uncompleted++;
+      else if (rs === "Upcoming") upcoming++;
+    }
+    return { completed, cancelled, uncompleted, upcoming, total: sessions.length };
+  }, [sessions]);
 
   if (loading) {
     return (
@@ -62,18 +110,13 @@ export default function SessionHistoryPanel({
     );
   }
 
-  const completedCount = sessions.filter((s) => s.status === "Complete").length;
-  const cancelledCount = sessions.filter((s) => s.status === "Cancelled").length;
-  const activeCount = sessions.filter((s) => s.status === "Active").length;
-  const totalCount = sessions.length;
-
   const displayedSessions = showAll
     ? sessions.slice(0, visibleCount)
     : sessions.slice(0, INITIAL_SHOW);
 
   const hasMore = showAll
-    ? visibleCount < totalCount
-    : INITIAL_SHOW < totalCount;
+    ? visibleCount < counts.total
+    : INITIAL_SHOW < counts.total;
 
   const handleShowFullHistory = () => {
     setShowAll(true);
@@ -81,12 +124,12 @@ export default function SessionHistoryPanel({
   };
 
   const handleLoadMore = () => {
-    setVisibleCount((prev) => Math.min(prev + LOAD_MORE_COUNT, totalCount));
+    setVisibleCount((prev) => Math.min(prev + LOAD_MORE_COUNT, counts.total));
   };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-5">
+      <div className="mb-4">
         <h3 className="text-base font-medium tracking-tight text-gray-800">
           {title}
         </h3>
@@ -95,40 +138,39 @@ export default function SessionHistoryPanel({
         )}
       </div>
 
-      <div className="flex gap-4 mb-5 text-xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-gray-600">
-            {completedCount} completed
-          </span>
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="flex flex-col items-center py-2 rounded-md bg-green-50 border border-green-100">
+          <span className="text-lg font-semibold text-green-700 leading-none">{counts.completed}</span>
+          <span className="text-[10px] text-green-600 mt-1">completed</span>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <span className="text-gray-600">
-            {cancelledCount} cancelled
-          </span>
+        <div className="flex flex-col items-center py-2 rounded-md bg-red-50 border border-red-100">
+          <span className="text-lg font-semibold text-red-600 leading-none">{counts.cancelled}</span>
+          <span className="text-[10px] text-red-500 mt-1">cancelled</span>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-slate-400" />
-          <span className="text-gray-600">
-            {activeCount} upcoming
-          </span>
+        <div className="flex flex-col items-center py-2 rounded-md bg-orange-50 border border-orange-100">
+          <span className="text-lg font-semibold text-orange-600 leading-none">{counts.uncompleted}</span>
+          <span className="text-[10px] text-orange-500 mt-1">uncompleted</span>
+        </div>
+        <div className="flex flex-col items-center py-2 rounded-md bg-blue-50 border border-blue-100">
+          <span className="text-lg font-semibold text-blue-600 leading-none">{counts.upcoming}</span>
+          <span className="text-[10px] text-blue-500 mt-1">upcoming</span>
         </div>
       </div>
 
-      <div className="text-[11px] text-gray-400 mb-3">
-        showing {displayedSessions.length} of {totalCount}
+      <div className="text-[11px] text-gray-400 mb-2">
+        showing {displayedSessions.length} of {counts.total}
       </div>
 
       <ScrollArea className="flex-1 -mx-1 px-1">
         <div className="space-y-1.5 pb-4">
           {displayedSessions.map((session) => {
+            const resolved = resolveStatus(session);
+            const style = statusStyles[resolved];
+
             let formattedDate = "";
             let timespan = "";
             try {
-              const zoned = toZonedTime(parseISO(session.date), "America/New_York");
+              const zoned = toZonedTime(parseISO(session.date), TZ);
               formattedDate = format(zoned, "MMM d, yyyy");
               timespan = getSessionTimespan(session.date, session.duration);
             } catch {
@@ -138,42 +180,36 @@ export default function SessionHistoryPanel({
             return (
               <div
                 key={session.id}
-                className="flex items-center gap-3 rounded-md border border-gray-100 bg-white px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                className={cn(
+                  "rounded-md border border-gray-100 border-l-[3px] px-3 py-2.5 transition-colors",
+                  style.card,
+                )}
               >
-                <div className={cn("w-2 h-2 rounded-full shrink-0", getStatusDot(session.status))} />
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm text-gray-800 truncate">
-                      {session.tutor?.firstName} {session.tutor?.lastName}
-                      <span className="text-gray-300 mx-1">/</span>
-                      {session.student?.firstName} {session.student?.lastName}
-                    </span>
-                    <span className="text-[11px] text-gray-400 shrink-0 tabular-nums">
-                      {formattedDate}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-gray-400">{timespan}</span>
-                    <span className="text-[11px] text-gray-300">·</span>
-                    <span className={cn(
-                      "text-[11px]",
-                      session.status === "Complete" && "text-emerald-600",
-                      session.status === "Cancelled" && "text-red-500",
-                      session.status === "Active" && "text-gray-500",
-                      session.status === "Rescheduled" && "text-amber-600",
-                    )}>
-                      {session.status.toLowerCase()}
-                    </span>
-                  </div>
-
-                  {session.summary && (
-                    <p className="text-[11px] text-gray-400 mt-1 truncate">
-                      {session.summary}
-                    </p>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-800 truncate">
+                    {session.tutor?.firstName} {session.tutor?.lastName}
+                    <span className="text-gray-300 mx-1.5">/</span>
+                    {session.student?.firstName} {session.student?.lastName}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] font-normal shrink-0 py-0 px-1.5", style.badge)}
+                  >
+                    {style.badgeText}
+                  </Badge>
                 </div>
+
+                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                  <span className="tabular-nums">{formattedDate}</span>
+                  <span className="text-gray-300">·</span>
+                  <span>{timespan}</span>
+                </div>
+
+                {session.summary && (
+                  <p className="text-[11px] text-gray-400 mt-1 truncate">
+                    {session.summary}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -187,7 +223,7 @@ export default function SessionHistoryPanel({
               onClick={handleShowFullHistory}
               className="w-full text-xs text-gray-500 hover:text-gray-700"
             >
-              view full history ({totalCount} sessions)
+              view full history ({counts.total} sessions)
             </Button>
           </div>
         )}
