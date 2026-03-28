@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, use } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   AlarmClockMinus,
   MessageCircleIcon,
@@ -63,6 +63,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -104,19 +105,12 @@ const durationSchema = z.object({
 });
 
 const EnrollmentList = ({
-  enrollmentsPromise,
-  meetingsPromise,
-  studentsPromise,
-  tutorsPromise,
+  initialEnrollments,
+  initialMeetings,
+  initialStudents,
+  initialTutors,
 }: any) => {
-  const combinedPromise = Promise.all([
-    enrollmentsPromise,
-    meetingsPromise,
-    studentsPromise,
-    tutorsPromise,
-  ]);
-  const [initialEnrollments, initialMeetings, initialStudents, initialTutors] =
-    use(combinedPromise);
+  // data is awaited in server component now, no use() needed
   const [enrollments, setEnrollments] =
     useState<Enrollment[]>(initialEnrollments);
   const [filteredEnrollments, setFilteredEnrollments] =
@@ -643,6 +637,9 @@ const EnrollmentList = ({
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
                     <DialogTitle>Add New Enrollment</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      add a new enrollment
+                    </DialogDescription>
                   </DialogHeader>
                   <ScrollArea className="max-h-[calc(80vh-120px)] pr-4">
                     {" "}
@@ -885,17 +882,6 @@ const EnrollmentList = ({
                           onChange={handleInputChange}
                           // className="col-span-3"
                         />
-                        {/* <Label htmlFor="endDate" className="text-right">
-                          End Date
-                        </Label>
-                        <Input
-                          id="endDate"
-                          name="endDate"
-                          type="date"
-                          value={newEnrollment.endDate}
-                          onChange={handleInputChange}
-                          // className="col-span-3"
-                        /> */}
                       </div>
                       <div>
                         <Label>Meeting Link</Label>
@@ -936,7 +922,10 @@ const EnrollmentList = ({
                                 key={meeting.id}
                                 value={meeting.id}
                                 className="flex items-center justify-between"
-                                disabled={isCheckingMeetingAvailability}
+                                disabled={
+                                  isCheckingMeetingAvailability ||
+                                  !meetingAvailability[meeting.id]
+                                }
                               >
                                 <span>
                                   {meeting.name} - {meeting.id}
@@ -1178,6 +1167,9 @@ const EnrollmentList = ({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Enrollment</DialogTitle>
+            <DialogDescription className="sr-only">
+              edit enrollment details
+            </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[calc(80vh-120px)] pr-4">
             {" "}
@@ -1498,6 +1490,9 @@ const EnrollmentList = ({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Delete Enrollment</DialogTitle>
+            <DialogDescription className="sr-only">
+              confirm enrollment deletion
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p>

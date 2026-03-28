@@ -904,7 +904,10 @@ const EnrollmentList = ({
                               <SelectItem
                                 key={meeting.id}
                                 value={meeting.id}
-                                disabled={isCheckingMeetingAvailability}
+                                disabled={
+                                  isCheckingMeetingAvailability ||
+                                  !meetingAvailability[meeting.id]
+                                }
                                 className="flex items-center justify-between"
                               >
                                 <span>

@@ -7,6 +7,7 @@
     --clr-gray-light: rgb(249, 248, 248);
     --clr-gray-base: rgb(218, 218, 218);
     --clr-gray-dark: rgb(114, 110, 110);
+    --app-scale-factor: 0.9;
 
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;

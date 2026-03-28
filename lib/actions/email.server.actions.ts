@@ -13,10 +13,12 @@ import {
 } from "@/types/email";
 import { createClient } from "../supabase/server";
 import { parseISO, subMinutes } from "date-fns";
+import StudentRescheduleNotificationEmail, {
+  SessionRescheduleEmailProps,
+} from "@/components/emails/student-reschedule-notification";
 
 export const fetchScheduledMessages = async () => {
-  const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
-
+  const qstash = new Client({ token: process.env.EU_CENTRAL_1_QSTASH_TOKEN });
   const messages = await qstash.schedules.list();
   return messages;
 };
@@ -107,7 +109,7 @@ export async function deleteScheduledEmailBeforeSessions(sessionId: string) {
 }
 
 export async function deleteMsg(messageId: string) {
-  const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
+  const qstash = new Client({ token: process.env.EU_CENTRAL_1_QSTASH_TOKEN });
   try {
     await qstash.messages.delete(messageId);
   } catch (qstashError: any) {
@@ -129,7 +131,7 @@ export async function scheduleEmail({
   sessionId: string;
 }) {
   try {
-    const qstash = new Client({ token: process.env.US_EAST_1_QSTASH_TOKEN });
+    const qstash = new Client({ token: process.env.EU_CENTRAL_1_QSTASH_TOKEN });
     const result = await qstash.publishJSON({
       url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/email/send-email-reminder`,
       notBefore: notBefore,
@@ -204,6 +206,25 @@ export async function sendTutorPairingConfirmationEmail(
     to: "ahu@connectmego.org",
     cc: ["", "ahu@connectmego.org"],
     subject: "Confirmed for Tutoring",
+    html: emailHtml,
+  });
+
+  return emailResult;
+}
+
+export async function sendSessionRescheduleEmail(
+  data: SessionRescheduleEmailProps,
+  emailTo: string,
+) {
+  const emailHtml = await render(
+    React.createElement(StudentRescheduleNotificationEmail, data),
+  );
+
+  const emailResult = await resend.emails.send({
+    from: "Connect Me Free Tutoring & Mentoring <notifications@connectmego.app>",
+    to: emailTo,
+    cc: ["ahu@connectmego.org"], // keeping consistent with other email methods for visibility
+    subject: "Your Tutoring Session Has Been Rescheduled",
     html: emailHtml,
   });
 
