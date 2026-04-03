@@ -125,7 +125,7 @@ export async function addSessions(
     const enrollmentsWithSessions: Set<string> = new Set(
       sessions
         .filter((s) => s.enrollmentId)
-        .map((s) => s.enrollmentId as string)
+        .map((s) => s.enrollmentId as string),
     );
 
     // Prepare bulk insert data
@@ -281,7 +281,6 @@ export async function addSessions(
           id: session.id,
           enrollmentId: session.enrollment_id,
           createdAt: session.created_at,
-          environment: session.environment,
           date: session.date,
           summary: session.summary,
           meeting: session.meeting,
@@ -371,7 +370,6 @@ export async function getStudentSessions(
       id: session.id,
       enrollmentId: session.enrollment_id,
       createdAt: session.created_at,
-      environment: session.environment,
       date: session.date,
       summary: session.summary,
       // meetingId: session.meeting_id,
@@ -448,7 +446,6 @@ export async function getTutorSessions(
         id: session.id,
         enrollmentId: session.enrollment_id,
         createdAt: session.created_at,
-        environment: session.environment,
         date: session.date,
         summary: session.summary,
         meeting: tableToInterfaceMeetings(session.meeting),

@@ -10,7 +10,7 @@ import {
 import { cache } from "react";
 import { handleCalculateDuration, isValidUUID } from "../utils";
 import { addDays, format, subWeeks } from "date-fns";
-import { addOneSession } from "./session.server.actions";
+import { addStandaloneSession } from "./session.server.actions";
 import { getMeeting } from "./meeting.server.actions";
 import { fromZonedTime } from "date-fns-tz";
 import { Resend } from "resend";
@@ -471,10 +471,9 @@ export const addEnrollment = async (
         isQuestionOrConcern: false,
         isFirstSession: true,
         duration: data.duration,
-        environment: (enrollment as any).environment || "Virtual",
       };
 
-      await addOneSession(firstSession, sendEmail, {
+      await addStandaloneSession(firstSession, sendEmail, {
         meeting: meeting,
         tutor: tutor,
         student: student,

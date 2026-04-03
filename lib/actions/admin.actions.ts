@@ -350,7 +350,6 @@ export async function getAllSessions(
       id,
       enrollment_id,
       created_at,
-      environment,
       student_id,
       tutor_id,
       date,
@@ -390,7 +389,6 @@ export async function getAllSessions(
         id: session.id,
         enrollmentId: session.enrollment_id,
         createdAt: session.created_at,
-        environment: session.environment,
         date: session.date,
         summary: session.summary,
         // meetingId: session.meeting_id,
@@ -413,74 +411,6 @@ export async function getAllSessions(
     return [];
   }
 }
-
-// export function getAllSessions(
-//   startDate?: string,
-//   endDate?: string,
-//   orderBy?: string,
-//   ascending?: boolean
-// ) {
-//   try {
-//     let query = supabase.from(Table.Sessions).select(`
-//       id,
-//       created_at,
-//       environment,
-//       student_id,
-//       tutor_id,
-//       date,
-//       summary,
-//       meeting_id,
-//       status,
-//       is_question_or_concern,
-//       is_first_session,
-//       session_exit_form
-//     `);
-
-//     if (startDate) {
-//       query = query.gte("date", startDate);
-//     }
-//     if (endDate) {
-//       query = query.lte("date", endDate);
-//     }
-
-//     if (orderBy && ascending !== undefined) {
-//       query = query.order(orderBy, { ascending });
-//     }
-
-//     const { data, error } = await query;
-
-//     if (error) {
-//       console.error("Error fetching student sessions:", error.message);
-//       throw error;
-//     }
-
-//     // Map the result to the Session interface
-//     const sessions: Session[] = await Promise.all(
-//       data.map(async (session: any) => ({
-//         id: session.id,
-//         createdAt: session.created_at,
-//         environment: session.environment,
-//         date: session.date,
-//         summary: session.summary,
-//         // meetingId: session.meeting_id,
-//         meeting: await getMeeting(session.meeting_id),
-//         student: await getProfileWithProfileId(session.student_id),
-//         tutor: await getProfileWithProfileId(session.tutor_id),
-//         status: session.status,
-//         session_exit_form: session.session_exit_form,
-//         isQuestionOrConcern: Boolean(session.is_question_or_concern),
-//         isFirstSession: Boolean(session.is_first_session),
-//       }))
-//     );
-
-//     console.log(sessions);
-
-//     return sessions;
-//   } catch (error) {
-//     console.error("Error fetching sessions");
-//     return [];
-//   }
-// }
 
 export async function rescheduleSession(sessionId: string, newDate: string) {
   const { data, error } = await supabase
@@ -695,7 +625,6 @@ export async function updateSession(
         id: data.id,
         enrollmentId: data.enrollment_id,
         createdAt: data.created_at,
-        environment: data.environment,
         date: data.date,
         summary: data.summary,
         meeting: await getMeeting(data.meeting_id),
