@@ -11,7 +11,7 @@ import {
   PairingConfirmationEmailProps,
   PairingRequestNotificationEmailProps,
 } from "@/types/email";
-import { createClient } from "../supabase/server";
+import { createAdminClient, createClient } from "../supabase/server";
 import { parseISO, subMinutes } from "date-fns";
 import StudentRescheduleNotificationEmail, {
   SessionRescheduleEmailProps,
@@ -276,7 +276,7 @@ export const scheduleReminder = async (data: {
   type: "Tutor" | "Student";
 }) => {
   try {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     const session: Session = data.session;
     const tutor: Profile | null = session.tutor;

@@ -132,7 +132,7 @@ export async function getSessions(
   end: string,
 ): Promise<Session[]> {
   try {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     const { data: sessionData, error: sessionError } = await supabase
       .from(Table.Sessions)
@@ -719,8 +719,6 @@ export async function cancelUnsubmittedSEFCron() {
   const fortyEightHoursAgo = new Date(
     now.getTime() - 48 * 60 * 60 * 1000,
   ).toISOString();
-
-  const { data: test } = await supabase.from("Sessions").select("*").limit(1);
 
   // First, fetch sessions that need to be cancelled
   const { data: sessions, error: fetchError } = await supabase
