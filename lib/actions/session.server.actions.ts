@@ -132,7 +132,7 @@ export async function getSessions(
   end: string,
 ): Promise<Session[]> {
   try {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     const { data: sessionData, error: sessionError } = await supabase
       .from(Table.Sessions)
