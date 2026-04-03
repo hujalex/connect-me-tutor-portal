@@ -366,7 +366,7 @@ export const getEnrollmentsWithMissingSEF = async (
   timeProvided: Date,
   weeksMissingSEF: number,
 ) => {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   try {
     const now = new Date().toISOString();
     const { data: enrollments } = await supabase
@@ -381,8 +381,8 @@ export const getEnrollmentsWithMissingSEF = async (
         )
         `,
       )
-      .eq("sessions.status", "Active")
-      .gte("sessions.date", timeProvided)
+      .in("sessions.status", ["Active", "Cancelled"])
+      .gte("sessions.date", timeProvided.toISOString())
       .lte("sessions.date", now)
       .throwOnError();
 
@@ -470,6 +470,7 @@ export const addEnrollment = async (
         session_exit_form: "",
         isQuestionOrConcern: false,
         isFirstSession: true,
+        isStandalone: false,
         duration: data.duration,
       };
 
@@ -537,7 +538,7 @@ export const sessionTimeFromEnrollment = (
 };
 
 export async function deleteInactiveEnrollments() {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const fourWeeksAgo = subWeeks(new Date(), 4);
 
   const targetEnrollments = await getEnrollmentsWithMissingSEF(fourWeeksAgo, 4);
@@ -561,7 +562,7 @@ export async function deleteInactiveEnrollments() {
 }
 
 export async function warnInactiveEnrollments() {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const threeWeeksAgo = subWeeks(new Date(), 3);
   const targetEnrollments = await getEnrollmentsWithMissingSEF(
     threeWeeksAgo,

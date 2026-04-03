@@ -2,29 +2,14 @@
 import { Enrollment, Meeting, Session } from "@/types";
 import { toast } from "react-hot-toast";
 import { Client } from "@upstash/qstash";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { Profile } from "@/types";
 import { getProfileWithProfileId } from "./user.actions";
 import { getMeeting } from "./meeting.server.actions";
 import { createServerClient } from "../supabase/server";
 import { Table } from "../supabase/tables";
 
-import {
-  addDays,
-  format,
-  parse,
-  parseISO,
-  isBefore,
-  isAfter,
-  areIntervalsOverlapping,
-  addHours,
-  isValid,
-  setHours,
-  setMinutes,
-  startOfWeek,
-  endOfWeek,
-  subDays,
-} from "date-fns"; // Only use date-fns
+import { startOfWeek, endOfWeek, subDays } from "date-fns"; // Only use date-fns
 
 import * as DateFNS from "date-fns-tz";
 const { fromZonedTime } = DateFNS;
@@ -183,19 +168,7 @@ export async function getAllSessionsServer(
   const supabase = await createClient();
   try {
     let query = supabase.from(Table.Sessions).select(`
-      id,
-      enrollment_id,
-      created_at,
-      student_id,
-      tutor_id,
-      date,
-      summary,
-      meeting_id,
-      status,
-      is_question_or_concern,
-      is_first_session,
-      session_exit_form,
-      duration,
+      *,
       meetings:Meetings!meeting_id(*),
       student:Profiles!student_id(*),
       tutor:Profiles!tutor_id(*)
@@ -248,19 +221,7 @@ export async function getAllSessions(
     const supabase = await createClient();
 
     let query = supabase.from(Table.Sessions).select(`
-      id,
-      enrollment_id,
-      created_at,
-      student_id,
-      tutor_id,
-      date,
-      summary,
-      meeting_id,
-      status,
-      is_question_or_concern,
-      is_first_session,
-      session_exit_form,
-      duration,
+      *,
       meeting:Meetings!meeting_id(*),
       student:Profiles!student_id(*),
       tutor:Profiles!tutor_id(*)
@@ -492,19 +453,7 @@ export async function getSessionById(
       .from(Table.Sessions)
       .select(
         `
-        id,
-        enrollment_id,
-        created_at,
-        student_id,
-        tutor_id,
-        date,
-        summary,
-        meeting_id,
-        status,
-        is_question_or_concern,
-        is_first_session,
-        session_exit_form,
-        duration,
+        *,
         tutor:Profiles!tutor_id(*),
         student:Profiles!student_id(*),
         meeting:Meetings!meeting_id(*)
@@ -718,7 +667,7 @@ export async function addStandaloneSession(
       summary: session.summary,
       meeting_id: session.meeting?.id,
       duration: session.duration || 1,
-      isStandalone: true,
+      is_standalone: true,
     };
 
     const { data, error } = await supabase
@@ -758,25 +707,27 @@ export async function cancelUnsubmittedSEF(profile: Profile) {
       .from("Sessions")
       .update({ status: "Complete" })
       .eq("tutor_id", profile.id)
-      .lt("session_date", fortyEightHoursAgo);
+      .lt("date", fortyEightHoursAgo);
   } catch (error) {
     console.error("Unable to cancel unsubmitted SEF");
   }
 }
 
 export async function cancelUnsubmittedSEFCron() {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const now = new Date();
   const fortyEightHoursAgo = new Date(
     now.getTime() - 48 * 60 * 60 * 1000,
   ).toISOString();
+
+  const { data: test } = await supabase.from("Sessions").select("*").limit(1);
 
   // First, fetch sessions that need to be cancelled
   const { data: sessions, error: fetchError } = await supabase
     .from("Sessions")
     .select("id")
     .eq("status", "Active")
-    .lt("session_date", fortyEightHoursAgo);
+    .lt("date", fortyEightHoursAgo);
 
   if (fetchError) {
     return { success: false, error: fetchError.message, cancelled: 0 };
@@ -792,7 +743,7 @@ export async function cancelUnsubmittedSEFCron() {
     .update({ status: "Complete" })
     .eq("status", "Active")
     .eq("is_standalone", false)
-    .lt("session_date", fortyEightHoursAgo);
+    .lt("date", fortyEightHoursAgo);
 
   if (updateError) {
     return { success: false, error: updateError.message, cancelled: 0 };

@@ -60,7 +60,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Circle, Loader2, ChevronDown, Check } from "lucide-react";
 import {
-  getAllSessions,
   updateSession,
   getMeetings,
   getAllProfiles,
@@ -73,7 +72,7 @@ import {
 import { addStandaloneSession } from "@/lib/actions/session.server.actions";
 import { addHours, areIntervalsOverlapping } from "date-fns";
 
-import { fetchDaySessionsFromSchedule } from "@/lib/actions/session.actions";
+import { getAllSessions } from "@/lib/actions/session.actions";
 import { addSessions } from "@/lib/actions/session.actions";
 import { getProfileWithProfileId } from "@/lib/actions/user.actions";
 import { toast, Toaster } from "react-hot-toast";
@@ -94,16 +93,7 @@ import { getAllActiveEnrollments } from "@/lib/actions/enrollment.actions";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-const Schedule = ({
-  initialCurrentWeek,
-  initialCurrWeekStart,
-  initialCurrWeekEnd,
-  initialSessions,
-  initialEnrollments,
-  initialStudents,
-  initialTutors,
-  initialMeetings,
-}: any) => {
+const Schedule = () => {
   const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [calendarView, setCalendarView] = useState<"day" | "week" | "month">(
@@ -402,53 +392,6 @@ const Schedule = ({
     }
   };
 
-  // const { data: studentsData } = useQuery({
-  //   queryKey: ["students"],
-  //   queryFn: fetchStudents,
-  //   staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  // });
-
-  // const { data: tutorsData } = useQuery({
-  //   queryKey: ["tutors"],
-  //   queryFn: fetchTutors,
-  //   staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  // });
-
-  // const { data: sessionsData, isLoading: isLoadingSessions } = useQuery({
-  //   queryKey: ["sessions", currWeekStart, currWeekEnd],
-  //   queryFn: () => fetchSessions(currWeekStart, currWeekEnd),
-  // });
-
-  // const { data: enrollmentsData } = useQuery({
-  //   queryKey: ["enrollments", currWeekEnd],
-  //   queryFn: () => fetchEnrollments(currWeekEnd),
-  // });
-
-  // const { data: meetingsData } = useQuery({
-  //   queryKey: ["meetings"],
-  //   queryFn: () => fetchMeetings(),
-  // });
-
-  // useEffect(() => {
-  //   if (studentsData) setStudents(studentsData);
-  // }, [studentsData]);
-
-  // useEffect(() => {
-  //   if (tutorsData) setTutors(tutorsData);
-  // }, [tutorsData]);
-
-  // useEffect(() => {
-  //   if (sessionsData) setSessions(sessionsData)
-  // }, [sessionsData])
-
-  // useEffect(() => {
-  //   if (enrollmentsData) setEnrollments(enrollmentsData)
-  // }, [enrollmentsData])
-
-  // useEffect(() => {
-  //   if (meetingsData) setMeetings(meetingsData)
-  // }, [meetingsData])
-
   const fetchAllSessionsFromSchedule = async () => {
     try {
       const data = await getAllSessions();
@@ -479,32 +422,12 @@ const Schedule = ({
   const updateWeekMutation = useMutation({
     mutationFn: ({ enrollments }: { enrollments: Enrollment[] }) =>
       addSessions(weekStart, weekEnd, enrollments, sessions),
-    onMutate: async () => {
-      // await queryClient.cancelQueries({ queryKey: ["sessions"] });
-      // const prevSessions: Session[] | undefined = queryClient.getQueryData([
-      //   "sessions",
-      //   weekStart,
-      //   weekEnd,
-      // ]);
-      // await queryClient.setQueryData(
-      //   ["sessions", weekStart, weekEnd],
-      //   (sessions: Session[] | undefined) =>
-      //     sessions && prevSessions ? [...sessions, ...prevSessions] : []
-      // );
-      // return { prevSessions };
-    },
+    onMutate: async () => {},
     onSuccess: (newSessions: Session[]) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] }); // broad invalidation catches any date range
       toast.success(`${newSessions.length} new sessions added successfully`);
     },
     onError: (error: any, _, context) => {
-      // if (context) {
-      //   queryClient.setQueryData(
-      //     ["sessions", weekStart, weekEnd],
-      //     context.prevSessions
-      //   );
-      // }
-      // console.error("Failed to add sessions:", error);
       error.digest === "4161161223"
         ? toast.error("Please wait until adding new sessions")
         : toast.error(`Failed to add sessions. ${error.message}`);
@@ -701,7 +624,9 @@ const Schedule = ({
           ? "bg-green-50 border-l-green-500 text-green-900"
           : session.status === "Cancelled"
             ? "bg-red-50 border-l-red-500 text-red-900"
-            : "bg-blue-50 border-l-blue-500 text-blue-900",
+            : session.isStandalone
+              ? "bg-purple-50  border-l-purple-500 text-purple-900"
+              : "bg-blue-50 border-l-blue-500 text-blue-900",
       )}
     >
       <p className="font-medium truncate">
