@@ -791,6 +791,7 @@ export async function cancelUnsubmittedSEFCron() {
     .from("Sessions")
     .update({ status: "Complete" })
     .eq("status", "Active")
+    .eq("is_standalone", false)
     .lt("session_date", fortyEightHoursAgo);
 
   if (updateError) {
