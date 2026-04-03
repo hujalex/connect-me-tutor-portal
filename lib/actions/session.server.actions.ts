@@ -720,8 +720,6 @@ export async function cancelUnsubmittedSEFCron() {
     now.getTime() - 48 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data: test } = await supabase.from("Sessions").select("*").limit(1);
-
   // First, fetch sessions that need to be cancelled
   const { data: sessions, error: fetchError } = await supabase
     .from("Sessions")
