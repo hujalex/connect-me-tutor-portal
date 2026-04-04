@@ -134,6 +134,80 @@ export async function getActiveSessionFromMeetingID(meetingID: string) {
 
   return data || [];
 }
+
+/** Zoom webhook: payload.object → Zoom meeting number → `Meetings` row → `Sessions` row */
+export type ZoomSessionResolution = {
+  /** Zoom `object.id` / `meeting_number` (numeric string) */
+  zoomMeetingNumber: string | undefined;
+  /** Zoom `object.uuid` (often base64) */
+  zoomMeetingUuid: string | undefined;
+  /** `Meetings.id` */
+  meetingsRowId: string | null;
+  /** `Meetings.meeting_id` as stored */
+  storedMeetingId: string | null;
+  /** `Sessions.id` when an active past session matches */
+  appSessionId: string | null;
+};
+
+export function zoomSessionResolutionStatus(
+  r: ZoomSessionResolution
+):
+  | "no_meeting_number_in_payload"
+  | "meeting_not_in_database"
+  | "no_matching_active_session"
+  | "session_resolved" {
+  if (!r.zoomMeetingNumber) return "no_meeting_number_in_payload";
+  if (!r.meetingsRowId) return "meeting_not_in_database";
+  if (!r.appSessionId) return "no_matching_active_session";
+  return "session_resolved";
+}
+
+/**
+ * Map Zoom webhook `payload.object` to app session: meeting number → normalized match on
+ * `Meetings.meeting_id` → `Sessions.meeting_id` = `Meetings.id`.
+ */
+export async function resolveAppSessionFromZoomWebhookObject(
+  payloadObject: Record<string, unknown> | null | undefined
+): Promise<ZoomSessionResolution> {
+  const raw = payloadObject?.id ?? payloadObject?.meeting_number;
+  const meetingNumber =
+    raw !== undefined && raw !== null ? String(raw) : undefined;
+  const uuidRaw = payloadObject?.uuid;
+  const zoomMeetingUuid =
+    uuidRaw !== undefined && uuidRaw !== null ? String(uuidRaw) : undefined;
+
+  if (!meetingNumber) {
+    return {
+      zoomMeetingNumber: undefined,
+      zoomMeetingUuid,
+      meetingsRowId: null,
+      storedMeetingId: null,
+      appSessionId: null,
+    };
+  }
+
+  const meetingRecord = await findMeetingByNormalizedId(meetingNumber);
+  if (!meetingRecord) {
+    return {
+      zoomMeetingNumber: meetingNumber,
+      zoomMeetingUuid,
+      meetingsRowId: null,
+      storedMeetingId: null,
+      appSessionId: null,
+    };
+  }
+
+  const activeSessions = await getActiveSessionFromMeetingID(meetingRecord.id);
+  const activeSession = activeSessions?.[0];
+  return {
+    zoomMeetingNumber: meetingNumber,
+    zoomMeetingUuid,
+    meetingsRowId: meetingRecord.id,
+    storedMeetingId: meetingRecord.meeting_id,
+    appSessionId: activeSession?.id ?? null,
+  };
+}
+
 import { getParticipationBySessionId } from "./zoom.server.actions";
 import { scheduleMultipleSessionReminders } from "../twilio";
 import {

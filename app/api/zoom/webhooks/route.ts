@@ -6,8 +6,9 @@ import {
   updateParticipantLeaveTime,
 } from "@/lib/actions/zoom.server.actions";
 import {
-  findMeetingByNormalizedId,
-  getActiveSessionFromMeetingID,
+  resolveAppSessionFromZoomWebhookObject,
+  zoomSessionResolutionStatus,
+  type ZoomSessionResolution,
 } from "@/lib/actions/session.server.actions";
 import { logEvent, logError } from "@/lib/posthog";
 
@@ -44,91 +45,67 @@ export async function POST(req: NextRequest) {
   const payload = body?.payload;
   const event = body?.event;
 
-  // Extract identifying information from the payload
-  // Meeting UUID (primary identifier) - this is the Zoom meeting UUID
-  const zoomMeetingId = payload?.object?.uuid;
-  // Meeting number - the id field contains the meeting number (e.g., "77608067183")
   const meetingNumberRaw =
     payload?.object?.id || payload?.object?.meeting_number;
-  const meetingNumber = meetingNumberRaw ? String(meetingNumberRaw) : undefined;
-  // Account information at payload level
   const accountId = payload?.account_id;
   const accountEmail = payload?.account_email;
-  // Host information
   const hostId = payload?.object?.host_id;
   const hostEmail = payload?.object?.host_email;
 
-  // console.log("Webhook payload:", JSON.stringify(payload, null, 2));
-  // console.log("Webhook identifiers:", {
-  //   zoomMeetingId,
-  //   accountId,
-  //   accountEmail,
-  //   meetingNumber,
-  //   meetingNumberRaw,
-  //   hostId,
-  //   hostEmail,
-  //   event,
-  // });
+  /** Zoom `payload.object.uuid` (often base64); not the app session id */
+  let zoomMeetingId: string | undefined =
+    payload?.object?.uuid !== undefined && payload?.object?.uuid !== null
+      ? String(payload.object.uuid)
+      : undefined;
 
-  // Find meeting and active session by meeting number
-  let sessionId: string | null = null;
-  let meetingRecord: { id: string; meeting_id: string } | null = null;
-
-  // console.log("meetingNumber", meetingNumber);
-  if (meetingNumber) {
-    try {
-      await logEvent("zoom_webhook_finding_meeting_start", {
-        request_id: requestId,
-        meeting_number: meetingNumber,
-      });
-
-      meetingRecord = await findMeetingByNormalizedId(meetingNumber);
-
-      if (meetingRecord) {
-        await logEvent("zoom_webhook_meeting_found", {
-          request_id: requestId,
-          meeting_number: meetingNumber,
-          meeting_id: meetingRecord.id,
-          stored_meeting_id: meetingRecord.meeting_id,
-        });
-
-        // Find active session with this meeting ID (closest to current time, in the past)
-        const activeSessions = await getActiveSessionFromMeetingID(
-          meetingRecord.id
-        );
-        // Get the first (most recent) session that is in the past
-        const activeSession = activeSessions?.[0];
-        // console.log("activeSession", activeSession);
-        if (activeSession) {
-          sessionId = activeSession.id;
-          await logEvent("zoom_webhook_active_session_found", {
-            request_id: requestId,
-            meeting_number: meetingNumber,
-            meeting_id: meetingRecord.id,
-            session_id: sessionId,
-          });
-        } else {
-          await logEvent("zoom_webhook_no_active_session", {
-            request_id: requestId,
-            meeting_number: meetingNumber,
-            meeting_id: meetingRecord.id,
-          });
-        }
-      } else {
-        await logEvent("zoom_webhook_meeting_not_found", {
-          request_id: requestId,
-          meeting_number: meetingNumber,
-        });
-      }
-    } catch (error) {
-      console.error("Error finding meeting/session:", error);
-      await logError(error, {
-        request_id: requestId,
-        step: "finding_meeting_session",
-        meeting_number: meetingNumber,
-      });
-    }
+  // Payload → Zoom meeting number → Meetings row → Sessions row
+  let resolution: ZoomSessionResolution;
+  try {
+    resolution = await resolveAppSessionFromZoomWebhookObject(
+      payload?.object as Record<string, unknown> | undefined
+    );
+    await logEvent("zoom_webhook_meeting_session_resolution", {
+      request_id: requestId,
+      resolution_status: zoomSessionResolutionStatus(resolution),
+      zoom_meeting_number: resolution.zoomMeetingNumber ?? null,
+      zoom_meeting_uuid: resolution.zoomMeetingUuid ?? null,
+      meetings_row_id: resolution.meetingsRowId,
+      meetings_table_meeting_id: resolution.storedMeetingId,
+      app_session_id: resolution.appSessionId,
+      payload_object: payload?.object ?? null,
+    });
+  } catch (error) {
+    console.error("Error resolving meeting/session from Zoom payload:", error);
+    await logError(error, {
+      request_id: requestId,
+      step: "finding_meeting_session",
+      meeting_number_raw: meetingNumberRaw,
+      payload_object: payload?.object ?? null,
+    });
+    resolution = {
+      zoomMeetingNumber:
+        meetingNumberRaw !== undefined && meetingNumberRaw !== null
+          ? String(meetingNumberRaw)
+          : undefined,
+      zoomMeetingUuid: zoomMeetingId,
+      meetingsRowId: null,
+      storedMeetingId: null,
+      appSessionId: null,
+    };
   }
+
+  zoomMeetingId = resolution.zoomMeetingUuid ?? zoomMeetingId;
+  const meetingNumber = resolution.zoomMeetingNumber;
+  const sessionId: string | null = resolution.appSessionId;
+
+  const zoomRelationshipLog = {
+    resolution_status: zoomSessionResolutionStatus(resolution),
+    meetings_row_id: resolution.meetingsRowId,
+    meetings_table_meeting_id: resolution.storedMeetingId,
+    zoom_meeting_number: resolution.zoomMeetingNumber ?? null,
+    zoom_meeting_uuid: zoomMeetingId ?? null,
+    app_session_id: sessionId,
+  };
 
   await logEvent("zoom_webhook_identifiers_extracted", {
     request_id: requestId,
@@ -140,6 +117,9 @@ export async function POST(req: NextRequest) {
     host_id: hostId,
     host_email: hostEmail,
     event_type: event,
+    resolution_status: zoomSessionResolutionStatus(resolution),
+    meetings_row_id: resolution.meetingsRowId,
+    meetings_table_meeting_id: resolution.storedMeetingId,
     has_zoom_meeting_id: !!zoomMeetingId,
     has_account_id: !!accountId,
     has_meeting_number: !!meetingNumber,
@@ -378,16 +358,15 @@ export async function POST(req: NextRequest) {
             participant_name: participantName,
           });
 
-          // Use session_id if found, otherwise fall back to zoomMeetingId
-          const logSessionId = sessionId || zoomMeetingId;
-
           await logZoomMetadata({
-            session_id: logSessionId,
+            session_id: sessionId,
+            zoom_meeting_uuid: zoomMeetingId ?? null,
             participant_id: participantId,
             name: participantName || "Unknown",
             email: participantEmail || null,
             action: "joined",
             timestamp: joinTime,
+            relationship: zoomRelationshipLog,
           });
 
           await logEvent("zoom_participant_join_db_success", {
@@ -473,15 +452,14 @@ export async function POST(req: NextRequest) {
             participant_name: participantName,
           });
 
-          // Use session_id if found, otherwise fall back to zoomMeetingId
-          const logSessionId = sessionId || zoomMeetingId;
-
           await updateParticipantLeaveTime(
-            logSessionId,
+            sessionId,
+            zoomMeetingId ?? null,
             participantUuid,
             participantName || "Unknown",
             participantEmail || null,
-            leaveTime
+            leaveTime,
+            zoomRelationshipLog
           );
 
           await logEvent("zoom_participant_left_db_success", {

@@ -44,9 +44,31 @@ export const getAllPairingRequests = async (
     p_type: profileType,
   });
 
-  console.log("error", error);
+  if (error || !data?.length) {
+    return { data: (data ?? null) as PairingRequest[] | null, error };
+  }
 
-  return { data: data as PairingRequest[], error };
+  const rows = data as PairingRequest[];
+  const ids = rows.map((r) => r.request_id);
+  const { data: queueRows, error: queueErr } = await supabase
+    .from(Table.PairingRequests)
+    .select("id, in_queue")
+    .in("id", ids);
+
+  if (queueErr || !queueRows?.length) {
+    return { data: rows, error };
+  }
+
+  const activeIds = new Set(
+    queueRows
+      .filter((r) => (r as { in_queue?: boolean }).in_queue !== false)
+      .map((r) => r.id as string),
+  );
+
+  return {
+    data: rows.filter((r) => activeIds.has(r.request_id)),
+    error: null,
+  };
 };
 
 export type MyPairingRequest = {
@@ -58,6 +80,8 @@ export type MyPairingRequest = {
   notes: string | null;
   createdAt: string;
   excludeRejectedTutors: boolean;
+  /** false = left queue (archived); row kept for history */
+  inQueue: boolean;
 };
 
 export const getMyPairingRequest = async (
@@ -77,7 +101,9 @@ export const getMyPairingRequest = async (
 
   const { data, error } = await supabase
     .from(Table.PairingRequests)
-    .select("id, type, status, priority, notes, created_at, exclude_rejected_tutors")
+    .select(
+      "id, type, status, priority, notes, created_at, exclude_rejected_tutors, in_queue",
+    )
     .eq("user_id", profileId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -89,15 +115,27 @@ export const getMyPairingRequest = async (
   }
   if (!data) return null;
 
+  const row = data as {
+    id: string;
+    type: string;
+    status: string | null;
+    priority: number | null;
+    notes: string | null;
+    created_at: string | null;
+    exclude_rejected_tutors: boolean | null;
+    in_queue?: boolean | null;
+  };
+
   return {
-    id: data.id,
-    request_id: data.id,
-    type: data.type as "student" | "tutor",
-    status: data.status ?? "pending",
-    priority: data.priority ?? 2,
-    notes: data.notes ?? null,
-    createdAt: data.created_at ?? new Date().toISOString(),
-    excludeRejectedTutors: data.exclude_rejected_tutors ?? true,
+    id: row.id,
+    request_id: row.id,
+    type: row.type as "student" | "tutor",
+    status: row.status ?? "pending",
+    priority: row.priority ?? 2,
+    notes: row.notes ?? null,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    excludeRejectedTutors: row.exclude_rejected_tutors ?? true,
+    inQueue: row.in_queue !== false,
   };
 };
 
@@ -128,6 +166,47 @@ export const createPairingRequest = async (
 
   const priority = enrollments.length < 1 ? 1 : 2;
 
+  const { data: existing } = await supabase
+    .from(Table.PairingRequests)
+    .select("id, in_queue")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const existingRow = existing as { id: string; in_queue?: boolean | null } | null;
+
+  if (existingRow?.id) {
+    if (existingRow.in_queue !== false) {
+      throw new Error("You are already in the pairing queue.");
+    }
+
+    const { error: upErr } = await supabase
+      .from(Table.PairingRequests)
+      .update({
+        in_queue: true,
+        notes,
+        priority,
+        exclude_rejected_tutors: excludeRejectedTutors,
+        status: "pending",
+      })
+      .eq("id", existingRow.id);
+
+    if (upErr) throw upErr;
+
+    supabase.from("pairing_logs").insert([
+      {
+        type: "pairing-que-entered",
+        message: `${profile.firstName} ${profile.lastName} has rejoined the pairing queue.`,
+        error: false,
+        metadata: {
+          profile_id: profile.id,
+        },
+      } as PairingLogSchemaType,
+    ]);
+    return;
+  }
+
   const result = await supabase.from(Table.PairingRequests).insert([
     {
       user_id: profile.id,
@@ -135,6 +214,7 @@ export const createPairingRequest = async (
       priority,
       notes,
       exclude_rejected_tutors: excludeRejectedTutors,
+      in_queue: true,
     },
   ]);
 
@@ -152,15 +232,16 @@ export const createPairingRequest = async (
   }
 };
 
+/** Archives the request (in_queue = false); row and notes are kept. */
 export const removePairingRequest = async (id: string) => {
   try {
     const { error } = await supabase
       .from("pairing_requests")
-      .delete()
+      .update({ in_queue: false })
       .eq("id", id);
     if (error) throw error;
   } catch (error) {
-    console.error("Unable to remove pairing request", error);
+    console.error("Unable to archive pairing request", error);
     throw error;
   }
 };
@@ -225,11 +306,10 @@ export const getPairingLogs = async (
 export type IncomingPairingMatch = {
   tutor: Person & ProfilePairingMetadata;
   student: Person & ProfilePairingMetadata;
-  // tutor: Profile;
-  // student: Profile;
   tutor_id: string;
   pairing_match_id: string;
   created_at: string;
+  tutor_status?: string | null;
 };
 
 export const getIncomingPairingMatches = async (profileId: string) => {
@@ -251,7 +331,13 @@ export const getIncomingPairingMatches = async (profileId: string) => {
     },
   );
 
-  return data;
+  if (error || !data) return data;
+
+  const list = data as IncomingPairingMatch[];
+  return list.filter(
+    (m) =>
+      m.tutor_status !== "rejected" && m.tutor_status !== "accepted",
+  );
 };
 
 export const deletePairing = async (tutorId: string, studentId: string) => {
@@ -358,7 +444,7 @@ export const getAvailableMeetingLink = async (
 
     // Filter in JavaScript for arrays
     const availableMeetings =
-      allEnrollments?.filter((enrollment) => {
+      allEnrollments?.filter((enrollment: { availability: { day: string; startTime: string; endTime: string }[] }) => {
         // Check if this enrollment has any availability slots for the requested day
         const daySlots = enrollment.availability.filter(
           (slot: { day: string }) => slot.day === day,
@@ -463,28 +549,34 @@ export const updatePairingMatchStatus = async (
   status: "accepted" | "rejected",
   enrollment: Enrollment | null = null,
 ) => {
-  const updateResponse = await supabase
-    .from("pairing_matches")
-    .update({ tutor_status: status })
-    .eq("id", matchId)
-    .eq("tutor_id", profileId);
-  if (updateResponse.error) {
-  }
-
   let autoEnrollment: Omit<Enrollment, "id" | "createdAt"> | null | undefined =
     null;
 
-  const { data, error } = await supabase
+  const { data: pmRaw, error: pmError } = await supabase
     .rpc("get_pairing_match", {
       match_id: matchId,
     })
     .single();
 
-  if (error) return console.error(error);
-  const pairingMatch = data as IncomingPairingMatch;
+  if (pmError || !pmRaw) {
+    console.error("get_pairing_match", pmError);
+    return;
+  }
+
+  const pairingMatch = pmRaw as IncomingPairingMatch;
   const { student, tutor } = pairingMatch;
 
   if (status === "accepted") {
+    const acceptUpdate = await supabase
+      .from("pairing_matches")
+      .update({ tutor_status: "accepted" })
+      .eq("id", matchId)
+      .eq("tutor_id", profileId);
+    if (acceptUpdate.error) {
+      console.error(acceptUpdate.error);
+      return;
+    }
+
     const studentData: Profile | null = await getProfileWithProfileId(
       student.id,
     );
@@ -575,23 +667,26 @@ export const updatePairingMatchStatus = async (
 
     await sendPairingAlertToWebhook(tutorData, studentData, autoEnrollment);
   }
-  //reset tutor and student status to be auto placed in que
   else if (status === "rejected") {
-    const { data, error } = await supabase
+    const rejectUpdate = await supabase
+      .from("pairing_matches")
+      .update({
+        tutor_status: "rejected",
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", matchId)
+      .eq("tutor_id", profileId);
+
+    if (rejectUpdate.error) throw rejectUpdate.error;
+
+    const { error: reqErr } = await supabase
       .from("pairing_requests")
       .update({
         status: "pending",
       })
       .in("user_id", [student.id, tutor.id]);
 
-    if (error) throw error;
-
-    const { error: deleteMatchError } = await supabase
-      .from("pairing_matches")
-      .delete()
-      .eq("id", matchId);
-
-    if (deleteMatchError) throw deleteMatchError;
+    if (reqErr) throw reqErr;
 
     await supabase.from("pairing_logs").insert([
       {

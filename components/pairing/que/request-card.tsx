@@ -89,13 +89,31 @@ export function PairingRequestCard({
     setIsLeaving(true);
     const promise = removePairingRequest(myRequest.id);
     toast.promise(promise, {
-      success: "Left the pairing queue",
+      success: "Removed from active queue (your request is saved)",
       loading: "Leaving queue",
       error: "Failed to leave queue",
     });
     promise
       .then(refetch)
       .finally(() => setIsLeaving(false));
+  };
+
+  const handleRejoinQueue = async () => {
+    if (!myRequest) return;
+    setIsSubmitting(true);
+    const promise = createPairingRequest(
+      userId,
+      myRequest.notes ?? "",
+      excludeRejectedTutors,
+    );
+    toast.promise(promise, {
+      success: "You’re back in the pairing queue",
+      loading: "Rejoining queue",
+      error: (e: Error) => e.message || "Failed to rejoin",
+    });
+    promise
+      .then(refetch)
+      .finally(() => setIsSubmitting(false));
   };
 
   const handleToggleExcludeRejected = async (checked: boolean) => {
@@ -142,6 +160,50 @@ export function PairingRequestCard({
       <Card className="w-full mx-auto">
         <CardContent className="p-6">
           <p className="text-muted-foreground text-sm">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (myRequest && myRequest.inQueue === false) {
+    return (
+      <Card className="w-full mx-auto">
+        <CardHeader className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            <CardTitle className="text-2xl">Pairing queue (archived)</CardTitle>
+          </div>
+          <CardDescription className="text-base leading-relaxed">
+            You left the active queue. Your notes and preferences are saved; you won’t be matched
+            until you rejoin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="capitalize">
+              Archived
+            </Badge>
+            <Badge variant="outline">Priority {myRequest.priority}</Badge>
+          </div>
+          {myRequest.notes ? (
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <span className="font-medium text-muted-foreground">Saved notes</span>
+              <p className="mt-1 whitespace-pre-wrap">{myRequest.notes}</p>
+            </div>
+          ) : null}
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={handleRejoinQueue}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <Clock className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Users className="mr-2 h-4 w-4" />
+            )}
+            Rejoin queue
+          </Button>
         </CardContent>
       </Card>
     );

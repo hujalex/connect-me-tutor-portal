@@ -12,6 +12,8 @@ export type PairingRequest = {
   profile: Profile;
   /** When true (default), students are not matched with tutors who previously rejected them. */
   excludeRejectedTutors?: boolean;
+  /** false = archived (left queue); omitted/true = active for matching lists */
+  in_queue?: boolean;
 };
 export type PairingMatch = {
   id: string; //uuid

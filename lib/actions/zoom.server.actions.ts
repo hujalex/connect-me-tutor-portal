@@ -10,14 +10,35 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY! // Service role key required for inserting rows
 );
 
-// Typescript type (optional)
+/** App `Sessions.id` only — never Zoom's base64 meeting uuid */
+function isAppSessionUuid(value: string | null | undefined): value is string {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value.trim()
+  );
+}
+
+/** PostHog + DB context: Zoom payload → Meetings → Sessions chain */
+export type ZoomWebhookRelationshipLog = {
+  resolution_status: string;
+  meetings_row_id: string | null;
+  meetings_table_meeting_id: string | null;
+  zoom_meeting_number: string | null;
+  zoom_meeting_uuid: string | null;
+  app_session_id: string | null;
+};
+
 interface ZoomParticipantData {
-  session_id: string; // UUID of the session (Zoom meeting UUID)
+  /** Resolved app session id (`Sessions.id`); omit or null if not resolved */
+  session_id: string | null;
+  /** Zoom payload `object.uuid` (often base64); stored as text, not in session_id */
+  zoom_meeting_uuid: string | null;
   participant_id: string;
   name: string;
   email?: string;
   action: "joined" | "left";
   timestamp: string; // ISO format datetime
+  relationship?: ZoomWebhookRelationshipLog;
 }
 
 export interface ParticipationRecord {
@@ -27,7 +48,8 @@ export interface ParticipationRecord {
   email: string;
   action: string;
   timestamp: string;
-  session_id: string;
+  session_id: string | null;
+  zoom_meeting_uuid?: string | null;
 }
 
 /**
@@ -37,25 +59,31 @@ export interface ParticipationRecord {
  */
 export async function logZoomMetadata(participant: ZoomParticipantData) {
   const logId = crypto.randomUUID();
+  const sessionIdForDb = isAppSessionUuid(participant.session_id)
+    ? participant.session_id
+    : null;
 
   await logEvent("zoom_metadata_insert_start", {
     log_id: logId,
-    session_id: participant.session_id,
+    session_id: sessionIdForDb,
+    zoom_meeting_uuid: participant.zoom_meeting_uuid,
     participant_id: participant.participant_id,
     participant_name: participant.name,
     participant_email: participant.email,
     action: participant.action,
     timestamp: participant.timestamp,
-    has_session_id: !!participant.session_id,
+    has_session_id: !!sessionIdForDb,
     has_participant_id: !!participant.participant_id,
     has_name: !!participant.name,
+    relationship: participant.relationship ?? null,
   });
 
   const { data, error } = await supabase
     .from("zoom_participant_events")
     .insert([
       {
-        session_id: participant.session_id,
+        session_id: sessionIdForDb,
+        zoom_meeting_uuid: participant.zoom_meeting_uuid,
         participant_id: participant.participant_id,
         name: participant.name,
         email: participant.email || null,
@@ -69,7 +97,7 @@ export async function logZoomMetadata(participant: ZoomParticipantData) {
     await logError(error, {
       log_id: logId,
       step: "zoom_metadata_insert",
-      session_id: participant.session_id,
+      session_id: sessionIdForDb,
       participant_id: participant.participant_id,
       participant_name: participant.name,
       action: participant.action,
@@ -84,11 +112,12 @@ export async function logZoomMetadata(participant: ZoomParticipantData) {
   const insertedRows = error ? 0 : 1;
   await logEvent("zoom_metadata_insert_success", {
     log_id: logId,
-    session_id: participant.session_id,
+    session_id: sessionIdForDb,
     participant_id: participant.participant_id,
     participant_name: participant.name,
     action: participant.action,
     inserted_rows: insertedRows,
+    relationship: participant.relationship ?? null,
   });
 
   return data;
@@ -96,38 +125,42 @@ export async function logZoomMetadata(participant: ZoomParticipantData) {
 
 /**
  * Log participant leave event when they exit the meeting
- * @param zoomMeetingId - Zoom meeting UUID
- * @param participantId - Zoom participant UUID
- * @param name - Participant name
- * @param email - Participant email (optional)
- * @param leaveTime - ISO format datetime of leave
+ * @param appSessionId - App `Sessions.id` when resolved; null if unknown
+ * @param zoomMeetingUuid - Zoom `object.uuid` from webhook (base64 ok)
+ * @param participantId - Zoom participant id
  */
 export async function updateParticipantLeaveTime(
-  zoomMeetingId: string,
+  appSessionId: string | null,
+  zoomMeetingUuid: string | null,
   participantId: string,
   name: string,
   email: string | null,
-  leaveTime: string
+  leaveTime: string,
+  relationship?: ZoomWebhookRelationshipLog
 ) {
   const logId = crypto.randomUUID();
+  const sessionIdForDb = isAppSessionUuid(appSessionId) ? appSessionId : null;
 
   await logEvent("zoom_participant_leave_insert_start", {
     log_id: logId,
-    zoom_meeting_id: zoomMeetingId,
+    zoom_meeting_id: zoomMeetingUuid,
+    app_session_id: sessionIdForDb,
     participant_id: participantId,
     participant_name: name,
     participant_email: email,
     leave_time: leaveTime,
-    has_zoom_meeting_id: !!zoomMeetingId,
+    has_zoom_meeting_id: Boolean(zoomMeetingUuid),
     has_participant_id: !!participantId,
     has_name: !!name,
+    relationship: relationship ?? null,
   });
 
   const { data, error } = await supabase
     .from("zoom_participant_events")
     .insert([
       {
-        session_id: zoomMeetingId,
+        session_id: sessionIdForDb,
+        zoom_meeting_uuid: zoomMeetingUuid,
         participant_id: participantId,
         name: name,
         email: email,
@@ -142,7 +175,7 @@ export async function updateParticipantLeaveTime(
     await logError(error, {
       log_id: logId,
       step: "zoom_participant_leave_insert",
-      zoom_meeting_id: zoomMeetingId,
+      zoom_meeting_id: zoomMeetingUuid,
       participant_id: participantId,
       participant_name: name,
       leave_time: leaveTime,
@@ -155,10 +188,11 @@ export async function updateParticipantLeaveTime(
 
   await logEvent("zoom_participant_leave_insert_success", {
     log_id: logId,
-    zoom_meeting_id: zoomMeetingId,
+    zoom_meeting_id: zoomMeetingUuid,
     participant_id: participantId,
     participant_name: name,
     inserted_rows: Array.isArray(data) ? data.length : data ? 1 : 0,
+    relationship: relationship ?? null,
   });
 
   return data;
@@ -175,7 +209,7 @@ export async function getParticipationByZoomMeetingId(
   const { data, error } = await supabase
     .from("zoom_participant_events")
     .select("*")
-    .eq("session_id", zoomMeetingId)
+    .eq("zoom_meeting_uuid", zoomMeetingId)
     .order("timestamp", { ascending: true });
 
   if (error) {
