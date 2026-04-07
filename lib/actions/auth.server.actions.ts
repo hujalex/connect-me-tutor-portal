@@ -214,6 +214,7 @@ export const deleteUser = async (profileId: string) => {
         `,
         )
         .eq("last_active_profile_id", profileId)
+        .eq("user_id", profile.user_id)
         .maybeSingle()
         .throwOnError(),
     ]);

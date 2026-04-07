@@ -97,7 +97,7 @@ export async function getAllProfiles(
     let query = supabase
       .from(Table.Profiles)
       .select(profileFields)
-      .eq("role", role)
+      .eq("role", role);
 
     if (status) {
       query = query.eq("status", status);
@@ -197,8 +197,12 @@ export const getProfileFromUserSettings = async (userId: string) => {
       throw error;
     }
 
-    if (!data) {
-      throw new Error("No profile associated with user id");
+    const profile = data as any;
+    if (!profile || profile.user_id !== userId) {
+      console.error(
+        `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
+      );
+      throw new Error("Profile ownership mismatch");
     }
 
     return tableToInterfaceProfiles(data.profile as any);
@@ -315,7 +319,7 @@ export async function editProfile(profile: Profile) {
       .throwOnError();
 
     if (emailData.email != email) {
-      await supabase.auth.updateUser({email: email})
+      await supabase.auth.updateUser({ email: email });
     }
 
     const { data, error } = await supabase
