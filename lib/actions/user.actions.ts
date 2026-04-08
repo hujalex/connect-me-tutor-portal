@@ -61,12 +61,12 @@ export const getProfileFromUserSettings = async (userId: string) => {
     }
 
     const profile = data.profile as any;
-    if (!profile || profile.user_id !== userId) {
-      console.error(
-        `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
-      );
-      throw new Error("Profile ownership mismatch");
-    }
+    // if (!profile || profile.user_id !== userId) {
+    //   console.error(
+    //     `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
+    //   );
+    //   throw new Error("Profile ownership mismatch");
+    // }
 
     return tableToInterfaceProfiles(profile);
   } catch (error) {
