@@ -7,7 +7,6 @@ import { Table } from "../supabase/tables";
 import axios from "axios";
 import { getSupabase } from "../supabase-server/serverClient";
 import { revalidatePath } from "next/cache";
-import { cache } from "react";
 import { tableToInterfaceProfiles } from "../type-utils";
 
 export const switchProfile = async (userId: string, profileId: string) => {
@@ -198,12 +197,13 @@ export const getProfileFromUserSettings = async (userId: string) => {
     }
 
     const profile = data as any;
-    if (!profile || profile.user_id !== userId) {
-      console.error(
-        `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
-      );
-      throw new Error("Profile ownership mismatch");
-    }
+    // if (profile.user_id !== userId) {
+    //   throw new Error(
+    //     `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
+    //   );
+    // }
+
+    console.log("Getting Profile FROM USER SETTINGS");
 
     return tableToInterfaceProfiles(data.profile as any);
   } catch (error) {
@@ -224,13 +224,11 @@ export async function getProfile(userId: string) {
   }
 }
 
-export const cachedGetProfile = cache(getProfile);
-
 export const getProfileUncached = async (userId: string) => {
   return getProfile(userId);
 };
 
-export const getTutorStudents = cache(async (tutorId: string) => {
+export const getTutorStudents = async (tutorId: string) => {
   try {
     const supabase = await createClient();
     const { data: pairings, error: pairingsError } = await supabase
@@ -285,7 +283,7 @@ export const getTutorStudents = cache(async (tutorId: string) => {
     console.error("Unexpected error in getProfile:", error);
     return null;
   }
-});
+};
 
 export async function editProfile(profile: Profile) {
   const supabase = await createClient();

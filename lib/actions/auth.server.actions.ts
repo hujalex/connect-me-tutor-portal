@@ -10,7 +10,7 @@ import { profile } from "console";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { createPassword } from "../utils";
 import { cachedGetUser } from "./user.server.actions";
-import { cachedGetProfile } from "./profile.server.actions";
+import { cachedGetProfile } from "./cache";
 
 interface UserMetadata {
   email: string;
