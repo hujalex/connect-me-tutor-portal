@@ -7,8 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "perf:lookup-matches": "bash scripts/lookup-proposed-matches-perf/run.sh",
+    "demo:lookup-matches": "bash scripts/lookup-proposed-matches-perf/run-demo.sh",
+    "benchmark:lookup-matches": "bash scripts/lookup-proposed-matches-perf/run-benchmark.sh",
+    "test:lookup-static": "bash scripts/lookup-proposed-matches-perf/run-static-test.sh",
+    "lookup-static:json": "node scripts/lookup-proposed-matches-perf/run-static-from-json.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { logEvent, logError } from "@/lib/posthog";
 import crypto from "crypto";
+import { Table } from "@/lib/supabase/tables";
 
 // Init Supabase client
 const supabase = createClient(
@@ -16,6 +17,33 @@ function isAppSessionUuid(value: string | null | undefined): value is string {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value.trim()
   );
+}
+
+/**
+ * Only persist `session_id` when it is a real `Sessions.id`. A webhook may supply a
+ * UUID-shaped Zoom value (e.g. meeting instance uuid) that is not a session row — that
+ * would violate FK on `zoom_participant_events.session_id`.
+ */
+async function resolveAppSessionIdForZoomEvent(
+  candidate: string | null | undefined,
+  zoomMeetingUuid: string | null | undefined
+): Promise<string | null> {
+  if (!isAppSessionUuid(candidate)) return null;
+  const sid = candidate.trim();
+  const zoom = zoomMeetingUuid?.trim();
+  if (zoom && sid.toLowerCase() === zoom.toLowerCase()) return null;
+
+  const { data, error } = await supabase
+    .from(Table.Sessions)
+    .select("id")
+    .eq("id", sid)
+    .maybeSingle();
+
+  if (error) {
+    console.error("resolveAppSessionIdForZoomEvent:", error);
+    return null;
+  }
+  return data?.id ?? null;
 }
 
 /** PostHog + DB context: Zoom payload → Meetings → Sessions chain */
@@ -59,9 +87,10 @@ export interface ParticipationRecord {
  */
 export async function logZoomMetadata(participant: ZoomParticipantData) {
   const logId = crypto.randomUUID();
-  const sessionIdForDb = isAppSessionUuid(participant.session_id)
-    ? participant.session_id
-    : null;
+  const sessionIdForDb = await resolveAppSessionIdForZoomEvent(
+    participant.session_id,
+    participant.zoom_meeting_uuid
+  );
 
   await logEvent("zoom_metadata_insert_start", {
     log_id: logId,
@@ -139,7 +168,10 @@ export async function updateParticipantLeaveTime(
   relationship?: ZoomWebhookRelationshipLog
 ) {
   const logId = crypto.randomUUID();
-  const sessionIdForDb = isAppSessionUuid(appSessionId) ? appSessionId : null;
+  const sessionIdForDb = await resolveAppSessionIdForZoomEvent(
+    appSessionId,
+    zoomMeetingUuid
+  );
 
   await logEvent("zoom_participant_leave_insert_start", {
     log_id: logId,

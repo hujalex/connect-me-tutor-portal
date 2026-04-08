@@ -149,7 +149,7 @@ export type ZoomSessionResolution = {
   appSessionId: string | null;
 };
 
-export function zoomSessionResolutionStatus(
+export async  function zoomSessionResolutionStatus(
   r: ZoomSessionResolution
 ):
   | "no_meeting_number_in_payload"

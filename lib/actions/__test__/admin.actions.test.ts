@@ -1,13 +1,8 @@
-import { NewFactorListInstance } from "twilio/lib/rest/verify/v2/service/entity/newFactor";
 import { isValidUUID } from "../admin.actions";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-
-
-describe('Test', () => {
-    it('Test', async() => {
-        const UUID = "notanUUID";
-        expect(isValidUUID(UUID) === false)
-    })
-
-})
+describe("isValidUUID", () => {
+  it("rejects non-UUID strings", () => {
+    expect(isValidUUID("notanUUID")).toBe(false);
+  });
+});
