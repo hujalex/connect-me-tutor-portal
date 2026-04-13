@@ -16,6 +16,7 @@ import { parseISO, subMinutes } from "date-fns";
 import StudentRescheduleNotificationEmail, {
   SessionRescheduleEmailProps,
 } from "@/components/emails/student-reschedule-notification";
+import ChatMessageNotificationEmail from "@/components/emails/chat-message-notification";
 
 export const fetchScheduledMessages = async () => {
   const qstash = new Client({ token: process.env.EU_CENTRAL_1_QSTASH_TOKEN });
@@ -229,6 +230,30 @@ export async function sendSessionRescheduleEmail(
   });
 
   return emailResult;
+}
+
+export async function sendChatMessageNotificationEmail(params: {
+  to: string;
+  recipientName: string;
+  senderName: string;
+  messagePreview: string;
+  chatRoomUrl: string;
+}) {
+  const emailHtml = await render(
+    React.createElement(ChatMessageNotificationEmail, {
+      recipientName: params.recipientName,
+      senderName: params.senderName,
+      messagePreview: params.messagePreview,
+      chatRoomUrl: params.chatRoomUrl,
+    }),
+  );
+
+  await resend.emails.send({
+    from: "Connect Me Free Tutoring & Mentoring <notifications@connectmego.app>",
+    to: params.to,
+    subject: "New message on Connect Me",
+    html: emailHtml,
+  });
 }
 
 export const sendEmail = async (
