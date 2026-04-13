@@ -21,6 +21,7 @@ import {
 import { usePairing } from "@/hooks/pairings";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { isUuidString } from "@/lib/utils";
 
 // Types for our chat components
 export type User = {
@@ -78,6 +79,7 @@ export function ChatRoom({
   const [emailMuted, setEmailMuted] = useState(false);
   const [emailMuteLoading, setEmailMuteLoading] = useState(true);
 
+  const roomIdValid = isUuidString(roomId);
   const { pairing } = usePairing(roomId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -182,6 +184,11 @@ export function ChatRoom({
   }, [pairing, type, profile]);
 
   useEffect(() => {
+    if (!roomIdValid) {
+      setEmailMuted(false);
+      setEmailMuteLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -197,12 +204,18 @@ export function ChatRoom({
     return () => {
       cancelled = true;
     };
-  }, [roomId, profile?.id]);
+  }, [roomId, roomIdValid, profile?.id]);
 
   // Load messages and set up subscriptions
   useEffect(() => {
     let isMounted = true;
     let messagesSubscription: any = null;
+
+    if (!roomIdValid) {
+      setIsLoadingMessages(false);
+      setMessages([]);
+      return;
+    }
 
     const loadMessages = async () => {
       try {
@@ -263,7 +276,7 @@ export function ChatRoom({
         supabase.removeChannel(messagesSubscription);
       }
     };
-  }, [roomId, supabase]);
+  }, [roomId, roomIdValid, supabase]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -383,6 +396,17 @@ export function ChatRoom({
   };
 
   if (!profile) return <></>;
+
+  if (!roomIdValid) {
+    return (
+      <div className="flex min-h-[80dvh] border rounded-lg p-8 items-center justify-center bg-white">
+        <p className="text-sm text-gray-600 text-center max-w-md">
+          This chat link is invalid or the pairing id is missing. Open Messages and
+          select an active pairing to start chatting.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

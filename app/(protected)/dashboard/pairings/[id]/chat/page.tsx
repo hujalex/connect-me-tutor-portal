@@ -1,13 +1,17 @@
 import { ChatRoom, type User, type Message } from "@/components/chat/chat-room";
 import { config } from "@/config";
-import { getPairingFromEnrollmentId } from "@/lib/actions/pairing.server.actions";
+import { isUuidString } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
 
 interface Props {
   params: { id: string };
 }
 
 export default async function ChatRoomPage({ params }: Props) {
+  if (!isUuidString(params.id)) {
+    notFound();
+  }
   // In a real app, these would come from your authentication system and API
   const currentUser: User = {
     id: "user-1",
