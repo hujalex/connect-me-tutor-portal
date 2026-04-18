@@ -13,7 +13,6 @@ import { getParticipationBySessionId } from "./zoom.server.actions";
 import {
   tableToInterfaceSessions,
 } from "../type-utils";
-import { revalidatePath } from "next/cache";
 import { sendScheduledEmailsBeforeSessions } from "./email.server.actions";
 
 import { startOfWeek, endOfWeek, subDays } from "date-fns"; // Only use date-fns
