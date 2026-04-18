@@ -127,6 +127,7 @@ const ActiveSessionsTable = ({
   const TC = useDashboardContext();
   return (
     <>
+    <div className="hidden md:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -335,8 +336,164 @@ const ActiveSessionsTable = ({
               <ChevronsRight className="h-4 w-4" />
             </Button>
           </div>
+          </div>
         </div>
       </div>
+      {/* ================= MOBILE CARDS ================= */}
+<div className="md:hidden space-y-4 mt-6 pb-6">
+  {paginatedSessions.map((session: Session, index: number) => (
+    <div key={`mobile-${index}`} className="border rounded-xl p-4 space-y-3">
+
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-semibold">
+            Tutoring Session with {session.student?.firstName}{" "}
+            {session.student?.lastName}
+          </p>
+          <p className="text-sm text-gray-500">
+            {formatSessionDate(session.date)}
+          </p>
+        </div>
+
+        {session.status === "Active" ? (
+          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 flex items-center gap-1">
+            <Clock size={12} />
+            Active
+          </span>
+        ) : session.status === "Complete" ? (
+          <span className="px-2 py-1 text-xs rounded-full bg-green-100 flex items-center gap-1">
+            <CircleCheckBig size={12} />
+            Complete
+          </span>
+        ) : session.status === "Cancelled" ? (
+          <span className="px-2 py-1 text-xs rounded-full bg-red-100 flex items-center gap-1">
+            <CircleX size={12} />
+            Cancelled
+          </span>
+        ) : null}
+      </div>
+
+      {/* Student */}
+      <p className="text-sm">
+        <span className="font-medium">Student:</span>{" "}
+        {session.student?.firstName} {session.student?.lastName}
+      </p>
+
+      {/* Duration */}
+      <p className="text-sm text-gray-600">
+        <span className="font-medium">Duration:</span>{" "}
+        {formatSessionDuration(session.duration)}
+      </p>
+
+      {/* Meeting */}
+      <div>
+        <span className="text-sm font-medium">Meeting: </span>
+        {session?.meeting?.meetingId ? (
+          <button
+            onClick={() =>
+              (window.location.href = `/meeting/${session?.meeting?.id}`)
+            }
+            className="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-2"
+          >
+            View
+          </button>
+        ) : (
+          <span className="text-sm text-gray-400 ml-2">N/A</span>
+        )}
+      </div>
+
+      {/* Session Exit Form */}
+      <div>
+        <SessionExitForm
+          currSession={session}
+          setNextClassConfirmed={setNextClassConfirmed}
+          handleSessionComplete={handleSessionComplete}
+          handleStatusChange={handleStatusChange}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2 pt-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            TC.setSelectedSession(session);
+            TC.setIsDialogOpen(true);
+            TC.setSelectedSessionDate(session.date);
+          }}
+        >
+          Reschedule
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            (window.location.href =
+              "https://forms.gle/AC4an7K6NSNumDwKA")
+          }
+        >
+          Substitute
+        </Button>
+
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => handleStatusChange(session)}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ))}
+
+  {/* ================= MOBILE PAGINATION ================= */}
+  <div className="flex justify-between items-center pt-4 border-t">
+    <span className="text-sm text-gray-500">
+      Page {TC.currentPage} of {totalPages}
+    </span>
+
+    <div className="flex space-x-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handlePageChange(1)}
+        disabled={TC.currentPage === 1}
+      >
+        <ChevronsLeft className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handlePageChange(TC.currentPage - 1)}
+        disabled={TC.currentPage === 1}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handlePageChange(TC.currentPage + 1)}
+        disabled={TC.currentPage === totalPages}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handlePageChange(totalPages)}
+        disabled={TC.currentPage === totalPages}
+      >
+        <ChevronsRight className="h-4 w-4" />
+      </Button>
+    </div>
+  </div>
+</div>
     </>
   );
 };

@@ -289,9 +289,9 @@ const TutorDashboard = () => {
 
   return (
     <>
-      <div className="p-8">
-        <h1 className="text-3xl font-bold mb-6">This Week</h1>
-        <div className="flex space-x-6">
+      <div className="p-4 md:p-8">
+        <h1 className="text-xl md:text-3xl font-bold mb-4 md:mb-6">This Week</h1>
+        <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <CurrentSessionsTable
               meetings={TC.meetings}
@@ -307,10 +307,10 @@ const TutorDashboard = () => {
           </div>
         </div>
       </div>{" "}
-      <div className="p-8">
-        <h1 className="text-3xl font-bold mb-6">Active Sessions</h1>
+      <div className="p-4 md:p-8">
+        <h1 className="text-xl md:text-3xl font-bold mb-4 md:mb-6">Active Sessions</h1>
 
-        <div className="flex space-x-6">
+        <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-2">
@@ -340,10 +340,10 @@ const TutorDashboard = () => {
           </div>
         </div>
       </div>
-      <div className="p-8">
-        <h1 className="text-3xl font-bold mb-6">Past Sessions</h1>
+      <div className="p-4 md:p-8">
+        <h1 className="text-xl md:text-3xl font-bold mb-4 md:mb-6">Past Sessions</h1>
 
-        <div className="flex space-x-6">
+        <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-grow bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-2">

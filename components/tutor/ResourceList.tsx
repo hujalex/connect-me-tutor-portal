@@ -73,8 +73,9 @@ const ResourceList = () => {
       </div>
 
       <h1 className="text-3xl font-bold mb-6">Tutor Resources</h1>
+      <div className="hidden md:block flex-grow bg-white rounded-lg shadow p-6">
       <div className="flex space-x-6">
-        <div className="flex-grow bg-white rounded-lg shadow p-6">
+          <div className="flex-1">
           <div className="flex justify-between items-center mb-4">
             <input
               type="text"
@@ -170,6 +171,8 @@ const ResourceList = () => {
                 </Button>
               </div>
             </div>
+
+            
           </div>
         </div>
 
@@ -232,6 +235,93 @@ const ResourceList = () => {
           </Card>
         </div>
       </div>
+      </div>
+    <div className="md:hidden mt-6 space-y-4">
+  {paginatedResources.map((resource, index) => (
+    <div
+      key={`mobile-${index}`}
+      className="border rounded-lg p-3 space-y-2 max-w-[280px] mx-auto"
+    >
+      <div>
+        <p className="font-semibold text-sm">{resource.title}</p>
+        <p className="text-xs text-gray-500">{resource.subject}</p>
+      </div>
+
+      <p className="text-xs text-gray-600">{resource.description}</p>
+
+      <div className="flex justify-between items-center">
+        <span className="text-xs">{resource.type}</span>
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 px-3 text-xs"
+          onClick={() => window.open(resource.link, "_blank")}
+        >
+          Open
+        </Button>
+      </div>
+    </div>
+  ))}
+
+  <div className="space-y-4 pt-4">
+    <Card className="max-w-[280px] mx-auto">
+      <CardHeader>
+        <CardTitle>Tutor Handbook</CardTitle>
+        <CardDescription>
+          Read before your first tutoring session!
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <p className="text-sm">
+          This handbook covers expectations, policy, and attendance.
+        </p>
+      </CardContent>
+
+      <CardFooter>
+        <Button
+          className="w-full"
+          onClick={() =>
+            window.open(
+              "https://drive.google.com/file/d/13567c0r06Yp881dGcx5E5LT_miFay9Ep/view?ths=true",
+              "_blank"
+            )
+          }
+        >
+          Open
+        </Button>
+      </CardFooter>
+    </Card>
+
+    <Card className="max-w-[280px] mx-auto">
+      <CardHeader>
+        <CardTitle>Tutor Manual</CardTitle>
+        <CardDescription>Manual that tutors can refer to</CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <p className="text-sm">
+          This manual contains helpful information for tutors.
+        </p>
+      </CardContent>
+
+      <CardFooter>
+        <Button
+          className="w-full"
+          onClick={() =>
+            window.open(
+              "https://docs.google.com/document/d/1Tzc0JA90Ghy76UdBPCRFrUcT27jOxTvqh4yxq1_xVXY/edit?tab=t.0",
+              "_blank"
+            )
+          }
+        >
+          Open
+        </Button>
+      </CardFooter>
+    </Card>
+  </div>
+</div>
     </main>
   );
 };
