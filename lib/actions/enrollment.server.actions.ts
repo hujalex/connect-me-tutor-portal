@@ -204,6 +204,49 @@ export async function getAllActiveEnrollments(
   }
 }
 
+export async function getAllActiveEnrollmentsForCron(): Promise<Enrollment[]> {
+  try {
+    const supabase = await createAdminClient();
+    const { data, error } = await supabase
+      .from(Table.Enrollments)
+      .select(
+        `
+        id,
+        created_at,
+        summary,
+        student_id,
+        tutor_id,
+        start_date,
+        end_date,
+        availability,
+        meetingId,
+        paused,
+        duration,
+        frequency,
+        student:Profiles!student_id(*),
+        tutor:Profiles!tutor_id(*)
+      `,
+      )
+      .eq("paused", false);
+
+    if (error) {
+      console.error("Error fetching active enrollments for cron:", error.message);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error("No data fetched");
+    }
+
+    return data
+      .filter((enrollment) => enrollment.student && enrollment.tutor)
+      .map((enrollment: any) => tableToInterfaceEnrollments(enrollment));
+  } catch (error) {
+    console.error("Error getting active enrollments for cron:", error);
+    throw error;
+  }
+}
+
 export async function getEnrollments(
   tutorId: string,
 ): Promise<Enrollment[] | null> {
