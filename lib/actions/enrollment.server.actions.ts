@@ -352,7 +352,7 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
       }
     }
 
-    //remove future sessions
+    //update future sessions
     const adminSupabase = await createAdminClient();
     await removeFutureSessions(enrollment.id, adminSupabase);
 
@@ -361,6 +361,21 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
     console.error("Unable to update Enrollment", error);
     throw error;
   }
+};
+
+const updateSessions = async (enrollment: Enrollment) => {
+  const now = new Date().toISOString();
+  const supabase = await createClient();
+  await supabase
+    .from("Sessions")
+    .update({
+      student_id: enrollment.student?.id,
+      tutor_id: enrollment.tutor?.id,
+      meeting: enrollment.meetingId,
+      duration: enrollment.duration,
+    })
+    .eq("enrollment_id", enrollment.id)
+    .gte("date", now);
 };
 
 export const getEnrollmentsWithMissingSEF = async (
