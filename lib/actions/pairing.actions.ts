@@ -48,7 +48,34 @@ export const getAllPairingRequests = async (
     return { data: (data ?? null) as PairingRequest[] | null, error };
   }
 
-  const rows = data as PairingRequest[];
+  const rows = (data as Record<string, any>[]).map((row) => {
+    const profile = (row.profile ?? {}) as Record<string, any>;
+    return {
+      ...row,
+      profile: {
+        ...profile,
+        firstName:
+          profile.firstName ??
+          profile.first_name ??
+          profile.firstname ??
+          "",
+        lastName:
+          profile.lastName ??
+          profile.last_name ??
+          profile.lastname ??
+          "",
+        availability: Array.isArray(profile.availability)
+          ? profile.availability
+          : [],
+        subjects_of_interest: Array.isArray(profile.subjects_of_interest)
+          ? profile.subjects_of_interest
+          : [],
+        languages_spoken: Array.isArray(profile.languages_spoken)
+          ? profile.languages_spoken
+          : [],
+      },
+    };
+  }) as PairingRequest[];
   const ids = rows.map((r) => r.request_id);
   const { data: queueRows, error: queueErr } = await supabase
     .from(Table.PairingRequests)

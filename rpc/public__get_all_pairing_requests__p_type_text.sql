@@ -12,6 +12,7 @@ BEGIN
         pr.priority,
         pr.created_at,
         to_jsonb(json_build_object(
+            'email', p.email,
             'firstName', p.first_name,
             'lastName', p.last_name,
             'availability', p.availability,
@@ -19,7 +20,10 @@ BEGIN
             'languages_spoken', p.languages_spoken
         )) AS profile
     FROM pairing_requests pr
-    LEFT JOIN public."Profiles" p ON pr.user_id = p.id
+    LEFT JOIN public.user_settings us
+      ON us.user_id = pr.user_id
+    LEFT JOIN public."Profiles" p
+      ON p.id = us.last_active_profile_id
     WHERE pr.type = p_type
     ORDER BY pr.created_at DESC;
 END;

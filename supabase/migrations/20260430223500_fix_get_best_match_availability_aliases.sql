@@ -1,9 +1,3 @@
--- Unify get_best_match with pairing_subject_priority_alignment (same as lookup_proposed_matches)
--- and availability_to_slots + availability_overlap (from prior implementation).
--- Replaces embedding-based scoring; aligns queue filters with lookup_proposed_matches (in_queue, Pairings, exclude tutors).
-
-DROP FUNCTION IF EXISTS public.get_best_match(text, uuid);
-
 CREATE OR REPLACE FUNCTION public.get_best_match(
   request_type text,
   request_id uuid,
@@ -166,21 +160,3 @@ BEGIN
   LIMIT 1;
 END;
 $$;
-
-COMMENT ON FUNCTION public.get_best_match(text, uuid, uuid[]) IS
-  'Single best pairing-queue match: requires schedule overlap (availability_to_slots + availability_overlap); '
-  'subject fit = pairing_subject_priority_alignment; rank = same priority band + similarity as lookup_proposed_matches; '
-  'respects in_queue, existing Pairings, and optional p_exclude_tutor_ids for student requests.';
-
-DO $grant$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    EXECUTE
-      'GRANT EXECUTE ON FUNCTION public.get_best_match(text, uuid, uuid[]) TO authenticated';
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    EXECUTE
-      'GRANT EXECUTE ON FUNCTION public.get_best_match(text, uuid, uuid[]) TO service_role';
-  END IF;
-END;
-$grant$;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { getPairingLogs } from "@/lib/actions/pairing.actions";
 
+type PairingWorkflowPreview = {
+  logs: { type: string; message: string; error?: boolean }[];
+  matchesToInsert: { student_id: string; tutor_id: string; similarity: number }[];
+  summary: {
+    matchesToInsert: number;
+    logsToInsert: number;
+  };
+};
+
+type StoredPairingRun = {
+  runId: string;
+  createdAt: string;
+  preview: PairingWorkflowPreview;
+  appliedAt?: string;
+};
+
+const PREVIEW_RUN_STORAGE_PREFIX = "pairing-preview-run:";
+
 export type PairingLog = {
   id: string;
   type:
@@ -37,11 +56,11 @@ export type PairingLog = {
     | "pairing-match-rejected"
     | "pairing-match-accepted"
     | "pairing-selection-failed";
-  profile: {
+  profile?: {
     firstName: string;
     lastName: string;
     role: "student" | "tutor";
-  };
+  } | null;
   message: string;
   status: string;
   created_at: string;
@@ -86,6 +105,8 @@ const today = new Date();
 const tomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
 const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 export function PairingLogsTable() {
+  const searchParams = useSearchParams();
+  const previewRunId = searchParams.get("runId");
   const [logs, setLogs] = useState<PairingLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +123,48 @@ export function PairingLogsTable() {
 
   const [dateFrom, setDateFrom] = useState<string>(formatDate(oneWeekAgo));
   const [dateTo, setDateTo] = useState<string>(formatDate(tomorrow));
+  const [previewRun, setPreviewRun] = useState<StoredPairingRun | null>(null);
 
   // Load data on component mount and when date filters change
   useEffect(() => {
+    if (previewRunId) {
+      if (typeof window === "undefined") return;
+      setLoading(true);
+      setError(null);
+      try {
+        const raw = window.sessionStorage.getItem(
+          `${PREVIEW_RUN_STORAGE_PREFIX}${previewRunId}`,
+        );
+        if (!raw) {
+          setPreviewRun(null);
+          setError("No saved preview run found for this run id");
+          setLogs([]);
+        } else {
+          const parsed = JSON.parse(raw) as StoredPairingRun;
+          setPreviewRun(parsed);
+          setLogs(
+            parsed.preview.logs.map((log, index) => ({
+              id: `${parsed.runId}-${index}`,
+              type: (log.type as PairingLog["type"]) ?? "pairing-selection-failed",
+              profile: null,
+              message: log.message,
+              status: log.error ? "error" : "ok",
+              created_at: parsed.createdAt,
+            })),
+          );
+        }
+      } catch (err) {
+        console.error("Error loading pairing preview logs:", err);
+        setPreviewRun(null);
+        setError("Failed to load saved preview run");
+        setLogs([]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    setPreviewRun(null);
     const loadLogs = async () => {
       try {
         setLoading(true);
@@ -122,7 +182,7 @@ export function PairingLogsTable() {
     };
 
     loadLogs();
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, previewRunId]);
 
   // Filter logs based on current filter settings
   const filteredLogs = logs.filter((log) => {
@@ -153,6 +213,37 @@ export function PairingLogsTable() {
   );
 
   const handleRefresh = async () => {
+    if (previewRunId) {
+      if (typeof window === "undefined") return;
+      const raw = window.sessionStorage.getItem(
+        `${PREVIEW_RUN_STORAGE_PREFIX}${previewRunId}`,
+      );
+      if (!raw) {
+        setError("No saved preview run found for this run id");
+        setLogs([]);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw) as StoredPairingRun;
+        setPreviewRun(parsed);
+        setError(null);
+        setLogs(
+          parsed.preview.logs.map((log, index) => ({
+            id: `${parsed.runId}-${index}`,
+            type: (log.type as PairingLog["type"]) ?? "pairing-selection-failed",
+            profile: null,
+            message: log.message,
+            status: log.error ? "error" : "ok",
+            created_at: parsed.createdAt,
+          })),
+        );
+      } catch {
+        setError("Failed to reload saved preview run");
+        setLogs([]);
+      }
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -251,19 +342,28 @@ export function PairingLogsTable() {
       {/* Filters */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Filters</CardTitle>
+          <CardTitle>
+            {previewRun
+              ? `Preview Run Filters (${previewRun.runId.slice(0, 8)})`
+              : "Filters"}
+          </CardTitle>
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={loading}
           >
-            {loading ? "Refreshing..." : "Refresh"}
+            {loading
+              ? "Refreshing..."
+              : previewRun
+                ? "Reload Preview"
+                : "Refresh"}
           </Button>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            {/* Date Range Filter Controls */}
+            {!previewRun && (
+            // {/* Date Range Filter Controls */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Date From</label>
               <div className="relative">
@@ -276,6 +376,8 @@ export function PairingLogsTable() {
                 />
               </div>
             </div>
+            )}
+            {!previewRun && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Date To</label>
               <div className="relative">
@@ -288,6 +390,7 @@ export function PairingLogsTable() {
                 />
               </div>
             </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Event Type</label>
               <Select value={filterType} onValueChange={setFilterType}>
@@ -360,7 +463,9 @@ export function PairingLogsTable() {
       <Card>
         <CardHeader>
           <CardTitle>
-            Pairing Activity Logs ({filteredLogs.length} events)
+            {previewRun
+              ? `Pairing Preview Logs (${filteredLogs.length} events)`
+              : `Pairing Activity Logs (${filteredLogs.length} events)`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -439,5 +544,6 @@ export function PairingLogsTable() {
         </CardContent>
       </Card>
     </div>
+  
   );
 }

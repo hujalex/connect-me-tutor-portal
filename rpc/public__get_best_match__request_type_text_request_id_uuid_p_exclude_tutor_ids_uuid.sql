@@ -36,7 +36,7 @@ BEGIN
     FROM availability_to_slots(
       (SELECT availability FROM public."Profiles" WHERE id = v_requestor_id),
       COALESCE(NULLIF((SELECT timezone FROM public."Profiles" WHERE id = v_requestor_id), ''), 'EST')
-    ) AS r(day text, start_ts timestamptz, end_ts timestamptz)
+    ) AS r
   ),
   candidate_base AS (
     SELECT
@@ -91,7 +91,7 @@ BEGIN
     CROSS JOIN LATERAL availability_to_slots(
       cb.availability,
       COALESCE(NULLIF(cb.timezone, ''), 'EST')
-    ) AS slot(day text, start_ts timestamptz, end_ts timestamptz)
+    ) AS slot
   ),
   candidate_slots AS (
     SELECT

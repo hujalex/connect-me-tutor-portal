@@ -169,6 +169,19 @@ export default function PriorityQueue() {
                 </TableHeader>
                 <TableBody>
                   {sortedRequests.map((request) => {
+                    const availability = Array.isArray(request.profile.availability)
+                      ? request.profile.availability
+                      : [];
+                    const subjects = Array.isArray(
+                      request.profile.subjects_of_interest,
+                    )
+                      ? request.profile.subjects_of_interest
+                      : [];
+                    const languages = Array.isArray(
+                      request.profile.languages_spoken,
+                    )
+                      ? request.profile.languages_spoken
+                      : [];
                     const fullName = `${request.profile.firstName} ${request.profile.lastName}`;
                     const initials = fullName
                       .split(" ")
@@ -226,9 +239,7 @@ export default function PriorityQueue() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1 max-w-48">
-                            {request.profile.availability
-                              .slice(0, 2)
-                              .map((time, index) => (
+                            {availability.slice(0, 2).map((time, index) => (
                                 <Badge
                                   key={index}
                                   variant="outline"
@@ -237,18 +248,16 @@ export default function PriorityQueue() {
                                   {`${time.day}, ${to12Hour(time.startTime)} - ${to12Hour(time.endTime)}`}
                                 </Badge>
                               ))}
-                            {request.profile.availability.length > 2 && (
+                            {availability.length > 2 && (
                               <Badge variant="outline" className="text-xs">
-                                +{request.profile.availability.length - 2} more
+                                +{availability.length - 2} more
                               </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1 max-w-48">
-                            {request.profile.subjects_of_interest
-                              .slice(0, 2)
-                              .map((subject, index) => (
+                            {subjects.slice(0, 2).map((subject, index) => (
                                 <Badge
                                   key={index}
                                   variant="secondary"
@@ -257,23 +266,17 @@ export default function PriorityQueue() {
                                   {subject}
                                 </Badge>
                               ))}
-                            {request.profile.subjects_of_interest.length >
-                              2 && (
+                            {subjects.length > 2 && (
                               <Badge variant="secondary" className="text-xs">
-                                +
-                                {request.profile.subjects_of_interest.length -
-                                  2}{" "}
-                                more
+                                +{subjects.length - 2} more
                               </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {request.profile.languages_spoken && (
+                          {languages.length > 0 && (
                             <div className="flex flex-wrap gap-1 max-w-32">
-                              {request.profile.languages_spoken
-                                .slice(0, 2)
-                                .map((language, index) => (
+                              {languages.slice(0, 2).map((language, index) => (
                                   <Badge
                                     key={index}
                                     variant="outline"
@@ -282,12 +285,12 @@ export default function PriorityQueue() {
                                     {language}
                                   </Badge>
                                 ))}
-                              {request.profile.languages_spoken.length > 2 && (
+                              {languages.length > 2 && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                 >
-                                  +{request.profile.languages_spoken.length - 2}
+                                  +{languages.length - 2}
                                 </Badge>
                               )}
                             </div>
