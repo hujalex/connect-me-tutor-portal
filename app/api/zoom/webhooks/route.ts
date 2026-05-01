@@ -22,8 +22,10 @@ export async function POST(req: NextRequest) {
   });
 
   let body;
+  let rawBody = "";
   try {
-    body = await req.json();
+    rawBody = await req.text();
+    body = JSON.parse(rawBody);
     await logEvent("zoom_webhook_body_parsed", {
       request_id: requestId,
       event: body?.event,
@@ -239,8 +241,7 @@ export async function POST(req: NextRequest) {
   // Method 2: Verify HMAC signature (recommended by Zoom, more secure)
   if (!isAuthorized && signature && timestamp) {
     try {
-      const bodyString = JSON.stringify(body);
-      const message = `v0:${timestamp}:${bodyString}`;
+      const message = `v0:${timestamp}:${rawBody}`;
       const expectedSignature = `v0=${crypto
         .createHmac("sha256", validationSecret)
         .update(message)
