@@ -158,6 +158,79 @@ export async function getActiveSessionFromMeetingID(meetingID: string) {
   return data || [];
 }
 
+/** Zoom webhook: payload.object → Zoom meeting number → `Meetings` row → `Sessions` row */
+export type ZoomSessionResolution = {
+  /** Zoom `object.id` / `meeting_number` (numeric string) */
+  zoomMeetingNumber: string | undefined;
+  /** Zoom `object.uuid` (often base64) */
+  zoomMeetingUuid: string | undefined;
+  /** `Meetings.id` */
+  meetingsRowId: string | null;
+  /** `Meetings.meeting_id` as stored */
+  storedMeetingId: string | null;
+  /** `Sessions.id` when an active past session matches */
+  appSessionId: string | null;
+};
+
+export function zoomSessionResolutionStatus(
+  r: ZoomSessionResolution,
+):
+  | "no_meeting_number_in_payload"
+  | "meeting_not_in_database"
+  | "no_matching_active_session"
+  | "session_resolved" {
+  if (!r.zoomMeetingNumber) return "no_meeting_number_in_payload";
+  if (!r.meetingsRowId) return "meeting_not_in_database";
+  if (!r.appSessionId) return "no_matching_active_session";
+  return "session_resolved";
+}
+
+/**
+ * Map Zoom webhook `payload.object` to app session: meeting number → normalized match on
+ * `Meetings.meeting_id` → `Sessions.meeting_id` = `Meetings.id`.
+ */
+export async function resolveAppSessionFromZoomWebhookObject(
+  payloadObject: Record<string, unknown> | null | undefined,
+): Promise<ZoomSessionResolution> {
+  const raw = payloadObject?.id ?? payloadObject?.meeting_number;
+  const meetingNumber =
+    raw !== undefined && raw !== null ? String(raw) : undefined;
+  const uuidRaw = payloadObject?.uuid;
+  const zoomMeetingUuid =
+    uuidRaw !== undefined && uuidRaw !== null ? String(uuidRaw) : undefined;
+
+  if (!meetingNumber) {
+    return {
+      zoomMeetingNumber: undefined,
+      zoomMeetingUuid,
+      meetingsRowId: null,
+      storedMeetingId: null,
+      appSessionId: null,
+    };
+  }
+
+  const resolved = await resolvePortalSessionForZoomMeetingNumber(
+    meetingNumber,
+  );
+  if (!resolved) {
+    return {
+      zoomMeetingNumber: meetingNumber,
+      zoomMeetingUuid,
+      meetingsRowId: null,
+      storedMeetingId: null,
+      appSessionId: null,
+    };
+  }
+
+  return {
+    zoomMeetingNumber: meetingNumber,
+    zoomMeetingUuid,
+    meetingsRowId: resolved.meetingRecord.id,
+    storedMeetingId: resolved.meetingRecord.meeting_id,
+    appSessionId: resolved.sessionId,
+  };
+}
+
 /** Zoom sends join/leave before the scheduled start; allow attribution slightly early */
 const ZOOM_WEBHOOK_EARLY_JOIN_MS = 45 * 60 * 1000;
 /** Only consider portal sessions whose start time is within this lookback (hours) */
@@ -229,10 +302,10 @@ export async function resolvePortalSessionForZoomMeetingNumber(
 
   for (const s of sessions) {
     const startMs = new Date(s.date as string).getTime();
-    const endMs = startMs + durationMs(s.duration);
+    const endMs = startMs + durationMs(s.duration as number);
     const effectiveStart = startMs - ZOOM_WEBHOOK_EARLY_JOIN_MS;
     if (nowMs >= effectiveStart && nowMs <= endMs) {
-      return { meetingRecord, sessionId: s.id };
+      return { meetingRecord, sessionId: s.id as string };
     }
   }
 
