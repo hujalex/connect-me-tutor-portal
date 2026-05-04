@@ -5,18 +5,29 @@ import {
   format,
   startOfWeek,
   endOfWeek,
+  startOfMonth,
+  endOfMonth,
   eachDayOfInterval,
   addWeeks,
   subWeeks,
+  addDays,
+  subDays,
+  addMonths,
+  subMonths,
   parseISO,
   isAfter,
+  isSameDay,
+  isSameMonth,
+  isToday,
   isValid,
   previousDay,
+  getDay,
 } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import ProfileSelector from "@/components/ui/profile-selector";
 import {
   Command,
@@ -49,20 +60,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Circle, Loader2, ChevronDown, Check } from "lucide-react";
 import {
-  getAllSessions,
   updateSession,
   getMeetings,
   getAllProfiles,
   removeSession,
   getMeeting,
-  addOneSession,
+
   // checkMeetingsAvailability,
   // isMeetingAvailable,
 } from "@/lib/actions/admin.actions";
-// Add these imports at the top of the file
+import { addStandaloneSession } from "@/lib/actions/session.server.actions";
 import { addHours, areIntervalsOverlapping } from "date-fns";
 
-import { fetchDaySessionsFromSchedule } from "@/lib/actions/session.actions";
+import { getAllSessions } from "@/lib/actions/session.actions";
 import { addSessions } from "@/lib/actions/session.actions";
 import { getProfileWithProfileId } from "@/lib/actions/user.actions";
 import { toast, Toaster } from "react-hot-toast";
@@ -80,24 +90,33 @@ import { Textarea } from "../ui/textarea";
 import { boolean } from "zod";
 import { checkAvailableMeeting } from "@/lib/actions/meeting.actions";
 import { getAllActiveEnrollments } from "@/lib/actions/enrollment.actions";
-import { getEnrollmentsWithMissingSEF } from "@/lib/actions/enrollment.server.actions";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
-import { QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
-const Schedule = ({
-  initialCurrentWeek,
-  initialCurrWeekStart,
-  initialCurrWeekEnd,
-  initialSessions,
-  initialEnrollments,
-  initialStudents,
-  initialTutors,
-  initialMeetings,
-}: any) => {
-  const queryClient = new QueryClient();
+const Schedule = () => {
+  const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<"day" | "week" | "month">(
+    "week",
+  );
+  const [selectedDay, setSelectedDay] = useState(new Date());
+
+  // keep currentWeek in sync when day view crosses week boundary
+  useEffect(() => {
+    if (calendarView === "day") setCurrentWeek(selectedDay);
+  }, [selectedDay, calendarView]);
+
   const weekEnd = endOfWeek(currentWeek).toISOString();
   const weekStart = startOfWeek(currentWeek).toISOString();
+  // adapts fetch range to whichever view is active
+  const queryStart =
+    calendarView === "month"
+      ? startOfWeek(startOfMonth(currentWeek)).toISOString()
+      : weekStart;
+  const queryEnd =
+    calendarView === "month"
+      ? endOfWeek(endOfMonth(currentWeek)).toISOString()
+      : weekEnd;
   // const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   // const [meetings, setMeetings] = useState<Meeting[]>([]);
   // const [students, setStudents] = useState<Profile[]>([]);
@@ -106,8 +125,6 @@ const Schedule = ({
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  //-----Checking Meeting Availability-----
-
   const [isCheckingMeetingAvailability, setIsCheckingMeetingAvailability] =
     useState(false);
   const [meetingAvailabilityMap, setMeetingAvailabilityMap] = useState<
@@ -115,7 +132,6 @@ const Schedule = ({
   >({});
   const [allSessions, setAllSessions] = useState<Session[]>([]);
 
-  //---------------------------------
   const initialMount = useRef(true);
   const [openStudentOptions, setOpenStudentOptions] = useState(false);
   const [openTutorOptions, setOpentTutorOptions] = useState(false);
@@ -197,8 +213,25 @@ const Schedule = ({
   const query = useQueries({
     queries: [
       {
-        queryKey: ["sessions", weekStart, weekEnd],
-        queryFn: () => getAllSessions(weekStart, weekEnd, "date", true),
+        queryKey: ["sessions", queryStart, queryEnd],
+        queryFn: async () => {
+          // weekly chunks to avoid supabase 1000 row cap
+          const fetches: Promise<Session[]>[] = [];
+          let cursor = startOfWeek(new Date(queryStart));
+          const end = new Date(queryEnd);
+          while (cursor <= end) {
+            fetches.push(
+              getAllSessions(
+                cursor.toISOString(),
+                endOfWeek(cursor).toISOString(),
+                "date",
+                true,
+              ),
+            );
+            cursor = addWeeks(cursor, 1);
+          }
+          return (await Promise.all(fetches)).flat();
+        },
       },
       {
         queryKey: ["students"],
@@ -209,28 +242,17 @@ const Schedule = ({
         queryFn: () => getAllProfiles("Tutor"),
       },
       {
-        queryKey: ["enrollments", weekEnd],
-        queryFn: () => getAllActiveEnrollments(weekEnd),
-      },
-      {
         queryKey: ["meetings"],
         queryFn: () => getMeetings(),
       },
     ],
   });
 
-  const [
-    sessionsResult,
-    studentsResult,
-    tutorsResult,
-    enrollmentsResult,
-    meetingsResult,
-  ] = query;
+  const [sessionsResult, studentsResult, tutorsResult, meetingsResult] = query;
 
   const sessions = sessionsResult.data || [];
   const students = studentsResult.data || [];
   const tutors = tutorsResult.data || [];
-  const enrollments = enrollmentsResult.data || [];
   const meetings = meetingsResult.data || [];
 
   let isLoading = sessionsResult.isLoading;
@@ -370,53 +392,6 @@ const Schedule = ({
     }
   };
 
-  // const { data: studentsData } = useQuery({
-  //   queryKey: ["students"],
-  //   queryFn: fetchStudents,
-  //   staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  // });
-
-  // const { data: tutorsData } = useQuery({
-  //   queryKey: ["tutors"],
-  //   queryFn: fetchTutors,
-  //   staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  // });
-
-  // const { data: sessionsData, isLoading: isLoadingSessions } = useQuery({
-  //   queryKey: ["sessions", currWeekStart, currWeekEnd],
-  //   queryFn: () => fetchSessions(currWeekStart, currWeekEnd),
-  // });
-
-  // const { data: enrollmentsData } = useQuery({
-  //   queryKey: ["enrollments", currWeekEnd],
-  //   queryFn: () => fetchEnrollments(currWeekEnd),
-  // });
-
-  // const { data: meetingsData } = useQuery({
-  //   queryKey: ["meetings"],
-  //   queryFn: () => fetchMeetings(),
-  // });
-
-  // useEffect(() => {
-  //   if (studentsData) setStudents(studentsData);
-  // }, [studentsData]);
-
-  // useEffect(() => {
-  //   if (tutorsData) setTutors(tutorsData);
-  // }, [tutorsData]);
-
-  // useEffect(() => {
-  //   if (sessionsData) setSessions(sessionsData)
-  // }, [sessionsData])
-
-  // useEffect(() => {
-  //   if (enrollmentsData) setEnrollments(enrollmentsData)
-  // }, [enrollmentsData])
-
-  // useEffect(() => {
-  //   if (meetingsData) setMeetings(meetingsData)
-  // }, [meetingsData])
-
   const fetchAllSessionsFromSchedule = async () => {
     try {
       const data = await getAllSessions();
@@ -433,7 +408,7 @@ const Schedule = ({
       setIsCheckingMeetingAvailability(true);
       const updatedMeetingAvailability = await checkAvailableMeeting(
         session,
-        meetings
+        meetings,
       );
       setMeetingAvailabilityMap(updatedMeetingAvailability);
     } catch (error) {
@@ -445,85 +420,67 @@ const Schedule = ({
   };
 
   const updateWeekMutation = useMutation({
-    mutationFn: () => addSessions(weekStart, weekEnd, enrollments, sessions),
-    onMutate: async () => {
-
-      // await queryClient.cancelQueries({ queryKey: ["sessions"] });
-
-      // const prevSessions: Session[] | undefined = queryClient.getQueryData([
-      //   "sessions",
-      //   weekStart,
-      //   weekEnd,
-      // ]);
-
-      // await queryClient.setQueryData(
-      //   ["sessions", weekStart, weekEnd],
-      //   (sessions: Session[] | undefined) =>
-      //     sessions && prevSessions ? [...sessions, ...prevSessions] : []
-      // );
-
-      // return { prevSessions };
-    },
+    mutationFn: ({ enrollments }: { enrollments: Enrollment[] }) =>
+      addSessions(weekStart, weekEnd, enrollments, sessions),
+    onMutate: async () => {},
     onSuccess: (newSessions: Session[]) => {
-      queryClient.invalidateQueries({
-        queryKey: ["sessions", weekStart, weekEnd],
-      });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] }); // broad invalidation catches any date range
       toast.success(`${newSessions.length} new sessions added successfully`);
     },
     onError: (error: any, _, context) => {
-      // if (context) {
-      //   queryClient.setQueryData(
-      //     ["sessions", weekStart, weekEnd],
-      //     context.prevSessions
-      //   );
-      // }
-      // console.error("Failed to add sessions:", error);
       error.digest === "4161161223"
         ? toast.error("Please wait until adding new sessions")
         : toast.error(`Failed to add sessions. ${error.message}`);
     },
-    onSettled: () => {
-    },
+    onSettled: () => {},
   });
-
+  // refetch enrollments first so deleted ones dont spawn sessions
   const handleUpdateWeek = async () => {
-    updateWeekMutation.mutate();
+    const freshEnrollments =
+      (await queryClient.fetchQuery({
+        queryKey: ["enrollments", weekEnd],
+        queryFn: () => getAllActiveEnrollments(weekEnd),
+      })) ?? [];
+
+    updateWeekMutation.mutate({ enrollments: freshEnrollments });
   };
 
-  // Filter sessions with valid dates for display
-  const getValidSessionsForDay = (day: Date) => {
-    return sessions.filter((session) => {
-      if (!session?.date) return false;
+  // groups sessions by day key so cells just do a map lookup
+  const sessionsByDay = useMemo(() => {
+    const map = new Map<string, Session[]>();
+    for (const session of sessions) {
+      if (!session?.date) continue;
       try {
-        return (
-          format(
-            toZonedTime(parseISO(session.date), "America/New_York"),
-            "yyyy-MM-dd"
-          ) === format(day, "yyyy-MM-dd")
+        const dayKey = format(
+          toZonedTime(parseISO(session.date), "America/New_York"),
+          "yyyy-MM-dd",
         );
-      } catch (error) {
-        console.error("Error filtering session:", error);
-        return false;
-      }
-    });
-  };
+        if (!map.has(dayKey)) map.set(dayKey, []);
+        map.get(dayKey)!.push(session);
+      } catch {}
+    }
+    return map;
+  }, [sessions]);
+
+  const getValidSessionsForDay = (day: Date) =>
+    sessionsByDay.get(format(day, "yyyy-MM-dd")) || [];
 
   const removeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => removeSession(sessionId),
     onMutate: async (sessionId: string) => {
-      await queryClient.cancelQueries({
-        queryKey: ["sessions", weekStart, weekEnd],
-      });
+      await queryClient.cancelQueries({ queryKey: ["sessions"] });
       const prevSessions = queryClient.getQueryData<Session[]>([
         "sessions",
-        weekStart,
-        weekEnd,
+        queryStart,
+        queryEnd,
       ]);
 
       queryClient.setQueryData(
-        ["sessions", weekStart, weekEnd],
+        ["sessions", queryStart, queryEnd],
         (sessions: Session[] | undefined) =>
-          sessions ? sessions.filter((session) => session.id !== sessionId) : []
+          sessions
+            ? sessions.filter((session) => session.id !== sessionId)
+            : [],
       );
 
       return { prevSessions };
@@ -535,17 +492,15 @@ const Schedule = ({
     onError: (error: any, sessionId, context) => {
       if (context) {
         queryClient.setQueryData(
-          ["sessions", weekStart, weekEnd],
-          context.prevSessions
+          ["sessions", queryStart, queryEnd],
+          context.prevSessions,
         );
       }
       console.error("Failed to remove session", error);
       toast.error("Failed to remove session");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["sessions", weekStart, weekEnd],
-      });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 
@@ -558,7 +513,7 @@ const Schedule = ({
       await updateSession(updatedSession);
       toast.success("Session updated successfully");
       setIsModalOpen(false);
-      fetchSessions(weekStart, weekEnd);
+      fetchSessions(queryStart, queryEnd);
     } catch (error) {
       console.error("Failed to update session:", error);
       toast.error("Failed to update session");
@@ -568,7 +523,7 @@ const Schedule = ({
   const handleAddSession = async () => {
     try {
       if (newSession) {
-        await addOneSession(newSession as Session);
+        await addStandaloneSession(newSession as Session);
       }
       fetchSessions(weekStart, weekEnd);
       toast.success("Added Session");
@@ -585,25 +540,18 @@ const Schedule = ({
     setNewSession((prev) => {
       if (!prev) return {} as Session;
 
-      // Create a copy of the previous state
       const updated = { ...prev };
 
       if (name.includes(".")) {
         const [parent, child] = name.split(".");
-
-        // Type guard to ensure parent is a valid key of Session
         if (parent === "student" || parent === "tutor") {
-          // Ensure parent object exists
           const parentObj = (updated[parent] || {}) as Profile;
-
-          // Update the nested property
           updated[parent] = {
             ...parentObj,
             [child]: value,
           };
         }
       } else {
-        // Type guard to ensure name is a valid key of Session
         if (name in updated) {
           (updated as any)[name] = value;
         }
@@ -618,356 +566,586 @@ const Schedule = ({
     end: endOfWeek(currentWeek),
   });
 
-  const goToPreviousWeek = () =>
-    setCurrentWeek((prevWeek) => subWeeks(prevWeek, 1));
-  const goToNextWeek = () =>
-    setCurrentWeek((prevWeek) => addWeeks(prevWeek, 1));
-
-  const getEnrollmentProgress = () => {
-    const totalStudents = students.length;
-    const studentsThisWeek = new Set(
-      sessions.map((session) => session?.student?.id)
-    ).size;
-    return { totalStudents, studentsThisWeek };
+  const goToPrevious = () => {
+    if (calendarView === "day") setSelectedDay((d) => subDays(d, 1));
+    else if (calendarView === "week") setCurrentWeek((w) => subWeeks(w, 1));
+    else setCurrentWeek((w) => subMonths(w, 1));
+  };
+  const goToNext = () => {
+    if (calendarView === "day") setSelectedDay((d) => addDays(d, 1));
+    else if (calendarView === "week") setCurrentWeek((w) => addWeeks(w, 1));
+    else setCurrentWeek((w) => addMonths(w, 1));
+  };
+  // jumps to a specific date, view aware
+  const goToDate = (date: Date) => {
+    setCurrentWeek(date);
+    setSelectedDay(date);
   };
 
-  const handleGetMissingSEF = async () => {
-    try {
-      await  getEnrollmentsWithMissingSEF();
-      toast.success("Printed to console");
-    } catch (error) {
-      console.error(error);
-      toast.error("Please view Dev Console for error");
-    }
+  const HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
+
+  const getSessionHour = (dateStr: string) => {
+    const d = toZonedTime(parseISO(dateStr), "America/New_York");
+    return d.getHours();
+  };
+  const getSessionMinutes = (dateStr: string) => {
+    const d = toZonedTime(parseISO(dateStr), "America/New_York");
+    return d.getMinutes();
+  };
+
+  const monthStart = startOfMonth(currentWeek);
+  const monthEnd = endOfMonth(currentWeek);
+  const monthCalendarStart = startOfWeek(monthStart);
+  const monthCalendarEnd = endOfWeek(monthEnd);
+  const monthDays = eachDayOfInterval({
+    start: monthCalendarStart,
+    end: monthCalendarEnd,
+  });
+
+  const sessionStats = useMemo(
+    () => ({
+      totalSessions: sessions.length,
+      tutorsInvolved: new Set(sessions.map((s) => s?.tutor?.id)).size,
+      studentsThisWeek: new Set(sessions.map((s) => s?.student?.id)).size,
+      totalStudents: students.length,
+    }),
+    [sessions, students],
+  );
+
+  const SessionCard = ({ session }: { session: Session }) => (
+    <div
+      onClick={() => {
+        setSelectedSession(session);
+        setIsModalOpen(true);
+      }}
+      className={cn(
+        "rounded-md px-2 py-1 text-xs cursor-pointer border-l-2 truncate hover:shadow-md transition-shadow",
+        session.status === "Complete"
+          ? "bg-green-50 border-l-green-500 text-green-900"
+          : session.status === "Cancelled"
+            ? "bg-red-50 border-l-red-500 text-red-900"
+            : session.isStandalone == true
+              ? "bg-purple-50  border-l-purple-500 text-purple-900"
+              : "bg-blue-50 border-l-blue-500 text-blue-900",
+      )}
+    >
+      <p className="font-medium truncate">
+        {session.tutor?.firstName} {session.tutor?.lastName}
+      </p>
+      <p className="truncate text-[11px] opacity-80">
+        {session.student?.firstName} {session.student?.lastName}
+      </p>
+      <p className="text-[10px] opacity-60">
+        {getSessionTimespan(session.date, session.duration)}
+      </p>
+    </div>
+  );
+
+  const getHeaderText = () => {
+    if (calendarView === "day")
+      return format(selectedDay, "EEEE, MMMM d, yyyy");
+    if (calendarView === "month") return format(currentWeek, "MMMM yyyy");
+    return `${format(weekDays[0], "MMM d")} - ${format(weekDays[6], "MMM d, yyyy")}`;
   };
 
   return (
     <>
       <Toaster />
-      <div className="p-8 bg-gray-100 min-h-screen">
-        <h1 className="text-3xl font-bold mb-6 text-left text-gray-800">
-          Schedule
-        </h1>
-
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <Button
-              variant="outline"
-              onClick={goToPreviousWeek}
-              className="flex items-center"
-            >
-              <ChevronLeft className="w-5 h-5 mr-2" /> Previous Week
-            </Button>
-            <h2 className="text-xl font-semibold text-gray-700">
-              {format(weekDays[0], "MMMM d, yyyy")} -{" "}
-              {format(weekDays[6], "MMMM d, yyyy")}
-            </h2>
-            <Button
-              variant="outline"
-              onClick={goToNextWeek}
-              className="flex items-center"
-            >
-              Next Week <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-
-          <Button
-            onClick={handleUpdateWeek}
-            disabled={isLoading}
-            className="mb-4"
-          >
-            {isLoading ? (
-              <>
-                Loading Sessions{"  "}
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              </>
-            ) : (
-              "Update Week"
-            )}
-          </Button>
-          <Dialog>
-            <DialogTrigger>
-              <Button className="mx-4" variant="secondary">
-                Add Session
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Session</DialogTitle>
-              </DialogHeader>
-
-              <ScrollArea className="pr-4">
-                {" "}
-                <div className="grid gap-4 py-4">
-                  <ProfileSelector
-                    label="Student"
-                    profiles={students}
-                    selectedId={selectedStudentId}
-                    onSelect={(id) => {
-                      setSelectedStudentId(id);
-                      handleInputChange({
-                        target: { name: "student.id", value: id },
-                      });
-                    }}
-                    placeholder="Select a student"
-                  />
-
-                  <ProfileSelector
-                    label="Tutor"
-                    profiles={tutors}
-                    selectedId={selectedTutorId}
-                    onSelect={(id) => {
-                      setSelectedTutorId(id);
-                      handleInputChange({
-                        target: { name: "tutor.id", value: id },
-                      });
-                    }}
-                    placeholder="Select a tutor"
-                  />
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="startDate" className="text-right">
-                      Date
-                    </Label>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+          <div className="flex flex-col">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Today
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3" align="start">
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => goToDate(new Date())}
+                    >
+                      Go to today
+                    </Button>
                     <Input
-                      id="startDate"
-                      name="startDate"
-                      type="datetime-local"
-                      defaultValue={formatDateForInput(newSession.date)}
-                      onBlur={async (e) => {
-                        const scheduledDate = new Date(e.target.value);
-                        const updatedSession: Partial<Session> = {
-                          ...newSession,
-                          date: scheduledDate.toISOString(),
-                        };
-                        await checkMeetingAvailabilites(
-                          updatedSession as Session
-                        );
-                        setNewSession(updatedSession);
+                      type="date"
+                      onChange={(e) => {
+                        const d = new Date(e.target.value + "T12:00:00");
+                        if (isValid(d)) goToDate(d);
                       }}
-                      disabled={isCheckingMeetingAvailability}
-                      className="col-span-3"
                     />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="duration" className="text-right">
-                      Duration
-                    </Label>{" "}
-                    <div className="col-span-3">
-                      {" "}
-                      <Select
-                        onValueChange={(value) => {
-                          const duration = parseFloat(value);
-                          const updatedSession: Partial<Session> = {
-                            ...newSession,
-                            duration: duration,
-                          };
-                          checkMeetingAvailabilites(updatedSession as Session);
-                          setNewSession(updatedSession);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a time duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Duration</SelectLabel>
-                            {Array.from(
-                              { length: 12 },
-                              (_, i) => (i + 1) * 0.25
-                            ).map((duration) => {
-                              const minutes = (duration % 1) * 60;
-                              const hours = Math.floor(duration);
-
-                              return (
-                                <SelectItem
-                                  key={duration}
-                                  value={duration.toString()}
-                                >
-                                  {hours} {hours > 1 ? "hours" : "hour"}{" "}
-                                  {minutes} minutes
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="" className="text-right">
-                      Meeting Link
-                    </Label>
-                    <div className="col-span-3">
-                      {" "}
-                      <Select
-                        value={newSession?.meeting?.id || ""}
-                        onOpenChange={(open) => {
-                          if (open && newSession) {
-                          }
-                        }}
-                        onValueChange={async (value) => {
-                          setNewSession({
-                            ...newSession,
-                            meeting: await getMeeting(value),
-                          });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue>
-                            {newSession?.meeting?.name || "Select a meeting"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {meetings.map((meeting) => (
-                            <SelectItem
-                              key={meeting.id}
-                              value={meeting.id}
-                              className="flex items-center justify-between"
-                            >
-                              <span>{meeting.name}</span>
-                              <Circle
-                                className={`w-2 h-2 ml-2 ${
-                                  meetingAvailabilityMap[meeting.id]
-                                    ? "text-green-500"
-                                    : "text-red-500"
-                                } fill-current`}
-                              />
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Other form fields */}
-                  <Button
-                    onClick={handleAddSession}
-                    disabled={isCheckingMeetingAvailability}
-                  >
-                    {isCheckingMeetingAvailability ? (
-                      <>
-                        Checking Meeting Availability
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      </>
-                    ) : (
-                      "Add Session"
-                    )}
-                  </Button>
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-          <Button onClick={() => handleGetMissingSEF()}>Function Tester</Button>
-
-          {isLoading ? (
-            <div className="text-center py-10">
-              <Calendar className="w-10 h-10 animate-spin mx-auto text-blue-500" />
-              <p className="mt-4 text-gray-600">Loading sessions...</p>
+                </PopoverContent>
+              </Popover>
+              <Button variant="ghost" size="icon" onClick={goToPrevious}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={goToNext}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <h2 className="ml-2 min-w-0 text-base font-semibold text-gray-800 sm:text-lg">
+                {getHeaderText()}
+              </h2>
             </div>
-          ) : (
-            <div className="grid grid-cols-7 gap-2">
-              {weekDays.map((day) => (
-                <div
-                  key={day.toISOString()}
-                  className="border rounded-lg px-2 py-3 bg-gray-50"
-                >
-                  <h3 className="font-semibold mb-2 text-gray-700">
-                    {format(day, "EEEE")}
-                  </h3>
-                  <p className="text-sm mb-4 text-gray-500">
-                    {format(day, "MMM d")}
-                  </p>
-                  {getValidSessionsForDay(day).map((session) => (
-                    <Card
-                      onClick={() => {
-                        setSelectedSession(session);
-                        setIsModalOpen(true);
-                      }}
-                      key={session.id}
-                      className={`hover:cursor-pointer hover:shadow-md mb-2 ${
-                        session.status === "Complete"
-                          ? "bg-green-500/10 border-2"
-                          : session.status === "Cancelled"
-                            ? "bg-red-500/10 border-2"
-                            : "bg-white"
-                      }`}
+
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                {[
+                  { color: "bg-green-500", label: "Complete" },
+                  { color: "bg-red-500", label: "Cancelled" },
+                  { color: "bg-blue-500", label: "Active" },
+                  { color: "bg-purple-500", label: "Standalone" },
+                ].map(({ color, label }) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${color}`}
+                    />
+                    {label}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
+                  {(["day", "week", "month"] as const).map((view) => (
+                    <button
+                      key={view}
+                      onClick={() => setCalendarView(view)}
+                      className={cn(
+                        "px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize",
+                        calendarView === view
+                          ? "bg-white shadow-sm text-gray-900"
+                          : "text-gray-500 hover:text-gray-700",
+                      )}
                     >
-                      <CardContent className="p-3">
-                        <p className="text-xs font-semibold">
-                          {session.tutor?.firstName} {session.tutor?.lastName}
-                        </p>
-                        <p className="text-xs font-normal">
-                          {session?.student?.firstName}{" "}
-                          {session?.student?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {session.summary}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {getSessionTimespan(session.date, session.duration)}{" "}
-                          EDT
-                        </p>
-                        <div
-                          className={`text-xs font-medium px-2 py-1 rounded-lg mt-1 border ${
-                            session.meeting != null
-                              ? "border-green-300 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {session?.meeting != null &&
-                          session?.meeting.name != null
-                            ? session?.meeting.name
-                            : "No Meeting Link"}
-                        </div>
-
-                        <Button
-                          className="hidden mt-2 w-full text-xs h-6"
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setIsModalOpen(true);
-                          }}
-                          variant="outline"
-                        >
-                          View Details
-                        </Button>
-                      </CardContent>
-                    </Card>
+                      {view}
+                    </button>
                   ))}
-                  {sessions.filter(
-                    (session) =>
-                      session?.date &&
-                      format(parseISO(session.date), "yyyy-MM-dd") ===
-                        format(day, "yyyy-MM-dd")
-                  ).length === 0 && (
-                    <p className="text-sm text-gray-400 text-center">
-                      No sessions
-                    </p>
-                  )}
                 </div>
-              ))}
+
+                <Button
+                  onClick={handleUpdateWeek}
+                  disabled={isLoading}
+                  size="sm"
+                  className="bg-connect-me-blue-3 hover:bg-connect-me-blue-4"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Loading
+                    </>
+                  ) : (
+                    "Update Week"
+                  )}
+                </Button>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="bg-connect-me-blue-4 hover:bg-connect-me-blue-5"
+                    >
+                      Add Session
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Session</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="pr-4">
+                      <div className="grid gap-4 py-4">
+                        <ProfileSelector
+                          label="Student"
+                          profiles={students}
+                          selectedId={selectedStudentId}
+                          onSelect={(id) => {
+                            setSelectedStudentId(id);
+                            handleInputChange({
+                              target: { name: "student.id", value: id },
+                            });
+                          }}
+                          placeholder="Select a student"
+                        />
+                        <ProfileSelector
+                          label="Tutor"
+                          profiles={tutors}
+                          selectedId={selectedTutorId}
+                          onSelect={(id) => {
+                            setSelectedTutorId(id);
+                            handleInputChange({
+                              target: { name: "tutor.id", value: id },
+                            });
+                          }}
+                          placeholder="Select a tutor"
+                        />
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="startDate" className="text-right">
+                            Date
+                          </Label>
+                          <Input
+                            id="startDate"
+                            name="startDate"
+                            type="datetime-local"
+                            defaultValue={formatDateForInput(newSession.date)}
+                            onBlur={async (e) => {
+                              const scheduledDate = new Date(e.target.value);
+                              const updatedSession: Partial<Session> = {
+                                ...newSession,
+                                date: scheduledDate.toISOString(),
+                              };
+                              await checkMeetingAvailabilites(
+                                updatedSession as Session,
+                              );
+                              setNewSession(updatedSession);
+                            }}
+                            disabled={isCheckingMeetingAvailability}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="duration" className="text-right">
+                            Duration
+                          </Label>
+                          <div className="col-span-3">
+                            <Select
+                              onValueChange={(value) => {
+                                const duration = parseFloat(value);
+                                const updatedSession: Partial<Session> = {
+                                  ...newSession,
+                                  duration,
+                                };
+                                checkMeetingAvailabilites(
+                                  updatedSession as Session,
+                                );
+                                setNewSession(updatedSession);
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a time duration" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectLabel>Duration</SelectLabel>
+                                  {Array.from(
+                                    { length: 12 },
+                                    (_, i) => (i + 1) * 0.25,
+                                  ).map((duration) => {
+                                    const minutes = (duration % 1) * 60;
+                                    const hours = Math.floor(duration);
+                                    return (
+                                      <SelectItem
+                                        key={duration}
+                                        value={duration.toString()}
+                                      >
+                                        {hours} {hours > 1 ? "hours" : "hour"}{" "}
+                                        {minutes} minutes
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label className="text-right">Meeting Link</Label>
+                          <div className="col-span-3">
+                            <Select
+                              value={newSession?.meeting?.id || ""}
+                              onValueChange={async (value) => {
+                                setNewSession({
+                                  ...newSession,
+                                  meeting: await getMeeting(value),
+                                });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue>
+                                  {newSession?.meeting?.name ||
+                                    "Select a meeting"}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {meetings.map((meeting) => (
+                                  <SelectItem
+                                    key={meeting.id}
+                                    value={meeting.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <span>{meeting.name}</span>
+                                    <Circle
+                                      className={`w-2 h-2 ml-2 ${
+                                        meetingAvailabilityMap[meeting.id]
+                                          ? "text-green-500"
+                                          : "text-red-500"
+                                      } fill-current`}
+                                    />
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleAddSession}
+                          disabled={isCheckingMeetingAvailability}
+                          className="bg-connect-me-blue-3"
+                        >
+                          {isCheckingMeetingAvailability ? (
+                            <>
+                              Checking Meeting Availability
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            </>
+                          ) : (
+                            "Add Session"
+                          )}
+                        </Button>
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="flex items-center gap-6 mt-3 pt-3 border-t text-sm text-gray-500">
+            <span>
+              <span className="font-medium text-gray-700">
+                {sessionStats.totalSessions}
+              </span>{" "}
+              sessions
+            </span>
+            <span>
+              <span className="font-medium text-gray-700">
+                {sessionStats.tutorsInvolved}
+              </span>{" "}
+              tutors
+            </span>
+            <span>
+              <span className="font-medium text-gray-700">
+                {sessionStats.studentsThisWeek}
+              </span>{" "}
+              / {sessionStats.totalStudents} students
+            </span>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-3xl font-bold mb-6 text-left text-gray-800">
-            Enrollment Progress
-          </h3>
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="font-medium">Total Students:</p>
-                  <p>{getEnrollmentProgress().totalStudents}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Students This Week:</p>
-                  <p>{getEnrollmentProgress().studentsThisWeek}</p>
+        {isLoading ? (
+          <div className="bg-white rounded-xl shadow-sm p-10">
+            <div className="text-center">
+              <Calendar className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+              <p className="mt-3 text-gray-500 text-sm">Loading sessions...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {calendarView === "week" && (
+              <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+                <div className="min-w-[960px] overflow-hidden rounded-xl">
+                  <div className="grid grid-cols-[56px_repeat(7,minmax(128px,1fr))] border-b">
+                    <div className="border-r" />
+                    {weekDays.map((day) => (
+                      <div
+                        key={day.toISOString()}
+                        className={cn(
+                          "min-w-0 border-r py-3 text-center last:border-r-0",
+                          isToday(day) && "bg-blue-50",
+                        )}
+                      >
+                        <p className="text-xs uppercase text-gray-500">
+                          {format(day, "EEE")}
+                        </p>
+                        <p
+                          className={cn(
+                            "mx-auto flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold",
+                            isToday(day)
+                              ? "bg-blue-600 text-white"
+                              : "text-gray-800",
+                          )}
+                        >
+                          {format(day, "d")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-[56px_repeat(7,minmax(128px,1fr))]">
+                    {HOURS.map((hour) => (
+                      <React.Fragment key={hour}>
+                        <div className="flex min-h-[36px] items-start justify-end border-r border-b pr-2 pt-1">
+                          <span className="text-[11px] text-gray-400">
+                            {hour === 0
+                              ? "12:00 AM"
+                              : hour < 12
+                                ? `${hour}:00 AM`
+                                : hour === 12
+                                  ? "12:00 PM"
+                                  : `${hour - 12}:00 PM`}
+                          </span>
+                        </div>
+                        {weekDays.map((day) => {
+                          const daySessions = getValidSessionsForDay(
+                            day,
+                          ).filter((s) => getSessionHour(s.date) === hour);
+                          return (
+                            <div
+                              key={`${day.toISOString()}-${hour}`}
+                              className={cn(
+                                "min-w-0 space-y-0.5 border-r border-b p-[2px] last:border-r-0",
+                                "min-h-[36px]",
+                                isToday(day) && "bg-blue-50/30",
+                              )}
+                            >
+                              {daySessions.map((session) => (
+                                <SessionCard
+                                  key={session.id}
+                                  session={session}
+                                />
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+
+            {calendarView === "day" && (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="grid grid-cols-[60px_1fr]">
+                  <div className="border-r border-b" />
+                  <div
+                    className={cn(
+                      "py-3 px-4 border-b",
+                      isToday(selectedDay) && "bg-blue-50",
+                    )}
+                  >
+                    <p className="text-xs text-gray-500 uppercase">
+                      {format(selectedDay, "EEEE")}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-2xl font-semibold",
+                        isToday(selectedDay)
+                          ? "text-blue-600"
+                          : "text-gray-800",
+                      )}
+                    >
+                      {format(selectedDay, "d")}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-[60px_1fr]">
+                  {HOURS.map((hour) => {
+                    const daySessions = getValidSessionsForDay(
+                      selectedDay,
+                    ).filter((s) => getSessionHour(s.date) === hour);
+                    return (
+                      <React.Fragment key={hour}>
+                        <div className="border-r border-b min-h-[36px] flex items-start justify-end pr-2 pt-1">
+                          <span className="text-[11px] text-gray-400">
+                            {hour === 0
+                              ? "12:00 AM"
+                              : hour < 12
+                                ? `${hour}:00 AM`
+                                : hour === 12
+                                  ? "12:00 PM"
+                                  : `${hour - 12}:00 PM`}
+                          </span>
+                        </div>
+                        <div
+                          className={cn(
+                            "border-b min-h-[36px] p-[2px] space-y-0.5",
+                            isToday(selectedDay) && "bg-blue-50/30",
+                          )}
+                        >
+                          {daySessions.map((session) => (
+                            <SessionCard key={session.id} session={session} />
+                          ))}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {calendarView === "month" && (
+              <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+                <div className="min-w-[960px] overflow-hidden rounded-xl">
+                  <div className="grid grid-cols-7 border-b">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                      (d) => (
+                        <div
+                          key={d}
+                          className="border-r py-2 text-center text-xs font-medium uppercase text-gray-500 last:border-r-0"
+                        >
+                          {d}
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {monthDays.map((day) => {
+                      const daySessions = getValidSessionsForDay(day);
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          className={cn(
+                            "min-h-[100px] min-w-0 border-r border-b p-1 last:border-r-0",
+                            !isSameMonth(day, currentWeek) &&
+                              "bg-gray-50 opacity-50",
+                            isToday(day) && "bg-blue-50",
+                          )}
+                        >
+                          <p
+                            className={cn(
+                              "mb-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium",
+                              isToday(day)
+                                ? "bg-blue-600 text-white"
+                                : "text-gray-600",
+                            )}
+                          >
+                            {format(day, "d")}
+                          </p>
+                          <div className="space-y-0.5">
+                            {daySessions.map((session) => (
+                              <div
+                                key={session.id}
+                                onClick={() => {
+                                  setSelectedSession(session);
+                                  setIsModalOpen(true);
+                                }}
+                                className={cn(
+                                  "cursor-pointer truncate rounded px-1 py-0.5 text-[10px]",
+                                  session.status === "Complete"
+                                    ? "bg-green-100 text-green-800"
+                                    : session.status === "Cancelled"
+                                      ? "bg-red-100 text-red-800"
+                                      : session.isStandalone
+                                        ? "bg-purple-100 text-purple-800"
+                                        : "bg-blue-100 text-blue-800",
+                                )}
+                              >
+                                {session.tutor?.firstName} /{" "}
+                                {session.student?.firstName}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent>
@@ -981,22 +1159,19 @@ const Schedule = ({
                   <Select
                     value={selectedSession?.status}
                     onValueChange={(
-                      value: "Active" | "Complete" | "Cancelled"
+                      value: "Active" | "Complete" | "Cancelled",
                     ) => {
                       if (value && selectedSession) {
-                        const updatedSession = {
+                        setSelectedSession({
                           ...selectedSession,
                           status: value,
-                        };
-                        setSelectedSession(updatedSession);
+                        });
                       }
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue>
-                        {selectedSession?.status
-                          ? selectedSession.status
-                          : "Select status"}
+                        {selectedSession?.status || "Select status"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -1013,12 +1188,11 @@ const Schedule = ({
                     onValueChange={async (value) => {
                       const selectedTutor =
                         await getProfileWithProfileId(value);
-                      if (selectedTutor) {
+                      if (selectedTutor)
                         setSelectedSession({
                           ...selectedSession,
                           tutor: selectedTutor,
                         });
-                      }
                     }}
                   >
                     <SelectTrigger>
@@ -1035,7 +1209,7 @@ const Schedule = ({
                             <SelectItem key={tutor.id} value={tutor.id}>
                               {tutor.firstName} {tutor.lastName}
                             </SelectItem>
-                          )
+                          ),
                       )}
                     </SelectContent>
                   </Select>
@@ -1047,12 +1221,11 @@ const Schedule = ({
                     onValueChange={async (value) => {
                       const selectedStudent =
                         await getProfileWithProfileId(value);
-                      if (selectedStudent) {
+                      if (selectedStudent)
                         setSelectedSession({
                           ...selectedSession,
                           student: selectedStudent,
                         });
-                      }
                     }}
                   >
                     <SelectTrigger>
@@ -1069,7 +1242,7 @@ const Schedule = ({
                             <SelectItem key={student.id} value={student.id}>
                               {student.firstName} {student.lastName}
                             </SelectItem>
-                          )
+                          ),
                       )}
                     </SelectContent>
                   </Select>
@@ -1080,7 +1253,7 @@ const Schedule = ({
                     type="datetime-local"
                     defaultValue={format(
                       parseISO(selectedSession.date),
-                      "yyyy-MM-dd'T'HH:mm"
+                      "yyyy-MM-dd'T'HH:mm",
                     )}
                     onBlur={(e) => {
                       const scheduledDate = new Date(e.target.value);
@@ -1088,10 +1261,7 @@ const Schedule = ({
                         ...selectedSession,
                         date: scheduledDate.toISOString(),
                       });
-                      checkMeetingAvailabilites(
-                        selectedSession as Session
-                        // scheduledDate
-                      );
+                      checkMeetingAvailabilites(selectedSession as Session);
                     }}
                   />
                 </div>
@@ -1099,7 +1269,6 @@ const Schedule = ({
                   <Label>Meeting</Label>
                   <Select
                     value={selectedSession?.meeting?.id || ""}
-                    onOpenChange={(open) => {}}
                     onValueChange={async (value) =>
                       setSelectedSession({
                         ...selectedSession,
@@ -1119,9 +1288,6 @@ const Schedule = ({
                           value={meeting.id}
                           className="flex items-center justify-between"
                         >
-                          {/* <span>
-                          {meeting.name} - {meeting.id}
-                        </span> */}
                           <span>{meeting.name}</span>
                           <Circle
                             className={`w-2 h-2 ml-2 ${
@@ -1135,9 +1301,10 @@ const Schedule = ({
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div>
-                  <Label className="text-right">Summary</Label>
+                  <Label className="text-right">
+                    Notes (Only viewable Admin Side)
+                  </Label>
                   <Textarea
                     value={selectedSession?.summary}
                     onChange={(e) =>
@@ -1146,8 +1313,55 @@ const Schedule = ({
                         summary: e.target.value,
                       })
                     }
-                  ></Textarea>
+                  />
                 </div>
+                {(() => {
+                  const rawSef = (selectedSession as any)?.session_exit_form as
+                    | string
+                    | null
+                    | undefined;
+                  const sefFlags: string[] = [];
+                  if ((selectedSession as any)?.isQuestionOrConcern)
+                    sefFlags.push("question/concern");
+                  if ((selectedSession as any)?.isFirstSession)
+                    sefFlags.push("first session");
+                  if (selectedSession.status === "Cancelled")
+                    sefFlags.push("cancelled");
+                  let sefReasonText = rawSef ?? "";
+                  if (rawSef && rawSef.trim().startsWith("{")) {
+                    try {
+                      const parsed = JSON.parse(rawSef) as any;
+                      sefReasonText =
+                        parsed?.reason ??
+                        parsed?.notes ??
+                        parsed?.exitReason ??
+                        rawSef;
+                      const extraFlags =
+                        parsed?.boxes ?? parsed?.flags ?? parsed?.options;
+                      if (Array.isArray(extraFlags)) {
+                        extraFlags
+                          .filter((x) => typeof x === "string")
+                          .forEach((x) => sefFlags.push(x));
+                      }
+                    } catch {
+                      // raw text fine
+                    }
+                  }
+                  return (
+                    <div>
+                      <Label>SEF Exit Reason</Label>
+                      <Textarea
+                        readOnly
+                        value={sefReasonText || ""}
+                        placeholder="no session exit form yet"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        SEF boxes:{" "}
+                        {sefFlags.length ? sefFlags.join(", ") : "none"}
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col gap-3">
                   <Link
                     href={`/dashboard/session/${selectedSession.id}/participation`}

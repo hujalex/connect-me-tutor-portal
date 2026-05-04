@@ -1,12 +1,8 @@
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { formatSessionDate, formatSessionDuration } from "@/lib/utils";
-import { Session, Meeting } from "@/types";
+import { Session } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -16,13 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -30,46 +19,40 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
-  Circle,
-  Loader2,
   ChevronsLeft,
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
   CircleCheckBig,
   CircleX,
-  TableCellsMerge,
+  Ellipsis,
 } from "lucide-react";
-import { format, parseISO, isAfter } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useDashboardContext } from "@/lib/contexts/dashboardContext";
 
-interface SessionsTableProps {
-  paginatedSessions: Session[];
-  filteredSessions: Session[];
-  currentPage: number;
-  totalPages: number;
-  rowsPerPage: string;
-  selectedSession: Session | null;
-  setSelectedSession: (session: Session | null) => void;
-  handlePageChange: (page: number) => void;
-  handleRowsPerPageChange: (value: string) => void;
-}
-
-const CompletedSessionsTable: React.FC<SessionsTableProps> = ({
+const CompletedSessionsTable = ({
   paginatedSessions,
-  filteredSessions,
-  currentPage,
   totalPages,
-  rowsPerPage,
-  selectedSession,
-  setSelectedSession,
   handlePageChange,
   handleRowsPerPageChange,
-}) => {
+  handleUndoSessionExitForm,
+}: any) => {
+  const TC = useDashboardContext();
   const [isMeetingNotesOpen, setIsMeetingNotesOpen] = useState(false);
 
   return (
@@ -86,7 +69,7 @@ const CompletedSessionsTable: React.FC<SessionsTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedSessions.map((session, index) => (
+          {paginatedSessions.map((session: Session, index: number) => (
             <TableRow key={index}>
               <TableCell>
                 {session.status === "Complete" ? (
@@ -112,46 +95,74 @@ const CompletedSessionsTable: React.FC<SessionsTableProps> = ({
                 {session.student?.firstName} {session.student?.lastName}
               </TableCell>
               <TableCell>{formatSessionDuration(session.duration)}</TableCell>
-
               <TableCell>
-                <Dialog
-                  open={isMeetingNotesOpen}
-                  onOpenChange={setIsMeetingNotesOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setIsMeetingNotesOpen(true);
-                        setSelectedSession(session);
-                      }}
-                    >
-                      View Session Notes
+                <div className="flex flex-col space-y-2">
+                  <Dialog
+                    open={isMeetingNotesOpen}
+                    onOpenChange={setIsMeetingNotesOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setIsMeetingNotesOpen(true);
+                          TC.setSelectedSession(session);
+                        }}
+                      >
+                        View Session Notes
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Meeting Notes</DialogTitle>
+                      </DialogHeader>
+                      <Textarea readOnly>
+                        {TC.selectedSession?.session_exit_form}
+                      </Textarea>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Ellipsis />
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Meeting Notes</DialogTitle>
-                    </DialogHeader>
-                    <Textarea>{selectedSession?.session_exit_form}</Textarea>
-                  </DialogContent>
-                </Dialog>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (session.status === "Complete") {
+                            handleUndoSessionExitForm(session.id);
+                          } else {
+                            TC.setSelectedSession(session);
+                            TC.setIsSessionExitFormOpen(true);
+                          }
+                        }}
+                      >
+                        Undo
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-
       <div className="mt-4 flex justify-between items-center">
-        <span>{filteredSessions.length} row(s) total.</span>
+        <span>{TC.filteredSessions.length} row(s) total.</span>
         <div className="flex items-center space-x-2">
           <span>Rows per page</span>
           <Select
-            value={rowsPerPage.toString()}
+            value={TC.rowsPerPage.toString()}
             onValueChange={handleRowsPerPageChange}
           >
             <SelectTrigger className="w-[70px]">
-              <SelectValue placeholder={rowsPerPage.toString()} />
+              <SelectValue placeholder={TC.rowsPerPage.toString()} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="5">5</SelectItem>
@@ -160,30 +171,30 @@ const CompletedSessionsTable: React.FC<SessionsTableProps> = ({
             </SelectContent>
           </Select>
           <span>
-            Page {currentPage} of {totalPages}
+            Page {TC.currentPage} of {totalPages}
           </span>
           <div className="flex space-x-1">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
+              disabled={TC.currentPage === 1}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(TC.currentPage - 1)}
+              disabled={TC.currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(TC.currentPage + 1)}
+              disabled={TC.currentPage === totalPages}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -191,7 +202,7 @@ const CompletedSessionsTable: React.FC<SessionsTableProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
+              disabled={TC.currentPage === totalPages}
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

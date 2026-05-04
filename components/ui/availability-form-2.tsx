@@ -214,39 +214,6 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
       );
 
   const addAvailability = () => {
-    // setValidationError("");
-
-    // // Strict validation against open availabilities
-    // const validation = isTimeWithinOpenSlots(
-    //   selectedDay,
-    //   selectedStartTime,
-    //   selectedEndTime,
-    //   openAvailabilities
-    // );
-
-    // if (!validation.isValid) {
-    //   setValidationError(validation.reason || "Invalid time selection.");
-    //   return;
-    // }
-
-    // // Check for overlaps with existing availability
-    // const hasOverlap = availabilityList.some((existing) => {
-    //   if (existing.day !== selectedDay) return false;
-
-    //   const existingStart = timeToMinutes(existing.startTime);
-    //   const existingEnd = timeToMinutes(existing.endTime);
-    //   const newStart = timeToMinutes(selectedStartTime);
-    //   const newEnd = timeToMinutes(selectedEndTime);
-
-    //   return newStart < existingEnd && newEnd > existingStart;
-    // });
-
-    // if (hasOverlap) {
-    //   setValidationError(
-    //     "This time range overlaps with your existing availability."
-    //   );
-    //   return;
-    // }
 
     const updatedList = [
       ...availabilityList,
@@ -365,7 +332,7 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
         <Label className="text-lg font-semibold">
           Manage Availability (EST)
         </Label>
-        <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        {/* <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <Info className="h-4 w-4 text-blue-600" />
           <span className="text-sm text-blue-800">
             You can only select times within the available time slots shown. You
@@ -377,7 +344,7 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
               (student availabilities)
             </a>
           </span>
-        </div>
+        </div> */}
       </div>
 
       {/* Show Available Time Slots */}
@@ -400,7 +367,6 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
                         key={index}
                         variant="outline"
                         className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors p-2"
-                        // onClick={() => quickAddAvailability(slot)}
                       >
                         {/* <Plus className="h-3 w-3 mr-1" /> */}
                         {formatTime(slot.startTime)} -{" "}
@@ -532,9 +498,9 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
           </div>
 
           <Button
-            onClick={addAvailability}
             className="mt-4"
             disabled={!selectedDay || !selectedStartTime || !selectedEndTime}
+            onClick={() => addAvailability()}
           >
             Add Availability
           </Button>
@@ -564,7 +530,6 @@ const EnhancedAvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => removeAvailability(index)}
                   className="text-destructive hover:text-destructive"
                 >
                   <X className="h-4 w-4" />

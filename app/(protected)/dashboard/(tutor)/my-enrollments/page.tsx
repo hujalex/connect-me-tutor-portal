@@ -4,10 +4,7 @@ import {
   getEnrollments,
 } from "@/lib/actions/enrollment.server.actions";
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
-import {
-  cachedGetProfile,
-  getTutorStudents,
-} from "@/lib/actions/profile.server.actions";
+import { cachedGetProfile, cachedGetTutorStudents } from "@/lib/actions/cache";
 import { createClient } from "@/lib/supabase/server";
 import { Profile } from "@/types";
 import { profile } from "console";
@@ -18,39 +15,37 @@ import SkeletonTable from "@/components/ui/skeleton";
 import { redirect } from "next/navigation";
 
 const fetchUserProfile = async () => {
-  const user = await cachedGetUser()
-  if (!user) redirect("/")
+  const user = await cachedGetUser();
+  if (!user) redirect("/");
   const profileData = await cachedGetProfile(user.id);
   if (!profileData) throw new Error("No profile found");
   return profileData;
 };
 
-const fetchEnrollments = async (profileData: Profile) => {
-  const enrollmentsData = await cachedGetEnrollments(profileData.id);
+const fetchEnrollments = async (profile: Profile) => {
+  const enrollmentsData = await cachedGetEnrollments(profile.id);
   if (!enrollmentsData) throw new Error("No enrollments found");
 
   const sortedEnrollments = enrollmentsData.sort(
-    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
   );
   return sortedEnrollments;
 };
 
 async function MyEnrollmentsData() {
-  const profileData = await fetchUserProfile();
+  const profile = await fetchUserProfile();
 
-  const [sortedEnrollments, meetings, students] = await Promise.all([
-    fetchEnrollments(profileData),
-    getMeetings(),
-    getTutorStudents(profileData.id).then((s) =>
-      s?.filter((s) => s.status === "Active")
-    ),
-  ]);
+  const sortedEnrollments = fetchEnrollments(profile);
+  const meetings = getMeetings({ omit: ["Zoom Link HQ"] });
+  const students = cachedGetTutorStudents(profile.id);
+
   return (
     <EnrollmentsList
-      initialEnrollments={sortedEnrollments}
-      initialProfile={profileData}
-      initialMeetings={meetings}
-      initialStudents={students}
+      key={profile.id}
+      profile={profile}
+      enrollmentsPromise={sortedEnrollments}
+      meetingsPromise={meetings}
+      studentsPromise={students}
     />
   );
 }

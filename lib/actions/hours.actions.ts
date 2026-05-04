@@ -36,12 +36,10 @@ import { DatabaseIcon, UserRoundIcon } from "lucide-react";
 import { SYSTEM_ENTRYPOINTS } from "next/dist/shared/lib/constants";
 import { getAllSessions } from "./admin.actions";
 import { timeStrToHours } from "../utils";
+import { supabase } from "@/lib/supabase/client"
 // import { getMeeting } from "./meeting.actions";
 
-const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-});
+
 
 export const getAllSessionHours = async (userId: string) => {
   try {

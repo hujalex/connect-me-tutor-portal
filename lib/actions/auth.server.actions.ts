@@ -9,6 +9,8 @@ import { admin } from "googleapis/build/src/apis/admin";
 import { profile } from "console";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { createPassword } from "../utils";
+import { cachedGetUser } from "./user.server.actions";
+import { cachedGetProfile } from "./cache";
 
 interface UserMetadata {
   email: string;
@@ -32,18 +34,18 @@ interface UserMetadata {
   languages_spoken: string[];
 }
 
-// export async function (request: NextRequest) {
-//   try {
-//     const newProfileData: CreatedProfileData = await request.json();
+export const isAuthorized = async (request: NextRequest) => {
+  const authHeader = request.headers.get("authorization");
+  return authHeader === `Bearer ${process.env.BEARER_TOKEN}`;
+};
 
-//     const profileData: Partial<Profile> = await createUser(newProfileData);
-//     return profileData
-//   } catch (error) {
-//     const err = error as Error;
-//     console.error(err.message)
-//     throw error
-//   }
-// }
+export const verifyAdmin = async () => {
+  const user = await cachedGetUser();
+  if (!user) throw new Error("Unauthenticated access");
+  const profile = await cachedGetProfile(user.id);
+  if (!profile || profile.role !== "Admin")
+    throw new Error("Unauthorized Access");
+};
 
 export const getUser = async () => {
   const supabase = await createClient();
@@ -69,8 +71,13 @@ const inviteUser = async (newProfileData: CreatedProfileData) => {
   //   password: newProfileData.password,
   // });
 
-  if (authError) throw new Error("Unable to invite user " + authError.message);
-  return authData.user.id;
+  // if (authError) {
+  //   console.log("Unable to invite user " + authError.message);
+  //   throw new Error("Unable to invite user " + authError.message);
+  // }
+
+  const newUserId = authData?.user?.id;
+  return { newUserId, authError };
 };
 
 /**
@@ -80,9 +87,9 @@ const inviteUser = async (newProfileData: CreatedProfileData) => {
  */
 
 export const createUser = async (newProfileData: CreatedProfileData) => {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   try {
-    const { data: profile } = await supabase
+    const { data: prevProfile } = await supabase
       .from("Profiles")
       .select("user_id, role")
       .eq("email", newProfileData.email)
@@ -90,11 +97,23 @@ export const createUser = async (newProfileData: CreatedProfileData) => {
       .maybeSingle()
       .throwOnError();
 
-    if (profile?.role === "Admin") {
+    if (prevProfile?.role === "Admin") {
       throw new Error("Multiple profiles prohibited for provided email");
     }
 
-    const userId = profile?.user_id ?? (await inviteUser(newProfileData));
+    let userId = prevProfile?.user_id;
+    if (!userId) {
+      const { newUserId, authError } = await inviteUser(newProfileData);
+      if (!newUserId || authError) {
+        const { data } = await supabase.rpc("get_user_by_email", {
+          email: newProfileData.email,
+        });
+        if (data) await supabase.auth.admin.deleteUser(data.id);
+        throw authError;
+      }
+      userId = newUserId;
+    }
+
     const userMetadata: UserMetadata = {
       email: newProfileData.email,
       role: newProfileData.role,
@@ -123,7 +142,12 @@ export const createUser = async (newProfileData: CreatedProfileData) => {
       .select()
       .single();
 
-    if (!profile && profileError) {
+    /*
+     * Should only delete if we do not already have another profile under the same email
+     * and we encounter an error inserting a Profile record to the table
+     */
+    if (!prevProfile && profileError) {
+      console.error("Unable to create profile", profileError);
       await supabase.auth.admin.deleteUser(userId);
       throw profileError;
     }
@@ -133,7 +157,6 @@ export const createUser = async (newProfileData: CreatedProfileData) => {
 
     return createdProfileData;
   } catch (error) {
-    const err = error as Error;
     console.error("Error creating user:", error);
     throw error;
   }
@@ -142,16 +165,16 @@ export const createUser = async (newProfileData: CreatedProfileData) => {
 const replaceLastActiveProfile = async (
   userId: string,
   lastActiveProfileId: string,
-  userProfileIds: { id: string }[]
+  userProfileIds: { id: string }[],
 ) => {
   const supabase = await createClient();
   try {
     const availableProfile = userProfileIds.find(
-      (profile) => profile.id != lastActiveProfileId
+      (profile) => profile.id != lastActiveProfileId,
     );
     if (availableProfile === undefined)
       throw new Error(
-        "Called replaceLastActiveProfile with only one or zero profileIds attached to userId"
+        "Called replaceLastActiveProfile with only one or zero profileIds attached to userId",
       );
 
     await supabase
@@ -188,9 +211,10 @@ export const deleteUser = async (profileId: string) => {
           `
         user_id,
         last_active_profile_id
-        `
+        `,
         )
         .eq("last_active_profile_id", profileId)
+        .eq("user_id", profile.user_id)
         .maybeSingle()
         .throwOnError(),
     ]);
@@ -200,7 +224,7 @@ export const deleteUser = async (profileId: string) => {
 
     if (relatedProfiles.length == 1) {
       const { error: authError } = await adminSupabase.auth.admin.deleteUser(
-        relatedProfiles[0].user_id
+        relatedProfiles[0].user_id,
       );
 
       if (authError) throw authError;
@@ -211,11 +235,10 @@ export const deleteUser = async (profileId: string) => {
       replaceLastActiveProfile(
         userSettings.user_id,
         userSettings.last_active_profile_id,
-        relatedProfiles
+        relatedProfiles,
       );
     }
 
-    // Delete from profiles table
     await adminSupabase
       .from(Table.Profiles)
       .delete()

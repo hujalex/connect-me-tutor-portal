@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {
     environment: 'jsdom',
+    globals: true,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
       NEXT_PUBLIC_SUPABASE_ANON_KEY:

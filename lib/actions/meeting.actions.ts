@@ -1,4 +1,4 @@
-// lib/student.actions.ts
+"use client"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Profile, Session, Meeting, Enrollment } from "@/types";
 import { getProfileWithProfileId } from "./user.actions";

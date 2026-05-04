@@ -6,11 +6,13 @@ import { Enrollment, Session } from "@/types";
 import { createClient } from "@/lib/supabase/server";
 import { fromZonedTime } from "date-fns-tz";
 import { Table } from "@/lib/supabase/tables";
+import { verifyAdmin } from "@/lib/actions/auth.server.actions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await verifyAdmin();
     const newSessions = await handleUpdateWeek();
 
     return NextResponse.json({ newSessions: newSessions }, { status: 200 });
@@ -57,7 +59,7 @@ const handleUpdateWeek = async (): Promise<Session[]> => {
   }
 };
 
-export async function addSessionsServer(
+async function addSessionsServer(
   weekStartString: string,
   weekEndString: string,
   enrollments: Enrollment[],
@@ -79,6 +81,14 @@ export async function addSessionsServer(
 
     //Set created to avoid duplicates
     const scheduledSessions: Set<string> = await getSessionKeys(sessions);
+
+    // skip enrollments that already have a session this week, even if rescheduled to a different time
+    const enrollmentsWithSessions: Set<string> = new Set(
+      sessions
+        .filter((s) => s.enrollmentId)
+        .map((s) => s.enrollmentId as string),
+    );
+
     // Prepare bulk insert data
     const sessionsToCreate: any[] = [];
 
@@ -99,6 +109,11 @@ export async function addSessionsServer(
       const startDate_asDate = new Date(startDate); //UTC
 
       if (enrollment.paused) {
+        continue;
+      }
+
+      // already has a session this week, probably rescheduled
+      if (enrollmentsWithSessions.has(id)) {
         continue;
       }
 
@@ -202,8 +217,8 @@ export async function addSessionsServer(
       }
     }
 
-    const sessions = await batchInsertSessions(sessionsToCreate);
-    return sessions ? sessions : [];
+    const createdSessions = await batchInsertSessions(sessionsToCreate);
+    return createdSessions ? createdSessions : [];
   } catch (error) {
     console.error("Error creating sessions:", error);
     throw error;
@@ -227,11 +242,10 @@ const batchInsertSessions = async (sessionsToCreate: Session[]) => {
 
       if (data) {
         // Transform returned data to Session objects
-        const sessions: Session[] = data.map((session: any) => ({
+        const transformedSessions: Session[] = data.map((session: any) => ({
           id: session.id,
           enrollmentId: session.enrollment_id,
           createdAt: session.created_at,
-          environment: session.environment,
           date: session.date,
           summary: session.summary,
           meeting: session.meeting,
@@ -244,7 +258,7 @@ const batchInsertSessions = async (sessionsToCreate: Session[]) => {
           duration: session.duration,
         }));
 
-        return sessions;
+        return transformedSessions;
       }
     }
   } catch (error) {

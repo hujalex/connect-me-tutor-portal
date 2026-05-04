@@ -24,9 +24,22 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Profile } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
-import { switchProfile } from "@/lib/actions/profile.server.actions";
-import { useProfile } from "@/contexts/profileContext";
+import {
+  switchProfile,
+  getProfileUncached,
+} from "@/lib/actions/profile.server.actions";
+import { useProfile } from "@/lib/contexts/profileContext";
 import { getUserProfiles } from "@/lib/actions/profile.server.actions";
+
+interface AccountFormType {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  age: string;
+  email: string;
+  subjectsOfInterest: string;
+  languagesSpoken: string;
+}
 
 export default function SettingsPage({
   profilePromise,
@@ -42,7 +55,7 @@ export default function SettingsPage({
   const showCompleteProfileBanner = searchParams.get("completeProfile") === "1";
   // changed to initialize from context so current profile is available at render time
   const [lastActiveProfileId, setLastActiveProfileId] = useState<string>(
-    profile?.id || ""
+    profile?.id || "",
   );
   const [userProfiles, setUserProfiles] = useState<Partial<Profile>[]>([]);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -64,6 +77,10 @@ export default function SettingsPage({
       ? (profile as any).languages_spoken.join(", ")
       : "",
   }));
+  // track account status stae for students so they can toggle their own active inactive status in settings without admin help
+  const [accountStatus, setAccountStatus] = useState<Profile["status"]>(
+    profile?.status === "Inactive" ? "Inactive" : "Active",
+  );
   const [sessionReminders, setSessionReminders] = useState(false);
   const [sessionEmailNotifications, setSessionEmailNotifications] =
     useState(false);
@@ -86,7 +103,7 @@ export default function SettingsPage({
       const userProfiles = await fetchUserInfo();
       if (userProfiles) setUserProfiles(userProfiles);
     };
-    fetchData()
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -100,7 +117,10 @@ export default function SettingsPage({
       firstName: profile.firstName || "",
       lastName: profile.lastName || "",
       phoneNumber: profile.phoneNumber || "",
-      age: profile.age !== undefined && profile.age !== null ? String(profile.age) : "",
+      age:
+        profile.age !== undefined && profile.age !== null
+          ? String(profile.age)
+          : "",
       email: profile.email || "",
       subjectsOfInterest: Array.isArray((profile as any).subjects_of_interest)
         ? (profile as any).subjects_of_interest.join(", ")
@@ -109,6 +129,8 @@ export default function SettingsPage({
         ? (profile as any).languages_spoken.join(", ")
         : "",
     });
+    // sync account status when profile loads so the selector actually shows the current saved value instead of defaults
+    setAccountStatus(profile.status === "Inactive" ? "Inactive" : "Active");
   }, [profile]);
 
   const toList = (value: string) => {
@@ -160,7 +182,7 @@ export default function SettingsPage({
         if (error) throw error;
 
         setSessionEmailNotifications(
-          data.email_tutoring_session_notifications_enabled
+          data.email_tutoring_session_notifications_enabled,
         );
         setSessionTextNotifications(false);
         setWebinarEmailNotifications(data.email_webinar_notifications_enabled);
@@ -168,7 +190,7 @@ export default function SettingsPage({
 
         setSessionReminders(
           data.email_tutoring_session_notifications_enabled ||
-            data.text_tutoring_session_notifications_enabled
+            data.text_tutoring_session_notifications_enabled,
         );
 
         setWebinarReminders(false);
@@ -200,6 +222,10 @@ export default function SettingsPage({
         subjects_of_interest: toList(accountForm.subjectsOfInterest),
         languages_spoken: toList(accountForm.languagesSpoken),
       };
+      // only add status to update if students so tutors dont get this control in settings and keep the admin level stuff
+      if (profile.role === "Student") {
+        updatePayload.status = accountStatus;
+      }
 
       const { error } = await supabase
         .from("Profiles")
@@ -253,7 +279,7 @@ export default function SettingsPage({
           getProfileWithProfileId(lastActiveProfileId),
         ]);
         setProfile(newProfileData);
-        // router.refresh()
+        router.refresh();
       }
       toast.success("Switched Profile");
     } catch (error) {
@@ -423,7 +449,6 @@ export default function SettingsPage({
                 )}
               </div>
             </div>
-
             <Button
               onClick={handleSaveNotifications}
               className="mt-6 w-full sm:w-auto"
@@ -431,8 +456,6 @@ export default function SettingsPage({
               Save Notification Settings
             </Button>
           </section>
-
-          {/* Profile Section */}
           <section className="bg-white rounded-lg border p-6">
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-2xl font-bold">Account Settings</h2>
@@ -440,12 +463,35 @@ export default function SettingsPage({
                 In Development
               </span>
             </div>
-
             <p className="text-gray-600 mb-6">
               Manage your information and account preferences.
             </p>
-
             <form onSubmit={handleProfileSubmit} className="space-y-6">
+              {/* students can toggle their own active inactive status here without needing admin intervention to deactivate account */}
+              {profile?.role === "Student" && (
+                <div>
+                  <Label
+                    htmlFor="account-status"
+                    className="text-sm font-medium"
+                  >
+                    Account Status
+                  </Label>
+                  <Select
+                    value={accountStatus}
+                    onValueChange={(value) =>
+                      setAccountStatus(value as Profile["status"])
+                    }
+                  >
+                    <SelectTrigger id="account-status" className="mt-1">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="first-name" className="text-sm font-medium">
@@ -464,7 +510,6 @@ export default function SettingsPage({
                     }
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="last-name" className="text-sm font-medium">
                     Last Name
@@ -483,7 +528,6 @@ export default function SettingsPage({
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="phone-number" className="text-sm font-medium">
@@ -503,9 +547,7 @@ export default function SettingsPage({
                     }
                   />
                 </div>
-
                 <div>
-                  {/* hi */}
                   <Label htmlFor="age" className="text-sm font-medium">
                     Age
                   </Label>
@@ -524,7 +566,6 @@ export default function SettingsPage({
                   />
                 </div>
               </div>
-
               <div>
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email Address
@@ -543,7 +584,6 @@ export default function SettingsPage({
                   }
                 />
               </div>
-
               <div>
                 <Label htmlFor="bio" className="text-sm font-medium">
                   Bio
@@ -556,7 +596,6 @@ export default function SettingsPage({
                   disabled
                 />
               </div>
-
               <div>
                 <Label htmlFor="subjects" className="text-sm font-medium">
                   Subjects of Interest

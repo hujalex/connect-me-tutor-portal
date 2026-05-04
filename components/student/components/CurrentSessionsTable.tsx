@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { format, parseISO, isAfter } from "date-fns";
 import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
+import { useDashboardContext } from "@/lib/contexts/dashboardContext";
 // import SessionExitForm from "./SessionExitForm";
 // import RescheduleForm from "./RescheduleDialog";
 // import CancellationForm from "./CancellationForm";
@@ -88,45 +89,22 @@ interface CurrentSessionTableProps {
   handleReschedule: (
     sessionId: string,
     newDate: string,
-    meetingId: string
+    meetingId: string,
   ) => void;
   handleSessionComplete: (
     session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
-    isFirstSession: boolean
+    isFirstSession: boolean,
   ) => void;
   handlePageChange: (page: number) => void;
   handleRowsPerPageChange: (value: string) => void;
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
 }
 
-const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
-  currentSessions,
-  filteredSessions,
-  meetings,
-  currentPage,
-  totalPages,
-  rowsPerPage,
-  selectedSession,
-  selectedSessionDate,
-  isDialogOpen,
-  isSessionExitFormOpen,
-  notes,
-  nextClassConfirmed,
-  setSelectedSession,
-  setSelectedSessionDate,
-  setIsDialogOpen,
-  setIsSessionExitFormOpen,
-  setNotes,
-  setNextClassConfirmed,
-  handleStatusChange,
-  handleReschedule,
-  handleSessionComplete,
-  handlePageChange,
-  handleRowsPerPageChange,
-  handleInputChange,
-}) => {
+const CurrentSessionsTable = () => {
+  const SC = useDashboardContext();
+
   return (
     <>
       <Table>
@@ -140,20 +118,8 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentSessions.map((session, index) => (
-            <TableRow
-              key={index}
-
-              // className={
-              //     session.status === "Active"
-              //     ? "bg-blue-200 opacity-20"
-              //     : session.status === "Complete"
-              //     ? "bg-green-200 opacity-50"
-              //     : session.status === "Cancelled"
-              //     ? "bg-red-100 opacity-50 "
-              //     : ""
-              // }
-            >
+          {SC.currentSessions.map((session, index) => (
+            <TableRow key={index}>
               <TableCell>
                 {session.status === "Active" ? (
                   <span className="px-3 py-1 inline-flex items-center rounded-full bg-blue-100 text-blue-800 border border-blue-200">
@@ -183,40 +149,22 @@ const CurrentSessionsTable: React.FC<CurrentSessionTableProps> = ({
                 {session.tutor?.firstName} {session.tutor?.lastName}
               </TableCell>
               <TableCell>
-                {session.environment !== "In-Person" && (
-                  <>
-                    {session?.meeting?.meetingId ? (
-                      <button
-                        onClick={() =>
-                          (window.location.href = `/meeting/${session?.meeting?.id}`)
-                        }
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                      >
-                        View
-                      </button>
-                    ) : (
-                      <button className="text-black px-3 py-1 border border-gray-200 rounded">
-                        N/A
-                      </button>
-                    )}
-                  </>
+                {session?.meeting?.meetingId ? (
+                  <button
+                    onClick={() =>
+                      (window.location.href = `/meeting/${session?.meeting?.id}`)
+                    }
+                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <button className="text-black px-3 py-1 border border-gray-200 rounded">
+                    N/A
+                  </button>
                 )}
               </TableCell>
-              <TableCell>
-                {/* <SessionExitForm
-                  currSession={session}
-                  isSessionExitFormOpen={isSessionExitFormOpen}
-                  setIsSessionExitFormOpen={setIsSessionExitFormOpen}
-                  selectedSession={selectedSession}
-                  setSelectedSession={setSelectedSession}
-                  notes={notes}
-                  setNotes={setNotes}
-                  nextClassConfirmed={nextClassConfirmed}
-                  setNextClassConfirmed={setNextClassConfirmed}
-                  handleSessionComplete={handleSessionComplete}
-                  handleStatusChange={handleStatusChange}
-                /> */}
-              </TableCell>
+              <TableCell></TableCell>
             </TableRow>
           ))}
         </TableBody>

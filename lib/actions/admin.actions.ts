@@ -43,7 +43,10 @@ import { DatabaseIcon } from "lucide-react";
 import { SYSTEM_ENTRYPOINTS } from "next/dist/shared/lib/constants";
 import { Table } from "../supabase/tables";
 import { handleCalculateDuration } from "@/lib/utils";
-import { tableToInterfaceProfiles } from "../type-utils";
+import {
+  tableToInterfaceProfiles,
+  tableToInterfaceSessions,
+} from "../type-utils";
 import { createPairingRequest } from "./pairing.actions";
 import { scheduleMultipleSessionReminders } from "../twilio";
 import { removeFutureSessions } from "./enrollment.server.actions";
@@ -56,7 +59,7 @@ export async function getAllProfiles(
   role: "Student" | "Tutor" | "Admin",
   orderBy?: string | null,
   ascending?: boolean | null,
-  status?: string | null
+  status?: string | null,
 ): Promise<Profile[] | null> {
   try {
     const profileFields = `
@@ -206,7 +209,7 @@ export async function getUserFromId(profileId: string) {
           status,
           student_number,
           settings_id
-        `
+        `,
       )
       .eq("id", profileId)
       .single();
@@ -246,60 +249,6 @@ export async function getUserFromId(profileId: string) {
   } catch (error) {
     console.error("Failed to fetch user");
     return null;
-  }
-}
-
-//---updateUser
-export async function editUser(profile: Profile) {
-  const {
-    id,
-    role,
-    firstName,
-    lastName,
-    age,
-    grade,
-    gender,
-    email,
-    // dateOfBirth,
-    startDate,
-    parentName,
-    parentPhone,
-    parentEmail,
-    timeZone,
-    availability,
-    subjects_of_interest,
-    languages_spoken,
-    studentNumber,
-  } = profile;
-  try {
-    const { data, error } = await supabase
-      .from(Table.Profiles)
-      .update({
-        role: role,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        age: age,
-        grade: grade,
-        gender: gender,
-        email: email,
-        // date_of_birth: dateOfBirth,
-        start_date: startDate,
-        parent_name: parentName,
-        parent_email: parentEmail,
-        parent_phone: parentPhone,
-        timezone: timeZone,
-        student_number: studentNumber,
-        availability: availability,
-        subjects_of_interest: subjects_of_interest,
-        languages_spoken: languages_spoken,
-      })
-      .eq("id", id)
-      .single();
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error("Error updating user", error);
-    throw new Error("Unable to edit User");
   }
 }
 
@@ -349,7 +298,7 @@ export const sendConfirmationEmail = async (email: string) => {
 
 export const createConfirmationEmail = async (
   email: string,
-  tempPassword: string
+  tempPassword: string,
 ) => {
   try {
     const { data, error } = await supabase.auth.admin.generateLink({
@@ -365,7 +314,6 @@ export const createConfirmationEmail = async (
     throw error;
   }
 };
-
 
 export const resendEmailConfirmation = async (email: string) => {
   try {
@@ -393,149 +341,6 @@ export async function createSession(sessionData: any) {
   if (error) throw error;
   return data;
 }
-
-export async function getAllSessions(
-  startDate?: string,
-  endDate?: string,
-  orderBy?: string,
-  ascending?: boolean
-): Promise<Session[]> {
-  try {
-    let query = supabase.from(Table.Sessions).select(`
-      id,
-      enrollment_id,
-      created_at,
-      environment,
-      student_id,
-      tutor_id,
-      date,
-      summary,
-      meeting_id,
-      status,
-      is_question_or_concern,
-      is_first_session,
-      session_exit_form,
-      duration,
-      meetings:Meetings!meeting_id(*),
-      student:Profiles!student_id(*),
-      tutor:Profiles!tutor_id(*)
-    `);
-
-    if (startDate) {
-      query = query.gte("date", startDate);
-    }
-    if (endDate) {
-      query = query.lte("date", endDate);
-    }
-
-    if (orderBy && ascending !== undefined) {
-      query = query.order(orderBy, { ascending });
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching student sessions:", error.message);
-      throw error;
-    }
-
-    const sessions: Session[] = data
-      .filter((session: any) => session.student && session.tutor)
-      .map((session: any) => ({
-        id: session.id,
-        enrollmentId: session.enrollment_id,
-        createdAt: session.created_at,
-        environment: session.environment,
-        date: session.date,
-        summary: session.summary,
-        // meetingId: session.meeting_id,
-        // meeting: await getMeeting(session.meeting_id),
-        meeting: session.meetings,
-        student: tableToInterfaceProfiles(session.student),
-        tutor: tableToInterfaceProfiles(session.tutor),
-        // student: await getProfileWithProfileId(session.student_id),
-        // tutor: await getProfileWithProfileId(session.tutor_id),
-        status: session.status,
-        session_exit_form: session.session_exit_form,
-        isQuestionOrConcern: Boolean(session.is_question_or_concern),
-        isFirstSession: Boolean(session.is_first_session),
-        duration: session.duration,
-      }));
-
-    return sessions;
-  } catch (error) {
-    console.error("Error fetching sessions", error);
-    return [];
-  }
-}
-
-// export function getAllSessions(
-//   startDate?: string,
-//   endDate?: string,
-//   orderBy?: string,
-//   ascending?: boolean
-// ) {
-//   try {
-//     let query = supabase.from(Table.Sessions).select(`
-//       id,
-//       created_at,
-//       environment,
-//       student_id,
-//       tutor_id,
-//       date,
-//       summary,
-//       meeting_id,
-//       status,
-//       is_question_or_concern,
-//       is_first_session,
-//       session_exit_form
-//     `);
-
-//     if (startDate) {
-//       query = query.gte("date", startDate);
-//     }
-//     if (endDate) {
-//       query = query.lte("date", endDate);
-//     }
-
-//     if (orderBy && ascending !== undefined) {
-//       query = query.order(orderBy, { ascending });
-//     }
-
-//     const { data, error } = await query;
-
-//     if (error) {
-//       console.error("Error fetching student sessions:", error.message);
-//       throw error;
-//     }
-
-//     // Map the result to the Session interface
-//     const sessions: Session[] = await Promise.all(
-//       data.map(async (session: any) => ({
-//         id: session.id,
-//         createdAt: session.created_at,
-//         environment: session.environment,
-//         date: session.date,
-//         summary: session.summary,
-//         // meetingId: session.meeting_id,
-//         meeting: await getMeeting(session.meeting_id),
-//         student: await getProfileWithProfileId(session.student_id),
-//         tutor: await getProfileWithProfileId(session.tutor_id),
-//         status: session.status,
-//         session_exit_form: session.session_exit_form,
-//         isQuestionOrConcern: Boolean(session.is_question_or_concern),
-//         isFirstSession: Boolean(session.is_first_session),
-//       }))
-//     );
-
-//     console.log(sessions);
-
-//     return sessions;
-//   } catch (error) {
-//     console.error("Error fetching sessions");
-//     return [];
-//   }
-// }
 
 export async function rescheduleSession(sessionId: string, newDate: string) {
   const { data, error } = await supabase
@@ -571,7 +376,7 @@ export async function getSessionKeys(data?: Session[]) {
       const sessionDate = new Date(session.date);
       const key = `${session.student?.id}-${session.tutor?.id}-${format(
         sessionDate,
-        "yyyy-MM-dd-HH:mm"
+        "yyyy-MM-dd-HH:mm",
       )}`;
       sessionKeys.add(key);
     }
@@ -639,8 +444,8 @@ export async function getSessionKeys(data?: Session[]) {
 
 export async function isSingleMeetingAvailable(
   meetingId: string,
-  session: Session
-): Promise<void> { }
+  session: Session,
+): Promise<void> {}
 
 /**
  * Checks availability of multiple meetings at once
@@ -682,58 +487,6 @@ export async function isSingleMeetingAvailable(
 //   }
 // }
 
-export async function addOneSession(
-  session: Session,
-  scheduleEmail: boolean = true
-): Promise<void> {
-  try {
-    const newSession = {
-      date: session.date,
-      enrollment_id: null, //omdependent of enrollment date
-      student_id: session.student?.id,
-      tutor_id: session.tutor?.id,
-      status: "Active",
-      summary: session.summary,
-      meeting_id: session.meeting?.id,
-      duration: 1,
-    };
-
-    const { data, error } = await supabase
-      .from(Table.Sessions)
-      .insert(newSession)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (!data) toast.error("No Data");
-
-    if (data && scheduleEmail) {
-      const addedSession: Session = {
-        id: data.id,
-        enrollmentId: data.enrollment_id,
-        createdAt: data.created_at,
-        environment: data.environment,
-        date: data.date,
-        summary: data.summary,
-        meeting: await getMeeting(data.meeting_id),
-        student: await getProfileWithProfileId(data.student_id),
-        tutor: await getProfileWithProfileId(data.tutor_id),
-        status: data.status,
-        session_exit_form: data.session_exit_form || null,
-        isQuestionOrConcern: data.isQuestionOrConcern,
-        isFirstSession: data.isFirstSession,
-        duration: 1, //default //! might fix
-      };
-
-      sendScheduledEmailsBeforeSessions([addedSession]);
-    }
-  } catch (error) {
-    console.error("Unable to add one session", error);
-    throw error;
-  }
-}
-
 async function isSessioninPastWeek(enrollmentId: string, midWeek: Date) {
   const midLastWeek = subDays(midWeek, 7);
 
@@ -754,7 +507,7 @@ async function isSessioninPastWeek(enrollmentId: string, midWeek: Date) {
 
 export async function updateSession(
   updatedSession: Session,
-  updateEmail: boolean = true
+  updateEmail: boolean = true,
 ) {
   try {
     const {
@@ -784,7 +537,12 @@ export async function updateSession(
         is_first_session: isFirstSession,
       })
       .eq("id", id)
-      .select()
+      .select(
+        `*,
+        tutor:Profiles!tutor_id(*),
+        student:Profiles!student_id(*),
+        meeting:Meetings!meeting_id(*)`,
+      )
       .single();
 
     if (error) {
@@ -798,22 +556,7 @@ export async function updateSession(
       console.error("NO DATA");
     }
     if (updateEmail && data) {
-      const newSession: Session = {
-        id: data.id,
-        enrollmentId: data.enrollment_id,
-        createdAt: data.created_at,
-        environment: data.environment,
-        date: data.date,
-        summary: data.summary,
-        meeting: await getMeeting(data.meeting_id),
-        student: await getProfileWithProfileId(data.student_id),
-        tutor: await getProfileWithProfileId(data.tutor_id),
-        status: data.status,
-        session_exit_form: data.session_exit_form || null,
-        isQuestionOrConcern: data.isQuestionOrConcern,
-        isFirstSession: data.isFirstSession,
-        duration: data.duration,
-      };
+      const newSession: Session = tableToInterfaceSessions(data);
       await updateScheduledEmailBeforeSessions(newSession);
     }
   } catch (error) {
@@ -824,7 +567,7 @@ export async function updateSession(
 
 export async function removeSession(
   sessionId: string,
-  updateEmail: boolean = true
+  updateEmail: boolean = true,
 ) {
   // Create a notification for the admin
   const { error: eventError } = await supabase
@@ -875,7 +618,7 @@ export async function getMeetings(): Promise<Meeting[] | null> {
         link: meeting.link,
         createdAt: meeting.created_at,
         // name: meeting.name,
-      }))
+      })),
     );
 
     return meetings; // Return the array of notifications
@@ -884,29 +627,6 @@ export async function getMeetings(): Promise<Meeting[] | null> {
     return null; // Valid return
   }
 }
-
-export const createEnrollment = async (
-  entry: any,
-  studentData: any,
-  tutorData: any
-) => {
-  const migratedPairing: Enrollment = {
-    id: "",
-    createdAt: "",
-    student: studentData,
-    tutor: tutorData,
-    summary: entry.summary,
-    startDate: entry.startDate,
-    endDate: entry.endDate,
-    availability: entry.availability,
-    meetingId: entry.meetingId,
-    paused: entry.summerPaused,
-    duration: entry.duration,
-    frequency: entry.frequency,
-  };
-
-  return await addEnrollment(migratedPairing);
-};
 
 /* ENROLLMENTS */
 export async function getAllEnrollments(): Promise<Enrollment[] | null> {
@@ -996,7 +716,7 @@ export async function getMeeting(id: string): Promise<Meeting | null> {
         password,
         created_at,
         name
-      `
+      `,
       )
       .eq("id", id)
       .single();
@@ -1026,82 +746,9 @@ export async function getMeeting(id: string): Promise<Meeting | null> {
   }
 }
 
-
-
-export const isValidUUID = (uuid: string): boolean => {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-};
-
-export const addEnrollment = async (
-  enrollment: Omit<Enrollment, "id" | "createdAt">,
-  sendEmail?: boolean
-) => {
-  try {
-    const duration = await handleCalculateDuration(
-      enrollment.availability[0].startTime,
-      enrollment.availability[0].endTime
-    );
-
-    if (enrollment.duration <= 0)
-      throw new Error("Duration should be a positive amount");
-
-    // if (duration >= 3) {
-    //   throw new Error(
-    //     "Please consult an Exec Team member about sessions longer than 3 hours"
-    //   );
-    // }
-
-    if (!enrollment.student) throw new Error("Please select a Student");
-
-    if (enrollment.meetingId && !isValidUUID(enrollment.meetingId)) {
-      throw new Error("Invalid or no meeting link");
-    }
-
-    const { data, error } = await supabase
-      .from(Table.Enrollments)
-      .insert({
-        student_id: enrollment.student?.id,
-        tutor_id: enrollment.tutor?.id,
-        summary: enrollment.summary,
-        start_date: enrollment.startDate,
-        end_date: enrollment.endDate,
-        availability: enrollment.availability,
-        meetingId: enrollment.meetingId,
-        duration: duration, //default
-        frequency: enrollment.frequency,
-      })
-      .select(`*`)
-      .single();
-
-    if (error) {
-      console.error("Error adding enrollment:", error);
-      throw error;
-    }
-
-    return {
-      createdAt: data.created_at,
-      id: data.id,
-      summary: data.summary,
-      student: await getProfileWithProfileId(data.student_id),
-      tutor: await getProfileWithProfileId(data.tutor_id),
-      startDate: data.start_date,
-      endDate: data.end_date,
-      availability: data.availability,
-      meetingId: data.meetingId,
-      duration: data.duration,
-      frequency: data.frequency,
-    };
-  } catch (error) {
-    throw error;
-  }
-};
-
-
 export async function getEventsWithTutorMonth(
   tutorId: string,
-  selectedMonth: string
+  selectedMonth: string,
 ): Promise<Event[] | null> {
   try {
     // Fetch event details filtered by tutor IDs and selected month
@@ -1115,7 +762,7 @@ export async function getEventsWithTutorMonth(
         summary,
         tutor_id,
         hours
-      `
+      `,
       )
       .eq("tutor_id", tutorId) // Filter by tutor IDs
       .gte("date", selectedMonth) // Filter events from the start of the selected month
@@ -1123,9 +770,9 @@ export async function getEventsWithTutorMonth(
         "date",
         new Date(
           new Date(selectedMonth).setMonth(
-            new Date(selectedMonth).getMonth() + 1
-          )
-        ).toISOString()
+            new Date(selectedMonth).getMonth() + 1,
+          ),
+        ).toISOString(),
       ); // Filter before the start of the next month
 
     // Check for errors and log them
@@ -1256,7 +903,7 @@ export async function getAllNotifications(): Promise<Notification[] | null> {
 
 export const updateNotification = async (
   notificationId: string,
-  status: "Active" | "Resolved"
+  status: "Active" | "Resolved",
 ) => {
   try {
     const { data, error } = await supabase
@@ -1274,7 +921,6 @@ export const updateNotification = async (
     throw new Error("Failed to update notification");
   }
 };
-
 
 // function zonedTimeToUtc(arg0: any, arg1: string) {
 //   throw new Error("Function not implemented.");

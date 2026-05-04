@@ -41,7 +41,7 @@ const DeleteTutorForm = ({
       onOpenChange={setIsDeactivateModalOpen}
     >
       <DialogTrigger asChild>
-        <Button variant="destructive">Delete Tutor</Button>
+        <Button className = "bg-connect-me-blue-3" >Delete Tutor</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

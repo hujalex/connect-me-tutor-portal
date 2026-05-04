@@ -49,7 +49,8 @@ const mockEmails = [
     sendDate: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
     recipient: "admin@example.com",
     subject: "Weekly Report",
-    content: "This content aims to go out of bounds to test if the bounds can truncate or not.",
+    content:
+      "This content aims to go out of bounds to test if the bounds can truncate or not.",
     status: "UnScheduled",
   },
 ];
@@ -61,46 +62,13 @@ const EmailManager = () => {
     try {
       const now = new Date();
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
-
-
-  // const sendEmail = async () => {
-  //   try {
-  //     const now = new Date();
-
-  //     const response = await fetch(
-  //       "/api/email/before-sessions/schedule-reminders-weekly",
-  //       {
-  //         method: "GET",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //         },
-  //       }
-  //     );
-
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       throw new Error(data.message || `Error: ${response.status}`);
-  //     }
-
-  //     toast.success("Email sent");
-  //   } catch (error) {
-  //     toast.error(
-  //       `${error instanceof Error ? error.message : "Unknown error"}`
-  //     );
-  //     console.error("Unable to send email", error);
-  //   }
-  // };
+  };
 
   const listScheduledMessages = async () => {
     try {
-
       const data = await fetchScheduledMessages();
-      console.log(data)
-
     } catch (error) {
       console.error("Error listing messages:", error);
       toast.error("Failed to fetch schedules");
@@ -116,7 +84,9 @@ const EmailManager = () => {
 
         <div className="flex gap-4 mb-6">
           <Button onClick={() => sendEmail()}>Send Email</Button>
-          <Button onClick={() => listScheduledMessages()}>Show schedules</Button>
+          <Button onClick={() => listScheduledMessages()}>
+            Show schedules
+          </Button>
         </div>
 
         <div className="rounded-md border bg-white">
@@ -133,8 +103,12 @@ const EmailManager = () => {
             <TableBody>
               {emails.map((email) => (
                 <TableRow key={email.id}>
-                  <TableCell>{new Date(email.sendDate).toLocaleString()}</TableCell>
-                  <TableCell className="max-w-xs truncate">{email.recipient}</TableCell>
+                  <TableCell>
+                    {new Date(email.sendDate).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">
+                    {email.recipient}
+                  </TableCell>
                   <TableCell>{email.subject}</TableCell>
                   <TableCell className="max-w-xs">
                     <Popover>
@@ -158,6 +132,5 @@ const EmailManager = () => {
     </>
   );
 };
-
 
 export default EmailManager;

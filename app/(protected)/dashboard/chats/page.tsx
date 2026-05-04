@@ -8,33 +8,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { SharedPairing } from "@/types/pairing";
 import { MessageSquare, Shield, Users } from "lucide-react";
-// import { getAccountEnrollments } from "@/lib/actions/enrollments.action";
 import { getAccountPairings } from "@/lib/actions/pairing.server.actions";
-import { getProfileRole } from "@/lib/actions/user.actions";
-import { cachedGetProfile } from "@/lib/actions/profile.server.actions";
-import { createClient, createServerClient } from "@/lib/supabase/server";
+import { cachedGetProfile } from "@/lib/actions/cache";
 import { redirect } from "next/navigation";
 import { fetchUserAdminConversation } from "@/lib/actions/chat.server.actions";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getUser } from "@/lib/actions/auth.server.actions";
+import { cachedGetUser } from "@/lib/actions/user.server.actions";
 
 export default async function ChatPage() {
-  const user = await getUser()
+  const user = await cachedGetUser();
   const userId = user?.id;
   if (!userId) redirect("/");
+
   const profile = await cachedGetProfile(userId);
   if (!profile) {
     redirect("/dashboard/settings?completeProfile=1");
   }
 
-  const [adminConversationID, pairings, role] = await Promise.all([
-    fetchUserAdminConversation(userId),
-    getAccountPairings(userId),
-    getProfileRole(userId),
-  ]);
+  const adminConversationID = await fetchUserAdminConversation(userId);
+  if (!adminConversationID) {
+    redirect("/dashboard");
+  }
+
+  const pairings = getAccountPairings(userId);
+  const profilePromise = cachedGetProfile(userId);
 
   return (
     <div className="flex flex-col h-screen">
@@ -82,11 +80,7 @@ export default async function ChatPage() {
           </Card>
         </div>
       </div>
-      <ChatList
-        pairings={pairings!}
-        currentUserId="7b4dbab0-436b-4cfd-bdb5-2640caebe920"
-        role={role as any}
-      />
+      <ChatList pairingsPromise={pairings} profilePromise={profilePromise} />
     </div>
   );
 }

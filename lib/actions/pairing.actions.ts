@@ -4,7 +4,7 @@ import { PairingLog, PairingRequest, SharedPairing } from "@/types/pairing";
 import { createClient } from "@supabase/supabase-js";
 import { getProfile, getProfileRole } from "./user.actions";
 import { supabase } from "../supabase/client";
-import { getAccountEnrollments } from "./enrollments.action";
+import { getAccountEnrollments } from "./enrollment.actions";
 import { Table } from "../supabase/tables";
 import { PairingLogSchemaType } from "../pairing/types";
 import { Person } from "@/types/enrollment";
@@ -17,7 +17,7 @@ import {
   sendStudentPairingConfirmationEmail,
   sendTutorPairingConfirmationEmail,
 } from "./email.server.actions";
-import { addEnrollment } from "./admin.actions";
+import { addEnrollment } from "./enrollment.server.actions";
 import { getOverlappingAvailabilites } from "./enrollment.actions";
 import { getSupabase } from "../supabase-server/serverClient";
 import { number } from "zod";

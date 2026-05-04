@@ -3,8 +3,7 @@ import { Profile } from "@/types";
 import { Table } from "../supabase/tables";
 import { tableToInterfaceProfiles } from "../type-utils";
 import { table } from "console";
-import { supabase } from "@/lib/supabase/client"
-
+import { supabase } from "@/lib/supabase/client";
 
 export const getUser = async () => {
   const {
@@ -48,7 +47,7 @@ export const getProfileFromUserSettings = async (
           settings_id,
           languages_spoken
         )
-      `
+      `,
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -63,7 +62,15 @@ export const getProfileFromUserSettings = async (
       return null;
     }
 
-    return tableToInterfaceProfiles(data.profile as any);
+    const profile = data.profile as any;
+    // if (!profile || profile.user_id !== userId) {
+    //   console.error(
+    //     `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
+    //   );
+    //   throw new Error("Profile ownership mismatch");
+    // }
+
+    return tableToInterfaceProfiles(profile);
   } catch (error) {
     throw error;
   }
@@ -90,12 +97,14 @@ export const getProfileByEmail = async (email: string) => {
       .select(
         `
       profile:Profiles!last_active_profile_id(*)  
-        `
+        `,
       )
       .eq("email", email)
       .single();
     if (error) throw new Error(`Profile fetch failed: ${error.message}`);
-    const userProfile: Profile | null = await tableToInterfaceProfiles(data.profile);
+    const userProfile: Profile | null = await tableToInterfaceProfiles(
+      data.profile,
+    );
     return userProfile;
   } catch (error) {
     throw error;
@@ -103,7 +112,7 @@ export const getProfileByEmail = async (email: string) => {
 };
 
 export const getProfileRole = async (
-  userId: string
+  userId: string,
 ): Promise<string | null> => {
   if (!userId) {
     console.error("User ID is required to fetch profile role");
@@ -111,36 +120,39 @@ export const getProfileRole = async (
   }
 
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_settings")
       .select(
         `
         profile:Profiles!last_active_profile_id(role)
-      `
+      `,
       )
       .eq("user_id", userId)
-      .maybeSingle()
-      .throwOnError();
+      .maybeSingle();
 
-    if (!data?.profile?.role) {
+    if (error) {
+      console.error(
+        `Database error fetching user_settings for ${userId}:`,
+        error.message,
+      );
       return null;
     }
 
-    const profileRole: { profile: { role: string } } = data as any;
-
-    console.log("Profile Data", profileRole.profile.role);
-
-    if (!profileRole || !profileRole.profile || !profileRole.profile.role) {
-      console.error("No role identified");
+    const profile = data?.profile as { role: string } | null | undefined;
+    const role = profile?.role;
+    if (!role) {
+      console.warn(
+        `No role for user ${userId} (missing user_settings, profile, or role).`,
+      );
       return null;
     }
 
-    const result = profileRole?.profile.role || null;
-    console.log(result);
-
-    return result;
+    return role;
   } catch (error) {
-    console.error("Unexpected error in getProfileRole:", error);
+    console.error(
+      `Unexpected error in getProfileRole for user ${userId}:`,
+      error,
+    );
     return null;
   }
 };
@@ -158,7 +170,7 @@ export const getSessionUserProfile = async (): Promise<Profile | null> => {
 };
 
 export async function getProfileWithProfileId(
-  profileId: string
+  profileId: string,
 ): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
@@ -185,7 +197,7 @@ export async function getProfileWithProfileId(
         status,
         student_number,
         settings_id
-      `
+      `,
       )
       .eq("id", profileId)
       .single();
@@ -193,7 +205,7 @@ export async function getProfileWithProfileId(
     if (error) {
       console.error(
         "Error fetching profile in getProfileWithProfileId:",
-        error.message
+        error.message,
       );
       console.error("Error details:", error);
       return null;

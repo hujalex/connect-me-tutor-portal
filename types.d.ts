@@ -2,24 +2,24 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
 interface Profile {
   id: string;
-  createdAt: string; // Date when the profile was created
+  createdAt: string;
   role: "Student" | "Tutor" | "Admin";
-  userId: string; // Foreign key or identifier
+  userId: string;
   firstName: string;
   lastName: string;
   age?: string;
   grade?: string;
   gender?: string;
-  dateOfBirth?: string | null; // Format: YYYY-MM-DD
-  startDate: string; // Format: YYYY-MM-DD, start date of the user's involvement
-  availability: { day: string; startTime: string; endTime: string }[]; // Example: [{ day: "Monday", time: "3PM-6PM" }]
+  dateOfBirth?: string | null;
+  startDate: string;
+  availability: { day: string; startTime: string; endTime: string }[];
   email: string;
   phoneNumber: string;
-  parentName?: string; // Optional
-  parentPhone?: string; // Optional
-  parentEmail?: string; // Optional
-  timeZone: string; // Example: 'America/New_York'
-  subjects_of_interest: string[]; // Array of subjects
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  timeZone: string;
+  subjects_of_interest: string[];
   status: "Active" | "Inactive" | "Deleted";
   tutorIds: string[];
   studentNumber: string | null;
@@ -31,18 +31,17 @@ interface Session {
   id: string;
   enrollmentId: string | null;
   createdAt: string;
-  environment: "Virtual" | "In-Person";
   student: Profile | null;
   tutor: Profile | null;
   date: string;
-  summary: string;
-  // meetingId: string;p
   meeting?: Meeting | null;
+  duration: number;
   status: "Active" | "Complete" | "Cancelled" | "Rescheduled";
   session_exit_form: string;
+  summary: string;
   isQuestionOrConcern: boolean;
   isFirstSession: boolean;
-  duration: number;
+  isStandalone: boolean;
 }
 
 interface Meeting {
@@ -57,7 +56,7 @@ interface Meeting {
 interface Notification {
   createdAt: string;
   id: string;
-  summary: string; // You can adjust the name here for clarity
+  summary: string;
   sessionId: string;
   previousDate: string;
   suggestedDate: string;
@@ -69,7 +68,7 @@ interface Notification {
 // Type for Events
 interface Event {
   createdAt: string;
-  date: string; // Format: YYYY-MM-DD
+  date: string;
   summary: string;
   tutorId: string;
   id: string;
@@ -86,14 +85,16 @@ interface Enrollment {
   summary: string;
   startDate: string;
   endDate: string | null;
-  availability: Availability[]; // Ensure startTime and endTime have AM/PM format
+  availability: Availability[];
+  day?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   meetingId: string;
   paused: boolean;
   duration: number;
   frequency: string;
 }
 
-// Define the type for availability
 interface Availability {
   day: string;
   startTime: string;
@@ -106,9 +107,9 @@ interface CreatedProfileData {
   lastName: string;
   age: string;
   grade: string;
-  gender: string,
-  startDate: string,
-  availability: Availability[],
+  gender: string;
+  startDate: string;
+  availability: Availability[];
   email: string;
   parentName: string;
   parentPhone: string;
@@ -116,8 +117,8 @@ interface CreatedProfileData {
   phoneNumber: string;
   timezone: string;
   subjects_of_interest: string[];
-  status: "Active",
-  studentNumber: string
-  languages_spoken: string[], 
+  status: "Active";
+  studentNumber: string;
+  languages_spoken: string[];
   password: string;
 }

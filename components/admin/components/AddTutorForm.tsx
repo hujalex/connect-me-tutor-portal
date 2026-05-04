@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { X, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scrollarea";
 import { Switch } from "@/components/ui/switch";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 interface AddTutorFormProps {
   newTutor: Partial<Profile>;
@@ -118,19 +119,44 @@ const AddTutorForm = ({
     setLanguagesSpoken(languagesSpoken.filter((l) => l !== language));
   };
 
-  // const handleAddExtendedFields = () => {
-  //   setNewTutor((prev) => ({ ...prev, availability: availability }));
-  //   setNewTutor((prev) => ({
-  //     ...prev,
-  //     subjects_of_interest: subjectsOfInterest,
-  //   }));
-  //   setNewTutor((prev) => ({ ...prev, languages_spoken: languagesSpoken }));
-  // };
+  // check empty fields in basic form and return error message accordingly
+  const validateBasicForm = (): string | null => {
+    const missingFields: string[] = [];
+
+    if (!newTutor.firstName || newTutor.firstName.trim() === "") {
+      missingFields.push("First Name");
+    }
+    if (!newTutor.lastName || newTutor.lastName.trim() === "") {
+      missingFields.push("Last Name");
+    }
+    if (!newTutor.email || newTutor.email.trim() === "") {
+      missingFields.push("Email");
+    }
+    if (!newTutor.phoneNumber || newTutor.phoneNumber.trim() === "") {
+      missingFields.push("Phone Number");
+    }
+    if (!newTutor.startDate || newTutor.startDate.trim() === "") {
+      missingFields.push("Start Date");
+    }
+    if (!newTutor.timeZone || newTutor.timeZone.trim() === "") {
+      missingFields.push("Time Zone");
+    }
+
+    if (missingFields.length > 0) {
+      return `Cannot add tutor. All Basic Form fields are required. Missing fields: ${missingFields.join(", ")}`;
+    }
+
+    return null;
+  };
 
   // Enhanced handleAddTutor to include extended fields
   const handleEnhancedAddTutor = (addToPairingQueue?: boolean) => {
-    // You'll need to modify this to include the extended fields
-    // This assumes your Profile type and handleAddTutor can accept these fields
+    // validate basic forms 
+    const validationError = validateBasicForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
 
     const tutorWithExtendedFields = {
       ...newTutor,
@@ -138,8 +164,6 @@ const AddTutorForm = ({
       subjects_of_interest: subjectsOfInterest,
       languages_spoken: languagesSpoken,
     };
-
-    // handleAddExtendedFields();
 
     // Call original handler - you may need to modify the parent component
     // to handle these additional fields
@@ -150,7 +174,7 @@ const AddTutorForm = ({
     <>
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogTrigger asChild>
-          <Button>Add Tutor</Button>
+          <Button className = "bg-connect-me-blue-2">Add Tutor</Button>
         </DialogTrigger>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -256,7 +280,7 @@ const AddTutorForm = ({
                       Time Zone
                     </Label>
                     <div className="col-span-3">
-                      <TimeZoneSelector
+                        <TimeZoneSelector
                         profile={newTutor}
                         handleTimeZone={handleTimeZone}
                       />
@@ -265,7 +289,6 @@ const AddTutorForm = ({
                 </div>
               </ScrollArea>
             )}
-
             {/* Extended Profile Tab */}
             {activeTab === "extended" && (
               <ScrollArea className="max-h-[calc(70vh-120px)] pr-4">

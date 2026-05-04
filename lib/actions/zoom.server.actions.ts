@@ -57,7 +57,7 @@ export type ZoomWebhookRelationshipLog = {
 };
 
 interface ZoomParticipantData {
-  /** Resolved app session id (`Sessions.id`); omit or null if not resolved */
+  /** Resolved app session id (`Sessions.id`); null if not resolved */
   session_id: string | null;
   /** Zoom payload `object.uuid` (often base64); stored as text, not in session_id */
   zoom_meeting_uuid: string | null;
@@ -156,7 +156,6 @@ export async function logZoomMetadata(participant: ZoomParticipantData) {
  * Log participant leave event when they exit the meeting
  * @param appSessionId - App `Sessions.id` when resolved; null if unknown
  * @param zoomMeetingUuid - Zoom `object.uuid` from webhook (base64 ok)
- * @param participantId - Zoom participant id
  */
 export async function updateParticipantLeaveTime(
   appSessionId: string | null,
@@ -165,23 +164,25 @@ export async function updateParticipantLeaveTime(
   name: string,
   email: string | null,
   leaveTime: string,
-  relationship?: ZoomWebhookRelationshipLog
+  relationship?: ZoomWebhookRelationshipLog,
 ) {
   const logId = crypto.randomUUID();
   const sessionIdForDb = await resolveAppSessionIdForZoomEvent(
     appSessionId,
-    zoomMeetingUuid
+    zoomMeetingUuid,
   );
 
   await logEvent("zoom_participant_leave_insert_start", {
     log_id: logId,
     zoom_meeting_id: zoomMeetingUuid,
+    session_id: sessionIdForDb,
     app_session_id: sessionIdForDb,
     participant_id: participantId,
     participant_name: name,
     participant_email: email,
     leave_time: leaveTime,
     has_zoom_meeting_id: Boolean(zoomMeetingUuid),
+    has_session_id: !!sessionIdForDb,
     has_participant_id: !!participantId,
     has_name: !!name,
     relationship: relationship ?? null,
@@ -208,6 +209,7 @@ export async function updateParticipantLeaveTime(
       log_id: logId,
       step: "zoom_participant_leave_insert",
       zoom_meeting_id: zoomMeetingUuid,
+      session_id: sessionIdForDb,
       participant_id: participantId,
       participant_name: name,
       leave_time: leaveTime,
@@ -221,6 +223,7 @@ export async function updateParticipantLeaveTime(
   await logEvent("zoom_participant_leave_insert_success", {
     log_id: logId,
     zoom_meeting_id: zoomMeetingUuid,
+    session_id: sessionIdForDb,
     participant_id: participantId,
     participant_name: name,
     inserted_rows: Array.isArray(data) ? data.length : data ? 1 : 0,

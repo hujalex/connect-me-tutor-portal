@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { getTutorSessions } from "@/lib/actions/tutor.actions";
 import { getEvents } from "@/lib/actions/event.server.actions";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -38,20 +38,22 @@ interface EventDetails {
   summary: string;
 }
 
-const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
-  const supabase = createClientComponentClient();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [enrollmentDetails, setEnrollmentDetails] = useState<
-    EnrollmentDetails[]
-  >([]);
-
-  const [eventDetails, setEventDetails] = useState<{
-    [key: string]: EventDetails[];
-  }>({});
+const Stats = ({
+  enrollmentDetailsPromise,
+  eventDetailsPromise,
+}: {
+  enrollmentDetailsPromise: Promise<EnrollmentDetails[]>;
+  eventDetailsPromise: Promise<{ [key: string]: EventDetails[] }>;
+}) => {
+  const combinedPromise = Promise.all([
+    enrollmentDetailsPromise,
+    eventDetailsPromise,
+  ]);
+  const [enrollmentDetails, eventDetails] = use(combinedPromise);
 
   const [activeTab, setActiveTab] = useState("cards");
   const [expandedSections, setExpandedSections] = useState(
-    new Set(["TUTORING"])
+    new Set(["TUTORING"]),
   );
 
   const toggleSection = (section: any) => {
@@ -77,39 +79,6 @@ const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
     .reduce((sum, e) => sum + e.hours, 0);
 
   const totalAllHours = totalSessionHours + totalEventHours;
-
-  // const [eventHours, setEventHours] = useState<Map<string, number>>(new Map());
-
-  // //testing
-  // const [HoursInRange, setHoursInRange] = useState<number>(0);
-  // const [totalHoursWithStudent, setTotalHoursWithStudent] = useState<number>(0);
-
-  useEffect(() => {
-    //Fetches total tutoring hours where each session and event counts as one hour each
-    setEnrollmentDetails(initialEnrollmentDetails);
-    setEventDetails(initialEventDetails);
-    setLoading(false);
-  }, []);
-
-  // const fetchEnrollmentDetails = async (tutorId: string) => {
-  //   try {
-  //     const data: EnrollmentDetails[] = await getSessionHoursByStudent(tutorId);
-
-  //     setEnrollmentDetails(data);
-  //   } catch (error) {
-  //     toast.error("Unable to fetch enrollment details");
-  //   }
-  // };
-
-  // const fetchEventDetails = async (tutorId: string) => {
-  //   try {
-  //     const data: { [key: string]: EventDetails[] } =
-  //       await getAllEventDetailsForTutor(tutorId);
-  //     setEventDetails(data);
-  //   } catch (error) {
-  //     toast.error("Unable to fetch event details");
-  //   }
-  // };
 
   return (
     <>
@@ -164,7 +133,7 @@ const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
                     <TableCell>{event.date}</TableCell>
                     <TableCell>{event.hours}</TableCell>
                   </TableRow>
-                ))
+                )),
               )}
             </TableBody>
             <TableFooter>
@@ -179,7 +148,6 @@ const Stats = ({ initialEnrollmentDetails, initialEventDetails }: any) => {
 
       {activeTab === "cards" && (
         <div className="space-y-6">
-          {/* <div className="text-lg font-semibold">Card</div> */}
           <Card>
             <CardHeader>
               <CardTitle>Hours Summary</CardTitle>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, use } from "react";
 import {
   AlarmClockMinus,
   Copy,
@@ -71,63 +71,59 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   getAllEnrollments,
-  addEnrollment,
-  getAllProfiles,
   getMeetings,
   pauseEnrollmentOverSummer,
 } from "@/lib/actions/admin.actions";
 import {
   removeEnrollment,
-  updateEnrollment
-} from "@/lib/actions/enrollment.server.actions"
-import {
-  getEnrollments,
-  getOverlappingAvailabilites,
-} from "@/lib/actions/enrollment.actions";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+  updateEnrollment,
+  addEnrollment,
+} from "@/lib/actions/enrollment.server.actions";
+import { getEnrollments } from "@/lib/actions/enrollment.actions";
 import { Enrollment, Profile, Event, Meeting, Availability } from "@/types";
 import toast from "react-hot-toast";
 import AvailabilityFormat from "@/components/student/AvailabilityFormat";
 import AvailabilityForm from "@/components/ui/availability-form";
-import { formatDate } from "@/lib/utils";
-import { normalize } from "path";
-import { set } from "date-fns";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getProfile } from "@/lib/actions/user.actions";
-import { getTutorStudents } from "@/lib/actions/tutor.actions";
-import { profile } from "console";
 import AvailabilityForm2 from "../ui/availability-form-2";
 import { checkAvailableMeetingForEnrollments } from "@/lib/actions/meeting.actions";
-import { isDeepStrictEqual } from "util";
-import { useProfile } from "@/contexts/profileContext";
 // import EnrollmentForm from "./components/EnrollmentForm";
 // import Availability from "@/components/student/AvailabilityFormat";
 
 const EnrollmentList = ({
-  initialEnrollments,
-  initialProfile,
-  initialMeetings,
-  initialStudents,
-}: any) => {
-  const supabase = createClientComponentClient();
-  const { profile: userData, setProfile: setUserData } = useProfile();
-  // const [userData, setUserData] = useState<Profile | null>(null);
-  const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState("");
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
-  const [filteredEnrollments, setFilteredEnrollments] = useState<Enrollment[]>(
-    []
+  profile,
+  enrollmentsPromise,
+  meetingsPromise,
+  studentsPromise,
+}: {
+  profile: Profile;
+  enrollmentsPromise: Promise<Enrollment[]>;
+  meetingsPromise: Promise<Meeting[] | null>;
+  studentsPromise: Promise<Profile[] | null>;
+}) => {
+  const combinedPromise = useMemo(
+    () => Promise.all([enrollmentsPromise, meetingsPromise, studentsPromise]),
+    [enrollmentsPromise, meetingsPromise, studentsPromise],
   );
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+
+  const [initialEnrollments, initialMeetings, initialStudents] =
+    use(combinedPromise);
+
+  const [enrollments, setEnrollments] =
+    useState<Enrollment[]>(initialEnrollments);
+  const [filteredEnrollments, setFilteredEnrollments] =
+    useState<Enrollment[]>(initialEnrollments);
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings || []);
+  const [students, setStudents] = useState<Profile[]>(initialStudents || []);
+  const [tutors, setTutors] = useState<Profile[]>([profile]);
+
+  const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
+
   const [openStudentOptions, setOpenStudentOptions] = React.useState(false);
   const [openTutorOptions, setOpentTutorOptions] = React.useState(false);
   const [selectedTutorId, setSelectedTutorId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const [students, setStudents] = useState<Profile[]>([]);
-  const [tutors, setTutors] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -160,22 +156,12 @@ const EnrollmentList = ({
     [key: string]: boolean;
   }>({});
   const [overlappingAvailabilties, setOverlappingAvailabilites] = useState<
-    { day: string; startTime: string; endTime: string }[]
+    Availability[]
   >([]);
   const [showOverlappingAvailabilites, setShowOverlappingAvailabilties] =
     useState(true);
 
   const router = useRouter();
-
-  useEffect(() => {
-    setEnrollments(initialEnrollments);
-    setFilteredEnrollments(initialEnrollments);
-    setUserData(initialProfile);
-    setMeetings(initialMeetings);
-    setStudents(initialStudents);
-    setLoading(false);
-    if (userData) setTutors([userData]);
-  }, []);
 
   useEffect(() => {
     const filtered = enrollments.filter((enrollment) => {
@@ -213,7 +199,7 @@ const EnrollmentList = ({
         map[student.id] = student;
         return map;
       },
-      {} as Record<string, Profile>
+      {} as Record<string, Profile>,
     );
   }, [students]);
 
@@ -269,7 +255,7 @@ const EnrollmentList = ({
   };
 
   const areMeetingsAvailable = (
-    enroll: Omit<Enrollment, "id" | "createdAt">
+    enroll: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     setIsCheckingMeetingAvailability(true);
     const updatedMeetingAvailability: { [key: string]: boolean } = {};
@@ -284,7 +270,7 @@ const EnrollmentList = ({
       if (!enrollment?.availability[0] || !enrollment?.meetingId) continue;
       try {
         const [existingStartTime, existingEndTime] = formatAvailabilityAsDate(
-          enrollment.availability[0]
+          enrollment.availability[0],
         );
         const isOverlap =
           (newEnrollmentStartTime.getTime() === existingStartTime.getTime() &&
@@ -295,12 +281,6 @@ const EnrollmentList = ({
             newEnrollmentEndTime > existingStartTime);
         //-----Only change to false if true before-----
         if (updatedMeetingAvailability[enrollment.meetingId]) {
-          // if (isOverlap) {
-          //   console.log(newEnrollmentStartTime);
-          //   console.log(newEnrollmentEndTime);
-          //   console.log(existingStartTime);
-          //   console.log(existingEndTime);
-          // }
           updatedMeetingAvailability[enrollment.meetingId] = !isOverlap;
         }
       } catch (error) {
@@ -313,12 +293,12 @@ const EnrollmentList = ({
     Object.entries(updatedMeetingAvailability).forEach(
       ([meetingId, isAvailable]) => {
         const meetingName = meetings.find((m) => m.id === meetingId)?.name;
-      }
+      },
     );
   };
 
   const checkAvailableMeetings = async (
-    enrollment: Omit<Enrollment, "id" | "createdAt">
+    enrollment: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     setIsCheckingMeetingAvailability(true);
     const otherEnrollments: Enrollment[] | null =
@@ -328,7 +308,7 @@ const EnrollmentList = ({
         await checkAvailableMeetingForEnrollments(
           enrollment,
           otherEnrollments,
-          meetings
+          meetings,
         );
       setMeetingAvailability(updatedMeetingAvailability);
       setAllEnrollments(otherEnrollments);
@@ -338,12 +318,12 @@ const EnrollmentList = ({
 
   const isMeetingAvailable = (
     meetingId: string,
-    enroll: Omit<Enrollment, "id" | "createdAt">
+    enroll: Omit<Enrollment, "id" | "createdAt">,
   ) => {
     try {
       const now = new Date();
       const new_enrollment_date = new Date(
-        `${enroll.availability[0].day} ${enroll.availability[0].endTime}`
+        `${enroll.availability[0].day} ${enroll.availability[0].endTime}`,
       );
       return !enrollments.some((enrollment) => {
         // Skip sessions without dates or meeting IDs
@@ -351,7 +331,7 @@ const EnrollmentList = ({
 
         try {
           const sessionEndTime = new Date(
-            `${enrollment.availability[0].day}, ${enrollment.availability[0].endTime}`
+            `${enrollment.availability[0].day}, ${enrollment.availability[0].endTime}`,
           );
           sessionEndTime.setHours(sessionEndTime.getHours() + 1.5);
           return (
@@ -386,14 +366,14 @@ const EnrollmentList = ({
       setLoading(true);
       setError(null);
 
-      if (!userData) return;
+      if (!profile) return;
 
-      const enrollmentsData = await getEnrollments(userData.id);
+      const enrollmentsData = await getEnrollments(profile.id);
       if (!enrollmentsData) throw new Error("No enrollments found");
 
       const sortedEnrollments = enrollmentsData.sort(
         (a, b) =>
-          new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+          new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
       );
 
       setEnrollments(sortedEnrollments);
@@ -401,7 +381,7 @@ const EnrollmentList = ({
     } catch (error) {
       console.error("Error fetching enrollment data:", error);
       setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
+        error instanceof Error ? error.message : "An unknown error occurred",
       );
       setIsCheckingMeetingAvailability(true); // Ensures that new enrollments are not accidentally added when unable to check for available meeting links
     } finally {
@@ -422,7 +402,7 @@ const EnrollmentList = ({
 
   const paginatedEnrollments = filteredEnrollments.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   const handleInputChange = (e: {
@@ -451,11 +431,11 @@ const EnrollmentList = ({
 
     if (selectedEnrollment) {
       setSelectedEnrollment((prevState) =>
-        handleNestedChange({ ...prevState }, name, value)
+        handleNestedChange({ ...prevState }, name, value),
       );
     } else {
       setNewEnrollment((prevState) =>
-        handleNestedChange({ ...prevState }, name, value)
+        handleNestedChange({ ...prevState }, name, value),
       );
     }
   };
@@ -501,8 +481,8 @@ const EnrollmentList = ({
         if (updatedEnrollment) {
           setEnrollments(
             enrollments.map((e: Enrollment) =>
-              e.id === updatedEnrollment.id ? updatedEnrollment : e
-            ) as Enrollment[]
+              e.id === updatedEnrollment.id ? updatedEnrollment : e,
+            ) as Enrollment[],
           ); // Explicitly cast as Enrollment[]
         }
         setIsEditModalOpen(false);
@@ -521,7 +501,7 @@ const EnrollmentList = ({
       try {
         await removeEnrollment(selectedEnrollment.id);
         setEnrollments(
-          enrollments.filter((e) => e.id !== selectedEnrollment.id)
+          enrollments.filter((e) => e.id !== selectedEnrollment.id),
         );
         setIsDeleteModalOpen(false);
         setSelectedEnrollment(null);
@@ -549,15 +529,15 @@ const EnrollmentList = ({
   };
 
   const handlePausePairingOverSummer = async (
-    updatedEnrollment: Enrollment
+    updatedEnrollment: Enrollment,
   ) => {
     try {
       setEnrollments((prev) =>
         prev.map((enrollment) =>
           enrollment.id === updatedEnrollment.id
             ? updatedEnrollment
-            : enrollment
-        )
+            : enrollment,
+        ),
       );
 
       await pauseEnrollmentOverSummer(updatedEnrollment);
@@ -569,17 +549,55 @@ const EnrollmentList = ({
 
   const handleGetOverlappingAvailabilites = async (student: Profile) => {
     try {
-      const tutor: Profile | null = userData;
+      const tutor: Profile | null = profile;
 
       if (tutor && student.availability) {
         const data: {
           day: string;
           startTime: string;
           endTime: string;
-        }[] = await getOverlappingAvailabilites(
-          tutor.availability,
-          student.availability
-        );
+        }[] =
+          // await getOverlappingAvailabilites(
+          //   tutor.availability,
+          //   student.availability,
+          // );
+          [
+            {
+              day: "Sunday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Monday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Tuesday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Wednesday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Thursday",
+              startTime: "00:00",
+              endTime: "23:509",
+            },
+            {
+              day: "Friday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+            {
+              day: "Saturday",
+              startTime: "00:00",
+              endTime: "23:59",
+            },
+          ];
         if (data) setOverlappingAvailabilites(data);
       }
     } catch (error) {
@@ -587,7 +605,7 @@ const EnrollmentList = ({
     }
   };
 
-    const handleCopyMeetingLink = (meetingId: string) => {
+  const handleCopyMeetingLink = (meetingId: string) => {
     const meeting = meetings.find((m) => String(m.id) === String(meetingId));
 
     if (!meeting) {
@@ -608,51 +626,22 @@ const EnrollmentList = ({
       .catch(() => toast.error("Failed to copy link"));
   };
 
-  // const handleValidateDuration = async (
-  //   duration: number,
-  //   startTime: string,
-  //   endTime: string
-  // ) => {
-  //   try {
-  //     const startTimeNumber: number = timeStrToHours(startTime);
-  //     const endTimeNumber: number = timeStrToHours(endTime);
-  //     let difference = endTimeNumber - startTimeNumber;
-
-  //     if (difference < 0) {
-  //       difference += 24;
-  //     }
-
-  //     console.log(difference);
-  //     console.log(duration);
-
-  //     const tolerance = 0.01;
-
-  //     if (Math.abs(difference - duration) > tolerance) {
-  //       toast.error("Duration does not match time range");
-  //       throw new Error("Duration does not match time range");
-  //     }
-  //   } catch (error) {
-  //     console.log("Unable to validate time");
-  //     throw error;
-  //   }
-  // };
-
   return (
     <>
       <div className="flex space-x-6">
-        <div className="flex-grow bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-4">
+        <div className="flex-grow bg-white rounded-lg shadow p-4 md:p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-2 md:space-y-0">
             <div className="flex space-x-2">
               <Input
                 type="text"
                 placeholder="Filter enrollments..."
-                className="w-64"
+                className="w-full md:w-64"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
               />
               <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="whitespace-nowrap">
                     <Plus className="mr-2 h-4 w-4" /> Add Enrollment
                   </Button>
                 </DialogTrigger>
@@ -714,7 +703,7 @@ const EnrollmentList = ({
                                           "mr-2 h-4 w-4",
                                           selectedStudentId === student.id
                                             ? "opacity-100"
-                                            : "opacity-0"
+                                            : "opacity-0",
                                         )}
                                       />
                                       {student.firstName} {student.lastName} -{" "}
@@ -747,12 +736,12 @@ const EnrollmentList = ({
                                 <>
                                   {
                                     tutors.find(
-                                      (tutor) => tutor.id === selectedTutorId
+                                      (tutor) => tutor.id === selectedTutorId,
                                     )?.firstName
                                   }{" "}
                                   {
                                     tutors.find(
-                                      (tutor) => tutor.id === selectedTutorId
+                                      (tutor) => tutor.id === selectedTutorId,
                                     )?.lastName
                                   }
                                 </>
@@ -797,7 +786,7 @@ const EnrollmentList = ({
                                           "mr-2 h-4 w-4",
                                           selectedTutorId === tutor.id
                                             ? "opacity-100"
-                                            : "opacity-0"
+                                            : "opacity-0",
                                         )}
                                       />
                                       {tutor.firstName} {tutor.lastName} -{" "}
@@ -889,7 +878,7 @@ const EnrollmentList = ({
                               ) : newEnrollment.meetingId ? (
                                 meetings.find(
                                   (meeting) =>
-                                    meeting.id === newEnrollment.meetingId
+                                    meeting.id === newEnrollment.meetingId,
                                 )?.name
                               ) : (
                                 "Select a meeting"
@@ -901,7 +890,11 @@ const EnrollmentList = ({
                               <SelectItem
                                 key={meeting.id}
                                 value={meeting.id}
-                                disabled={isCheckingMeetingAvailability}
+                                disabled={
+                                  isCheckingMeetingAvailability ||
+                                  (!meetingAvailability[meeting.id] &&
+                                    meeting.name !== "Zoom Link HQ")
+                                }
                                 className="flex items-center justify-between"
                               >
                                 <span>
@@ -928,65 +921,73 @@ const EnrollmentList = ({
             </div>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {[
-                  "Student",
-                  "Tutor",
-                  "Availability",
-                  "Summary",
-                  "Start Date",
-                  "Meeting Link",
-                  "Actions",
-                  "Status",
-                  "Chat",
-                ].map((header) => (
-                  <TableHead className = "text-left" key={header}>{header}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedEnrollments.map((enrollment) => (
-                <TableRow key={enrollment.id}>
-                  <TableCell>
-                    {enrollment.student?.firstName}{" "}
-                    {enrollment.student?.lastName}
-                  </TableCell>
-                  <TableCell>
-                    {enrollment.tutor?.firstName} {enrollment.tutor?.lastName}
-                  </TableCell>
-                  <TableCell className="colspan-[40px]">
-                    <AvailabilityFormat
-                      availability={enrollment.availability}
-                      card={false}
-                    />{" "}
-                  </TableCell>
-                  <TableCell>{enrollment.summary}</TableCell>
-                  <TableCell>
-                    {formatDateUTC(enrollment.startDate, { includeTime: false, includeDate: true})}
-                  </TableCell>
-                  <TableCell className = "text-left">
-                    <TableCell className = "text-center">
-                     {(() => {
-                      const meeting = meetings.find(
-                        (m) => String(m.id) === String(enrollment.meetingId)
-                      );
+          {/* table made for desktop viewers above md wide*/}
+          <div className="hidden md:block w-full">
+            <div className="w-full overflow-x-auto rounded-lg border">
+              <Table className="min-w-[1100px]">
+                <TableHeader>
+                  <TableRow>
+                    {[
+                      "Student",
+                      "Tutor",
+                      "Availability",
+                      "Summary",
+                      "Start Date",
+                      "Meeting Link",
+                      "Actions",
+                      "Status",
+                      "Chat",
+                    ].map((header) => (
+                      <TableHead key={header} className="whitespace-nowrap">
+                        {header}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
 
-                      if (!meeting) return "No Meeting Link";
+                <TableBody>
+                  {paginatedEnrollments.map((enrollment) => (
+                    <TableRow key={enrollment.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {enrollment.student?.firstName}{" "}
+                        {enrollment.student?.lastName}
+                      </TableCell>
 
-                      return (
+                      <TableCell className="whitespace-nowrap">
+                        {enrollment.tutor?.firstName}{" "}
+                        {enrollment.tutor?.lastName}
+                      </TableCell>
+
+                      <TableCell className="min-w-[180px]">
+                        <AvailabilityFormat
+                          availability={enrollment.availability}
+                          card={false}
+                        />
+                      </TableCell>
+
+                      <TableCell className="min-w-[200px]">
+                        {enrollment.summary}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        {formatDateUTC(enrollment.startDate, {
+                          includeTime: false,
+                          includeDate: true,
+                        })}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => handleCopyMeetingLink(meeting.id)}
+                          onClick={() =>
+                            handleCopyMeetingLink(enrollment.meetingId)
+                          }
                           className="relative inline-flex items-center group cursor-pointer"
                         >
-                          {/* Text – left aligned, normal state */}
-                          <span className="underline text-black-600 transition-opacity duration-150 group-hover:opacity-0">
-                            {meeting.name}
+                          <span className="underline text-black transition-opacity duration-150 group-hover:opacity-0">
+                            Copy Link
                           </span>
 
-                          {/* Icon – centered over the text, only visible on hover */}
                           <Copy
                             className="
                               absolute
@@ -1000,85 +1001,164 @@ const EnrollmentList = ({
                             "
                           />
                         </button>
-                      );
-                    })()}
-                    </TableCell>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedEnrollment(enrollment);
-                        setIsEditModalOpen(true);
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedEnrollment(enrollment);
-                        setIsDeleteModalOpen(true);
-                      }}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const updatedEnrollment = {
-                          ...enrollment,
-                          summerPaused: !enrollment.paused,
-                        };
-                        handlePausePairingOverSummer(updatedEnrollment);
-                      }}
-                    >
-                      {enrollment.paused ? (
-                        <span className="px-3 py-1 inline-flex items-center rounded-full bg-red-100 text-red-800 border border-red-200">
-                          <TimerOff size={14} className="mr-1" />
-                          Paused
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 inline-flex items-center rounded-full bg-green-100 text-green-800 border border-green-200">
-                          <Timer size={14} className="mr-1" />
-                          Ongoing
-                        </span>
-                      )}
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      className="gap-2"
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/enrollment/${enrollment.id}/chat`
-                        )
-                      }
-                      variant="outline"
-                    >
-                      View Chat
-                      <MessageCircleIcon />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedEnrollment(enrollment);
+                              setIsEditModalOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedEnrollment(enrollment);
+                              setIsDeleteModalOpen(true);
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        {enrollment.paused ? "Paused" : "Ongoing"}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/enrollment/${enrollment.id}/chat`,
+                            )
+                          }
+                        >
+                          Chat
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* mobile cards for those screens that are smaller than md wide*/}
+          <div className="md:hidden space-y-4">
+            {paginatedEnrollments.map((enrollment) => (
+              <div
+                key={enrollment.id}
+                className="bg-white rounded-xl shadow p-4 space-y-3 border"
+              >
+                <div className="font-semibold text-lg">
+                  {enrollment.student?.firstName} {enrollment.student?.lastName}
+                </div>
+
+                <div className="text-sm text-gray-500">
+                  Tutor: {enrollment.tutor?.firstName}{" "}
+                  {enrollment.tutor?.lastName}
+                </div>
+
+                <AvailabilityFormat
+                  availability={enrollment.availability}
+                  card
+                />
+
+                <div className="text-sm">Summary: {enrollment.summary}</div>
+
+                <div className="text-sm">
+                  Start Date:{" "}
+                  {formatDateUTC(enrollment.startDate, {
+                    includeTime: false,
+                    includeDate: true,
+                  })}
+                </div>
+
+                <div className="text-sm">
+                  Status: {enrollment.paused ? "Paused" : "Ongoing"}
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyMeetingLink(enrollment.meetingId)}
+                    className="relative inline-flex items-center group cursor-pointer px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    <span className="underline text-black transition-opacity duration-150 group-hover:opacity-0">
+                      Copy Link
+                    </span>
+
+                    <Copy
+                      className="
+                        absolute
+                        left-1/2 -translate-x-1/2
+                        w-4 h-4
+                        text-gray-700
+                        opacity-0
+                        transition-opacity duration-150
+                        group-hover:opacity-100
+                        pointer-events-none
+                      "
+                    />
+                  </button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedEnrollment(enrollment);
+                      setIsEditModalOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      setSelectedEnrollment(enrollment);
+                      setIsDeleteModalOpen(true);
+                    }}
+                  >
+                    Delete
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      router.push(`/dashboard/enrollment/${enrollment.id}/chat`)
+                    }
+                  >
+                    Chat
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
           <div className="flex justify-between mt-4">
             <span>{filteredEnrollments.length} row(s) total.</span>
+
             <div className="flex items-center space-x-2">
               <span>Rows per page</span>
+
               <Select
                 value={rowsPerPage.toString()}
                 onValueChange={handleRowsPerPageChange}
               >
                 <SelectTrigger className="w-[70px]">
-                  <SelectValue placeholder={rowsPerPage.toString()} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {[10, 20, 50].map((value) => (
@@ -1088,82 +1168,50 @@ const EnrollmentList = ({
                   ))}
                 </SelectContent>
               </Select>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex space-x-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      {/* 
-      <EnrollmentForm
-        StudentOptions={{
-          openStudentOptions: openStudentOptions, // or your boolean value
-          selectedStudentId: selectedStudentId,
-          studentsMap: studentsMap,
-          studentsSearch: studentSearch,
-          students: students,
-          setOpenStudentOptions: setOpenStudentOptions,
-          setSelectedStudentId: setSelectedStudentId,
-          setStudentsSearch: setStudentSearch,
-        }}
-        TutorOptions={{
-          openTutorOptions: openTutorOptions,
-          selectedTutorId: selectedTutorId,
-          tutors: tutors,
-          tutorSearch: tutorSearch,
-          setOpenTutorOptions: setOpentTutorOptions,
-          setSelectedTutorId: setSelectedTutorId,
-          setTutorSearch: setTutorSearch
-        }}
-        AvailabilityProps = {{
-          availabilityList: availabilityList,
-          isCheckingMeetingAvailability: isCheckingMeetingAvailability,
-          meetings: meetings,
-          meetingAvailability: meetingAvailability,
-          setAvailabilityList: setAvailabilityList,
-          setAvailableMeetingsForEnrollments: 
-        }}
-        EnrollmentProps = {{
-          newEnrollment: newEnrollment,
-          setNewEnrollment: setNewEnrollment,
-          handleAddEnrollment: handleAddEnrollment
-        }}
-      /> */}
 
       {/* Edit Enrollment Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -1196,13 +1244,13 @@ const EnrollmentList = ({
                             {
                               students.find(
                                 (student) =>
-                                  student.id === selectedEnrollment.student?.id
+                                  student.id === selectedEnrollment.student?.id,
                               )?.firstName
                             }{" "}
                             {
                               students.find(
                                 (student) =>
-                                  student.id === selectedEnrollment.student?.id
+                                  student.id === selectedEnrollment.student?.id,
                               )?.lastName
                             }
                           </>
@@ -1247,7 +1295,7 @@ const EnrollmentList = ({
                                     "mr-2 h-4 w-4",
                                     selectedStudentId === student.id
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                                 {student.firstName} {student.lastName}
@@ -1280,13 +1328,13 @@ const EnrollmentList = ({
                             {
                               tutors.find(
                                 (tutor) =>
-                                  tutor.id === selectedEnrollment.tutor?.id
+                                  tutor.id === selectedEnrollment.tutor?.id,
                               )?.firstName
                             }{" "}
                             {
                               tutors.find(
                                 (tutor) =>
-                                  tutor.id === selectedEnrollment.tutor?.id
+                                  tutor.id === selectedEnrollment.tutor?.id,
                               )?.lastName
                             }
                           </>
@@ -1331,7 +1379,7 @@ const EnrollmentList = ({
                                     "mr-2 h-4 w-4",
                                     selectedTutorId === tutor.id
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                                 {tutor.firstName} {tutor.lastName}
@@ -1399,7 +1447,7 @@ const EnrollmentList = ({
                         {selectedEnrollment.meetingId
                           ? meetings.find(
                               (meeting) =>
-                                meeting.id === selectedEnrollment.meetingId
+                                meeting.id === selectedEnrollment.meetingId,
                             )?.name
                           : "Select a meeting"}
                       </SelectValue>

@@ -1,4 +1,4 @@
-import { isValidUUID } from "../admin.actions";
+import { isValidUUID } from "@/lib/utils";
 import { describe, expect, it } from "vitest";
 
 describe("isValidUUID", () => {

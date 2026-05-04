@@ -41,25 +41,11 @@ import {
  * Props interface for the RescheduleForm component
  */
 interface RescheduleProps {
-  /** The session to be rescheduled */
-  session: Session;
-  /** Controls whether the reschedule dialog is open */
-  isDialogOpen: boolean;
-  /** The currently selected session for rescheduling */
   selectedSession: Session | null;
-  /** The new date/time selected for the session */
   selectedSessionDate: string | null;
-  /** Array of available meeting links */
   meetings: Meeting[];
-  /** Function to control dialog open/close state */
-  setIsDialogOpen: (open: boolean) => void;
-  /** Function to set the selected session */
-  setSelectedSession: (session: Session) => void;
-  /** Function to set the selected session date */
   setSelectedSessionDate: (date: string) => void;
-  /** Function to handle input changes in the form */
   handleInputChange: (e: { target: { name: string; value: string } }) => void;
-  /** Function to handle the actual rescheduling process */
   handleReschedule: (
     sessionId: string,
     newDate: string,
@@ -79,17 +65,15 @@ interface RescheduleProps {
  * @returns JSX element representing the reschedule form dialog
  */
 const RescheduleForm: React.FC<RescheduleProps> = ({
-  session,
-  isDialogOpen,
   selectedSession,
   selectedSessionDate,
   meetings,
-  setIsDialogOpen,
-  setSelectedSession,
   setSelectedSessionDate,
   handleInputChange,
   handleReschedule,
 }) => {
+
+
   /** State to track if meeting availability is being checked */
   const [isCheckingMeetingAvailability, setisCheckingMeetingAvailability] =
     useState(false);

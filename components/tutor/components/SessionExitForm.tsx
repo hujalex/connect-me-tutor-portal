@@ -21,10 +21,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash } from "lucide-react";
-import { isAfter, parseISO } from "date-fns";
+import {
+  addDays,
+  isAfter,
+  parseISO,
+  differenceInDays,
+  isToday,
+  isTomorrow,
+} from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import CancellationForm from "./CancellationForm";
+import { useDashboardContext } from "@/lib/contexts/dashboardContext";
 
 interface SessionExitFormProps {
   currSession: Session;
@@ -40,31 +48,70 @@ interface SessionExitFormProps {
     session: Session,
     notes: string,
     isQuestionOrConcern: boolean,
-    isFirstSession: boolean
+    isFirstSession: boolean,
   ) => void;
   handleStatusChange: (session: Session) => void;
 }
 
-const SessionExitForm: React.FC<SessionExitFormProps> = ({
+const calculateDeadline = (sessionDate: Date) => {
+  const deadlineDate = addDays(sessionDate, 2);
+  const month: string = String(deadlineDate.getMonth() + 1).padStart(2, "0");
+  const day: string = String(deadlineDate.getDate()).padStart(2, "0");
+
+  const mmdd: string = `${month}/${day}`;
+  return mmdd;
+};
+
+const sessionExitFormDeadline = (currSession: Session) => {
+  const date = new Date(currSession.date);
+  const deadlineDate = addDays(date, 2);
+  const daysUntilDeadline = differenceInDays(deadlineDate, new Date());
+
+  let urgencyClass = "";
+  let deadlineText = "";
+
+  if (isToday(deadlineDate) || daysUntilDeadline === 0) {
+    urgencyClass = "bg-red-500 text-white hover:bg-red-600 border-red-500";
+    deadlineText = "SEF Due TODAY by 11:59pm EST";
+  } else if (isTomorrow(deadlineDate) || daysUntilDeadline === 1) {
+    urgencyClass =
+      "bg-orange-500 text-white hover:bg-orange-600 border-orange-500";
+    deadlineText = `SEF Due Tomorrow`;
+  } else if (daysUntilDeadline <= 2) {
+    urgencyClass =
+      "bg-yellow-500 text-white hover:bg-yellow-600 border-yellow-500";
+    deadlineText = `SEF Due in ${daysUntilDeadline} days`;
+  } else {
+    urgencyClass =
+      "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200";
+    deadlineText = `SEF Due ${calculateDeadline(date)}`;
+  }
+
+  return { urgencyClass, deadlineText };
+};
+
+const SessionExitForm = ({
   currSession,
-  isSessionExitFormOpen,
-  setIsSessionExitFormOpen,
-  selectedSession,
-  setSelectedSession,
-  notes,
-  setNotes,
-  nextClassConfirmed,
-  setNextClassConfirmed,
+  // isSessionExitFormOpen,
+  // setIsSessionExitFormOpen,
+  // selectedSession,
+  // setSelectedSession,
+  // notes,
+  // setNotes,
+  // nextClassConfirmed,
+  // setNextClassConfirmed,
   handleSessionComplete,
   handleStatusChange,
-}) => {
+}: any) => {
+  const TC = useDashboardContext();
+
   const [isCancellation, setisCancellation] = useState(false);
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [isQuestionOrConcern, setIsQuestionOrConcern] = useState(false);
   return (
     <Dialog
-      open={isSessionExitFormOpen}
-      onOpenChange={setIsSessionExitFormOpen}
+      open={TC.isSessionExitFormOpen}
+      onOpenChange={TC.setIsSessionExitFormOpen}
     >
       <DialogTrigger asChild>
         <HoverCard>
@@ -76,17 +123,20 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
                 currSession.status !== "Active"
               }
               onClick={() => {
-                setSelectedSession(currSession);
-                setIsSessionExitFormOpen(true);
+                TC.setSelectedSession(currSession);
+                TC.setIsSessionExitFormOpen(true);
               }}
               className=""
             >
-              SEF
+              {sessionExitFormDeadline(currSession).deadlineText}
             </Button>
           </HoverCardTrigger>
           <HoverCardContent>
-            <div className="space-y-1">
-              Session Exit Form will be available after your session
+            <div className="space-y-1 text-sm">
+              <p className="font-medium">Submit by 11:59pm EST</p>
+              <p className="text-muted-foreground">
+                Session Exit Form will be available after your session
+              </p>
             </div>
           </HoverCardContent>
         </HoverCard>
@@ -99,11 +149,11 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
               <AlertDialogTrigger>
                 <Button variant="outline">The session did not happen</Button>
               </AlertDialogTrigger>
-              {selectedSession ? (
+              {TC.selectedSession ? (
                 <CancellationForm
-                  session={selectedSession}
+                  session={TC.selectedSession}
                   handleStatusChange={handleStatusChange}
-                  onClose={() => setIsSessionExitFormOpen(false)}
+                  onClose={() => TC.setIsSessionExitFormOpen(false)}
                 />
               ) : (
                 ""
@@ -125,8 +175,8 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
           </label>
         </div>
         <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          value={TC.notes}
+          onChange={(e) => TC.setNotes(e.target.value)}
           placeholder={
             isQuestionOrConcern
               ? "What is your question or concern?"
@@ -138,9 +188,9 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="next-class"
-              checked={nextClassConfirmed}
+              checked={TC.nextClassConfirmed}
               onCheckedChange={(checked) =>
-                setNextClassConfirmed(checked === true)
+                TC.setNextClassConfirmed(checked === true)
               }
             />
             <label htmlFor="next-class" className="text-sm font-medium flex">
@@ -151,16 +201,18 @@ const SessionExitForm: React.FC<SessionExitFormProps> = ({
         </div>
         <Button
           onClick={() => {
-            if (selectedSession) {
+            if (TC.selectedSession) {
               handleSessionComplete(
-                selectedSession,
-                notes,
+                TC.selectedSession,
+                TC.notes,
                 isQuestionOrConcern,
-                isFirstSession
+                isFirstSession,
               );
             }
           }}
-          disabled={!notes || (!nextClassConfirmed && !isQuestionOrConcern)}
+          disabled={
+            !TC.notes || (!TC.nextClassConfirmed && !isQuestionOrConcern)
+          }
         >
           Submit
         </Button>

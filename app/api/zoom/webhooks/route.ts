@@ -10,7 +10,7 @@ import {
   zoomSessionResolutionStatus,
   type ZoomSessionResolution,
 } from "@/lib/actions/session.server.actions";
-import { logEvent, logError } from "@/lib/posthog";
+import { logEvent, logError, serializeForPosthog } from "@/lib/posthog";
 
 // Use a single signing secret for all Zoom webhooks
 const validationSecret = config.zoom.ZOOM_WEBHOOK_SECRET;
@@ -26,13 +26,17 @@ export async function POST(req: NextRequest) {
   });
 
   let body;
+  let rawBody = "";
   try {
-    body = await req.json();
+    rawBody = await req.text();
+    body = JSON.parse(rawBody);
     await logEvent("zoom_webhook_body_parsed", {
       request_id: requestId,
+      event: body?.event,
       has_payload: !!body?.payload,
       has_event: !!body?.event,
       body_keys: Object.keys(body || {}),
+      payload_json: serializeForPosthog(body?.payload),
     });
   } catch (error) {
     await logError(error, {
@@ -62,7 +66,7 @@ export async function POST(req: NextRequest) {
   let resolution: ZoomSessionResolution;
   try {
     resolution = await resolveAppSessionFromZoomWebhookObject(
-      payload?.object as Record<string, unknown> | undefined
+      payload?.object as Record<string, unknown> | undefined,
     );
     await logEvent("zoom_webhook_meeting_session_resolution", {
       request_id: requestId,
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
       meetings_row_id: resolution.meetingsRowId,
       meetings_table_meeting_id: resolution.storedMeetingId,
       app_session_id: resolution.appSessionId,
-      payload_object: payload?.object ?? null,
+      payload_object_json: serializeForPosthog(payload?.object),
     });
   } catch (error) {
     console.error("Error resolving meeting/session from Zoom payload:", error);
@@ -80,7 +84,7 @@ export async function POST(req: NextRequest) {
       request_id: requestId,
       step: "finding_meeting_session",
       meeting_number_raw: meetingNumberRaw,
-      payload_object: payload?.object ?? null,
+      payload_object_json: serializeForPosthog(payload?.object),
     });
     resolution = {
       zoomMeetingNumber:
@@ -97,6 +101,13 @@ export async function POST(req: NextRequest) {
   zoomMeetingId = resolution.zoomMeetingUuid ?? zoomMeetingId;
   const meetingNumber = resolution.zoomMeetingNumber;
   const sessionId: string | null = resolution.appSessionId;
+  const meetingRecord =
+    resolution.meetingsRowId && resolution.storedMeetingId
+      ? {
+          id: resolution.meetingsRowId,
+          meeting_id: resolution.storedMeetingId,
+        }
+      : null;
 
   const zoomRelationshipLog = {
     resolution_status: zoomSessionResolutionStatus(resolution),
@@ -125,6 +136,10 @@ export async function POST(req: NextRequest) {
     has_meeting_number: !!meetingNumber,
     has_session_id: !!sessionId,
     session_id: sessionId,
+    meeting_found: !!meetingRecord,
+    stored_meeting_id: meetingRecord?.meeting_id,
+    internal_meeting_uuid: meetingRecord?.id,
+    payload_object_json: serializeForPosthog(payload?.object),
   });
 
   if (!validationSecret) {
@@ -220,8 +235,7 @@ export async function POST(req: NextRequest) {
   // Method 2: Verify HMAC signature (recommended by Zoom, more secure)
   if (!isAuthorized && signature && timestamp) {
     try {
-      const bodyString = JSON.stringify(body);
-      const message = `v0:${timestamp}:${bodyString}`;
+      const message = `v0:${timestamp}:${rawBody}`;
       const expectedSignature = `v0=${crypto
         .createHmac("sha256", validationSecret)
         .update(message)
@@ -338,6 +352,7 @@ export async function POST(req: NextRequest) {
         await logEvent("zoom_participant_joined_received", {
           request_id: requestId,
           zoom_meeting_id: zoomMeetingId,
+          meeting_number: meetingNumber,
           account_id: accountId,
           participant_id: participantId,
           participant_name: participantName,
@@ -346,53 +361,68 @@ export async function POST(req: NextRequest) {
           has_participant_id: !!participantId,
           has_participant_name: !!participantName,
           has_participant_email: !!participantEmail,
+          participant_object_json: serializeForPosthog(participant),
         });
 
-        try {
-          await logEvent("zoom_participant_join_db_start", {
+        if (!sessionId) {
+          // Zoom's payload.object.uuid is base64, not a Postgres UUID, and is not
+          // Sessions.id — only log participation when we resolved an internal session.
+          await logEvent("zoom_participant_join_skipped_no_session", {
             request_id: requestId,
             zoom_meeting_id: zoomMeetingId,
             meeting_number: meetingNumber,
-            session_id: sessionId,
             participant_id: participantId,
             participant_name: participantName,
+            reason:
+              "No portal session matched this meeting number (meeting missing, no active session, or meeting id mismatch)",
           });
+        } else {
+          try {
+            await logEvent("zoom_participant_join_db_start", {
+              request_id: requestId,
+              zoom_meeting_id: zoomMeetingId,
+              meeting_number: meetingNumber,
+              session_id: sessionId,
+              participant_id: participantId,
+              participant_name: participantName,
+            });
 
-          await logZoomMetadata({
-            session_id: sessionId,
-            zoom_meeting_uuid: zoomMeetingId ?? null,
-            participant_id: participantId,
-            name: participantName || "Unknown",
-            email: participantEmail || null,
-            action: "joined",
-            timestamp: joinTime,
-            relationship: zoomRelationshipLog,
-          });
+            await logZoomMetadata({
+              session_id: sessionId,
+              zoom_meeting_uuid: zoomMeetingId ?? null,
+              participant_id: participantId,
+              name: participantName || "Unknown",
+              email: participantEmail || null,
+              action: "joined",
+              timestamp: joinTime,
+              relationship: zoomRelationshipLog,
+            });
 
-          await logEvent("zoom_participant_join_db_success", {
-            request_id: requestId,
-            zoom_meeting_id: zoomMeetingId,
-            meeting_number: meetingNumber,
-            session_id: sessionId,
-            participant_id: participantId,
-            participant_name: participantName,
-          });
+            await logEvent("zoom_participant_join_db_success", {
+              request_id: requestId,
+              zoom_meeting_id: zoomMeetingId,
+              meeting_number: meetingNumber,
+              session_id: sessionId,
+              participant_id: participantId,
+              participant_name: participantName,
+            });
 
-          // console.log(
-          //   `✅ Logged join for ${participantName} in meeting ${meetingNumber} (session: ${sessionId || "not found"}, account: ${accountId})`
-          // );
-        } catch (error) {
-          console.error("Error logging participant join:", error);
-          await logError(error, {
-            request_id: requestId,
-            step: "participant_join_db",
-            zoom_meeting_id: zoomMeetingId,
-            meeting_number: meetingNumber,
-            session_id: sessionId,
-            participant_id: participantId,
-            participant_name: participantName,
-            participant_email: participantEmail,
-          });
+            // console.log(
+            //   `✅ Logged join for ${participantName} in meeting ${meetingNumber} (session: ${sessionId || "not found"}, account: ${accountId})`
+            // );
+          } catch (error) {
+            console.error("Error logging participant join:", error);
+            await logError(error, {
+              request_id: requestId,
+              step: "participant_join_db",
+              zoom_meeting_id: zoomMeetingId,
+              meeting_number: meetingNumber,
+              session_id: sessionId,
+              participant_id: participantId,
+              participant_name: participantName,
+              participant_email: participantEmail,
+            });
+          }
         }
       }
       break;
@@ -419,6 +449,7 @@ export async function POST(req: NextRequest) {
         await logEvent("zoom_participant_left_received", {
           request_id: requestId,
           zoom_meeting_id: zoomMeetingId,
+          meeting_number: meetingNumber,
           account_id: accountId,
           participant_id: participantUuid,
           participant_name: participantName,
@@ -427,22 +458,36 @@ export async function POST(req: NextRequest) {
           leave_reason: leaveReason,
           has_participant_uuid: !!participantUuid,
           has_participant_name: !!participantName,
+          participant_object_json: serializeForPosthog(participant),
         });
 
-        try {
-          if (!participantUuid) {
-            console.warn("⚠️ No participant UUID found in leave event");
-            await logEvent("zoom_participant_left_missing_uuid", {
-              request_id: requestId,
-              zoom_meeting_id: zoomMeetingId,
-              meeting_number: meetingNumber,
-              session_id: sessionId,
-              participant_name: participantName,
-              warning: "No participant UUID found in leave event",
-            });
-            break;
-          }
+        if (!participantUuid) {
+          console.warn("⚠️ No participant UUID found in leave event");
+          await logEvent("zoom_participant_left_missing_uuid", {
+            request_id: requestId,
+            zoom_meeting_id: zoomMeetingId,
+            meeting_number: meetingNumber,
+            session_id: sessionId,
+            participant_name: participantName,
+            warning: "No participant UUID found in leave event",
+          });
+          break;
+        }
 
+        if (!sessionId) {
+          await logEvent("zoom_participant_left_skipped_no_session", {
+            request_id: requestId,
+            zoom_meeting_id: zoomMeetingId,
+            meeting_number: meetingNumber,
+            participant_id: participantUuid,
+            participant_name: participantName,
+            reason:
+              "No portal session matched this meeting number (meeting missing, no active session, or meeting id mismatch)",
+          });
+          break;
+        }
+
+        try {
           await logEvent("zoom_participant_left_db_start", {
             request_id: requestId,
             zoom_meeting_id: zoomMeetingId,
@@ -520,6 +565,7 @@ export async function POST(req: NextRequest) {
         event_type: event,
         zoom_meeting_id: zoomMeetingId,
         account_id: accountId,
+        payload_object_json: serializeForPosthog(payload?.object),
       });
     }
   }

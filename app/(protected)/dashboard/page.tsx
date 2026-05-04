@@ -4,20 +4,16 @@ import StudentDashboard from "@/components/student/StudentDashboard";
 import TutorDashboard from "@/components/tutor/dashboard";
 import SkeletonTable from "@/components/ui/skeleton";
 import { getMeetings } from "@/lib/actions/meeting.server.actions";
-import {
-  cachedGetProfile,
-  getProfile,
-} from "@/lib/actions/profile.server.actions";
-import {
-  getStudentSessions,
-  getTutorSessions,
-} from "@/lib/actions/session.server.actions";
-import { cachedGetUser, getUser } from "@/lib/actions/user.server.actions";
+import { cachedGetProfile } from "@/lib/actions/cache";
+import { getTutorSessions } from "@/lib/actions/session.server.actions";
+import { getStudentSessions } from "@/lib/actions/session.server.actions";
+import { cachedGetUser } from "@/lib/actions/user.server.actions";
 import { Meeting, Profile } from "@/types";
 import { endOfWeek, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
-import { SurveySchedule } from "posthog-js";
 import { Suspense } from "react";
+import { DashboardContextProvider } from "@/lib/contexts/dashboardContext";
+import { getProfile } from "@/lib/actions/profile.server.actions";
 
 async function TutorDashboardPage({
   profile,
@@ -26,42 +22,44 @@ async function TutorDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentSessionData = getTutorSessions(
-    profile.id,
-    startOfWeek(new Date()).toISOString(),
-    endOfWeek(new Date()).toISOString(),
-    undefined,
-    "date",
-    true
+  const sessions = getTutorSessions(profile.id, {
+    orderBy: "date",
+    ascending: true,
+  });
+
+  const activeTutorSessions = sessions.then((sessions) =>
+    sessions.filter((session) => session.status == "Active"),
   );
 
-  const activeSessionData = getTutorSessions(
-    profile.id,
-    undefined,
-    undefined,
-    "Active",
-    "date",
-    true
+  const pastTutorSessions = sessions.then((sessions) =>
+    sessions.filter((session) => session.status == "Complete" || "Cancelled"),
   );
 
-  const pastSessionData = getTutorSessions(
-    profile.id,
-    undefined,
-    undefined,
-    ["Complete", "Cancelled"],
-    "date",
-    false
-  );
+  const currentTutorSessions = sessions.then((sessions) => {
+    const now = new Date();
+    const start = startOfWeek(now);
+    const end = endOfWeek(now);
+    return sessions.filter((session) => {
+      const sessionDate = new Date(session.date);
+      return sessionDate >= start && sessionDate <= end;
+    });
+  });
 
   return (
-    <TutorDashboard
-      key={profile.id}
-      initialProfile={profile}
-      currentSessionsPromise={currentSessionData}
-      activeSessionsPromise={activeSessionData}
-      pastSessionsPromise={pastSessionData}
-      meetingsPromise={meetings}
-    />
+    <Suspense fallback={<SkeletonTable />}>
+      <DashboardContextProvider
+        key={profile.id}
+        initialProfile={profile}
+        promises={{
+          currentSessionsPromise: currentTutorSessions,
+          activeSessionsPromise: activeTutorSessions,
+          pastSessionsPromise: pastTutorSessions,
+          meetingsPromise: meetings,
+        }}
+      >
+        <TutorDashboard key={profile.id} />
+      </DashboardContextProvider>
+    </Suspense>
   );
 }
 
@@ -72,89 +70,74 @@ async function StudentDashboardPage({
   profile: Profile;
   meetings: Promise<Meeting[] | null>;
 }) {
-  const currentStudentSessions = getStudentSessions(
-    profile.id,
-    startOfWeek(new Date()).toISOString(),
-    endOfWeek(new Date()).toISOString(),
-    undefined,
-    "date",
-    false
+  const sessions = getStudentSessions(profile.id, {
+    orderBy: "date",
+    ascending: true,
+  });
+
+  const currentStudentSessions = sessions.then((sessions) => {
+    const now = new Date();
+    const start = startOfWeek(now);
+    const end = endOfWeek(now);
+    return sessions.filter((session) => {
+      const sessionDate = new Date(session.date);
+      return sessionDate >= start && sessionDate <= end;
+    });
+  });
+
+  const activeStudentSessions = sessions.then((sessions) =>
+    sessions.filter((session) => session.status == "Active"),
   );
 
-  const activeStudentSessions = getStudentSessions(
-    profile.id,
-    undefined,
-    undefined,
-    "Active",
-    "date",
-    false
+  const pastStudentSessions = sessions.then((sessions) =>
+    sessions.filter((session) => session.status == "Complete" || "Cancelled"),
   );
 
-  const pastStudentSessions = getStudentSessions(
-    profile.id,
-    undefined,
-    undefined,
-    ["Complete", "Cancelled"],
-    "date",
-    false
-  );
-  
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <StudentDashboard
+      <DashboardContextProvider
         key={profile.id}
         initialProfile={profile}
-        currentSessionsPromise={currentStudentSessions}
-        activeSessionsPromise={activeStudentSessions}
-        pastSessionsPromise={pastStudentSessions}
-        meetingsPromise={meetings}
-      />
+        promises={{
+          currentSessionsPromise: currentStudentSessions,
+          activeSessionsPromise: activeStudentSessions,
+          pastSessionsPromise: pastStudentSessions,
+          meetingsPromise: meetings,
+        }}
+      >
+        <StudentDashboard key={profile.id} />
+      </DashboardContextProvider>
     </Suspense>
   );
 }
 
 export default async function DashboardPage() {
   const user = await cachedGetUser();
-  if (!user) redirect("/");
-
+  if (!user) {
+    console.log("Redirecting back to root");
+    redirect("/");
+  }
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("No Profile found");
-
-  const meetings = getMeetings();
+  const meetings = getMeetings({ omit: ["Zoom Link HQ"] });
 
   return (
     <>
-      {/* <Dashboard /> */}
       {profile.role === "Student" && (
-        <StudentDashboardPage profile={profile} meetings={meetings} />
+        <StudentDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Tutor" && (
-        <Suspense fallback={<SkeletonTable />}>
-          <TutorDashboardPage profile={profile} meetings={meetings} />{" "}
-        </Suspense>
+        <TutorDashboardPage
+          key={profile.id}
+          profile={profile}
+          meetings={meetings}
+        />
       )}
       {profile.role === "Admin" && <AdminDashboard />}
     </>
   );
 }
-
-// const Dashboard = () => {
-//   const { profile, setProfile } = useProfile()
-//   const router = useRouter();
-
-//   console.log("Dashboard")
-
-//   if (!profile || !profile.role) {
-//     router.push('/login');
-//     return null;
-//   }
-
-//   // Layout with Sidebar and Navbar
-//   return (
-//     <main>
-//       {profile.role === 'Student' && <StudentDashboard/>}
-//       {profile.role === 'Tutor' && <TutorDashboard />}
-//       {profile.role === 'Admin' && <AdminDashboard />}
-//     </main>
-//   );
-// };

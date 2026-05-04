@@ -110,7 +110,7 @@ export function formatDateWithOptions(
       | "longOffset"
       | "shortGeneric"
       | "longGeneric";
-  }
+  },
 ): string {
   const date: Date = new Date(dateString);
 
@@ -133,7 +133,7 @@ export function formatDateAdmin(
   params?: {
     includeTime?: boolean;
     includeDate?: boolean;
-  }
+  },
 ): string {
   const { includeTime = true, includeDate = true } = params
     ? params
@@ -164,7 +164,7 @@ export function formatDateUTC(
   params: {
     includeTime?: boolean;
     includeDate?: boolean;
-  }
+  },
 ) {
   const date: Date = new Date(dateString);
 
@@ -187,6 +187,7 @@ export function formatDateUTC(
 export function getSessionTimespan(timeStr: string, duration: number): string {
   const options: Intl.DateTimeFormatOptions = {
     hour: "numeric",
+    minute: "2-digit",
     hour12: true,
     timeZone: "America/New_York",
     // timeZoneName: "short", // To include time zone information
@@ -242,7 +243,6 @@ export function formatStandardToMilitaryTime(standardTime: string): string {
   if (period.toUpperCase() === "PM") {
     hours = (hours % 12) + 12;
   } else if (hours === 12) {
-    // handles edge case of 12 AM
     hours = 0;
   }
   return `${hours.toString().padStart(2, "0")}:${minutes
@@ -356,7 +356,7 @@ export function capitalizeFirstLetter(word: string | undefined) {
 
 export const handleCalculateDuration = async (
   startTime: string,
-  endTime: string
+  endTime: string,
 ) => {
   try {
     const startTimeNumber: number = timeStrToHours(startTime);
@@ -365,10 +365,10 @@ export const handleCalculateDuration = async (
     if (difference < 0) {
       difference += 24;
     }
-
     return difference;
   } catch (error) {
     console.error("Unable to calculate duration", error);
+    throw error;
   }
 };
 
@@ -434,7 +434,6 @@ export const toDateTime = (time: string, day: Number) => {
   return parsedDate;
 };
 
-
 export const formatAvailabilityAsDate = (date: Availability): Date[] => {
   try {
     type DayName =
@@ -470,3 +469,47 @@ export const formatAvailabilityAsDate = (date: Availability): Date[] => {
     return [date5am, date5am];
   }
 };
+
+export const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
+export interface RetryOptions {
+  retries?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  isRetryable?: (error: unknown, attempt: number) => boolean;
+  onRetry?: (error: unknown, attempt: number) => void;
+}
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  opts: RetryOptions = {},
+): Promise<T> {
+  const {
+    retries = 4,
+    baseDelayMs = 200,
+    maxDelayMs = 2000,
+    isRetryable = () => true,
+    onRetry,
+  } = opts;
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries || !isRetryable(error, attempt)) {
+        throw error;
+      }
+      onRetry?.(error, attempt);
+      const exp = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
+      const jittered = exp * (0.5 + Math.random() * 0.5);
+      await new Promise((r) => setTimeout(r, jittered));
+    }
+  }
+  throw lastError;
+}

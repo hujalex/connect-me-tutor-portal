@@ -22,7 +22,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { UserAvailabilities } from "@/components/ui/UserAvailabilities";
-import TimeZoneSelector from "./components/TimezoneSelector";
+import TimeZoneSelector from "./TimezoneSelector";
 
 interface EditTutorFormProps {
   isReactivateModalOpen: boolean;
@@ -161,7 +161,7 @@ const EditTutorForm = ({
       onOpenChange={setIsReactivateModalOpen}
     >
       <DialogTrigger asChild>
-        <Button className="bg-blue-500">Edit Tutor</Button>
+        <Button className = "bg-connect-me-blue-4">Edit Tutor</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -265,6 +265,19 @@ const EditTutorForm = ({
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phoneNumber" className="text-right">
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="phonenumber"
+                      value={selectedTutor?.phoneNumber || ""}
+                      onChange={handleInputChangeForEdit}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="startDate" className="text-right">
                       Start Date
                     </Label>
@@ -294,6 +307,27 @@ const EditTutorForm = ({
               {/* Extended Profile Tab */}
               {activeTab === "extended" && (
                 <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Status</h3>
+                    <Select
+                      value={selectedTutor?.status ?? "Active"}
+                      onValueChange={(value) =>
+                        handleComplexFieldsForEdit(
+                          "status",
+                          value as Profile["status"]
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {/* Availability Section */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Availability</h3>

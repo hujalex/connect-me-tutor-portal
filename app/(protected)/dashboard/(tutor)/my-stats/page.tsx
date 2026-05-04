@@ -1,24 +1,25 @@
 import Stats from "@/components/tutor/my-stats";
 import { getAllEventDetailsForTutor } from "@/lib/actions/hours.server.actions";
 import { getSessionHoursByStudent } from "@/lib/actions/hours.server.actions";
-import { cachedGetProfile } from "@/lib/actions/profile.server.actions";
+import { cachedGetProfile } from "@/lib/actions/cache";
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
 import { Calendar } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 async function MyStatsData() {
   const user = await cachedGetUser();
+  if (!user) redirect("/");
   const profile = await cachedGetProfile(user.id);
   if (!profile) throw new Error("Unable to find profile");
-  const [enrollmentDetails, eventDetails] = await Promise.all([
-    getSessionHoursByStudent(profile.id),
-    getAllEventDetailsForTutor(profile.id),
-  ]);
+  const enrollmentDetails = getSessionHoursByStudent(profile.id);
+  const eventDetails = getAllEventDetailsForTutor(profile.id);
 
   return (
     <Stats
-      initialEnrollmentDetails={enrollmentDetails}
-      initialEventDetails={eventDetails}
+      key={profile.id}
+      enrollmentDetailsPromise={enrollmentDetails}
+      eventDetailsPromise={eventDetails}
     />
   );
 }

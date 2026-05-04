@@ -1,6 +1,3 @@
-// lib/admins.actions.ts
-
-// lib/student.actions.ts
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   Profile,
@@ -30,21 +27,21 @@ import {
   setMinutes,
 } from "date-fns"; // Only use date-fns
 import ResetPassword from "@/app/(auth)/set-password/page";
-import { getStudentSessions } from "./student.actions";
 import { date } from "zod";
 import { withCoalescedInvoke } from "next/dist/lib/coalesced-function";
 import toast from "react-hot-toast";
 import { DatabaseIcon } from "lucide-react";
 import { SYSTEM_ENTRYPOINTS } from "next/dist/shared/lib/constants";
-import { getAllSessions } from "./admin.actions";
+import { getMeeting } from "./admin.actions";
 import { fromZonedTime } from "date-fns-tz";
 import { Table } from "../supabase/tables";
+import {
+  tableToInterfaceMeetings,
+  tableToInterfaceProfiles,
+  tableToInterfaceSessions,
+} from "../type-utils";
+import { supabase } from "@/lib/supabase/client";
 // import { getMeeting } from "./meeting.actions";
-
-const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-});
 
 /**
  * Fetches all sessions within a 24-hour window around the requested date
@@ -87,7 +84,7 @@ export async function getSessionKeys(data?: Session[]) {
       const sessionDate = new Date(session.date);
       const key = `${session.student?.id}-${session.tutor?.id}-${format(
         sessionDate,
-        "yyyy-MM-dd-HH:mm"
+        "yyyy-MM-dd-HH:mm",
       )}`;
       sessionKeys.add(key);
     }
@@ -95,8 +92,6 @@ export async function getSessionKeys(data?: Session[]) {
 
   return sessionKeys;
 }
-
-
 
 /**
  * Add sessions for enrollments within the specified week range
@@ -110,22 +105,30 @@ export async function addSessions(
   weekStartString: string,
   weekEndString: string,
   enrollments: Enrollment[],
-  sessions: Session[]
+  sessions: Session[],
 ) {
   try {
     const weekStart: Date = fromZonedTime(
       parseISO(weekStartString),
-      "America/New_York"
+      "America/New_York",
     );
     const weekEnd: Date = fromZonedTime(
       parseISO(weekEndString),
-      "America/New_York"
+      "America/New_York",
     );
 
     const now: string = new Date().toISOString();
 
     //Set created to avoid duplicates
     const scheduledSessions: Set<string> = await getSessionKeys(sessions);
+
+    // skip enrollments that already have a session this week, even if rescheduled to a different time
+    const enrollmentsWithSessions: Set<string> = new Set(
+      sessions
+        .filter((s) => s.enrollmentId)
+        .map((s) => s.enrollmentId as string),
+    );
+
     // Prepare bulk insert data
     const sessionsToCreate: any[] = [];
 
@@ -148,11 +151,16 @@ export async function addSessions(
         continue;
       }
 
+      // already has a session this week, probably rescheduled
+      if (enrollmentsWithSessions.has(id)) {
+        continue;
+      }
+
       // Skip invalid enrollments
       if (!student?.id || !tutor?.id || !availability?.length) {
         continue;
       }
-           
+
       // Process each availability slot
       let { day, startTime, endTime } = availability[0];
 
@@ -167,8 +175,8 @@ export async function addSessions(
         continue;
       }
 
-      const startDate_asDate = new Date(startDate); 
- 
+      const startDate_asDate = new Date(startDate);
+
       // Find matching day in the week range
       let currentDate = new Date(weekStart);
       const dayLower = day.toLowerCase();
@@ -189,7 +197,7 @@ export async function addSessions(
 
         //Remove Seven Days if CurrentDate is next week (Acts as a Modulus to ensure updating current week only)
         if (currentDate > parseISO(weekEndString)) {
-          currentDate = addDays(currentDate, -7); 
+          currentDate = addDays(currentDate, -7);
         }
 
         try {
@@ -204,7 +212,7 @@ export async function addSessions(
             isNaN(endMinute)
           ) {
             throw new Error(
-              `Invalid time format: start=${startTime}, end=${endTime}`
+              `Invalid time format: start=${startTime}, end=${endTime}`,
             );
           }
 
@@ -214,7 +222,7 @@ export async function addSessions(
           const dateString = `${format(currentDate, "yyyy-MM-dd")}T${startTime}:00`;
           const sessionStartTime = fromZonedTime(
             dateString,
-            "America/New_York"
+            "America/New_York",
           ); // Automatically handles DST
 
           if (sessionStartTime < startDate_asDate) {
@@ -224,7 +232,7 @@ export async function addSessions(
           // Check for duplicate session
           const sessionKey = `${student.id}-${tutor.id}-${format(
             sessionStartTime,
-            "yyyy-MM-dd-HH:mm"
+            "yyyy-MM-dd-HH:mm",
           )}`;
 
           if (!scheduledSessions.has(sessionKey)) {
@@ -246,7 +254,7 @@ export async function addSessions(
         } catch (err) {
           console.error(
             `Error processing time for ${day} ${startTime}-${endTime}:`,
-            err
+            err,
           );
         }
 
@@ -270,28 +278,9 @@ export async function addSessions(
 
       if (data) {
         // Transform returned data to Session objects
-        const sessions: Session[] = data.map((session: any) => ({
-          id: session.id,
-          enrollmentId: session.enrollment_id,
-          createdAt: session.created_at,
-          environment: session.environment,
-          date: session.date,
-          summary: session.summary,
-          meeting: session.meeting,
-          student: session.student,
-          tutor: session.tutor,
-          status: session.status,
-          session_exit_form: session.session_exit_form || null,
-          isQuestionOrConcern: session.isQuestionOrConcern,
-          isFirstSession: session.isFirstSession,
-          duration: session.duration,
-        }));
-
-        // // if (!sessions) return;
-
-        // scheduleMultipleSessionReminders(sessions!);
-
-        // //Schedule emails
+        const sessions: Session[] = data.map((session: any) =>
+          tableToInterfaceSessions(session),
+        );
         return sessions;
       }
     }
@@ -300,5 +289,184 @@ export async function addSessions(
   } catch (error) {
     console.error("Error creating sessions:", error);
     throw error;
+  }
+}
+
+export async function getStudentSessions(
+  profileId: string,
+  params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string | string[];
+    orderBy?: string;
+    ascending?: boolean;
+  },
+): Promise<Session[]> {
+  const { startDate, endDate, status, orderBy, ascending } = params
+    ? params
+    : {};
+
+  let query = supabase
+    .from(Table.Sessions)
+    .select(
+      `
+      *,
+      student:Profiles!student_id(*),
+      tutor:Profiles!tutor_id(*),
+      meeting:Meetings!meeting_id(*)
+    `,
+    )
+    .eq("student_id", profileId);
+
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
+  }
+
+  if (status) {
+    if (Array.isArray(status)) {
+      query = query.in("status", status);
+    } else {
+      query = query.eq("status", status);
+    }
+  }
+
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching student sessions:", error.message);
+    throw error;
+  }
+
+  // Map the result to the Session interface
+  const sessions: Session[] = data
+    .filter(
+      (session) => session.meeting && session.tutor_id && session.student_id,
+    )
+    .map((session: any) => tableToInterfaceSessions(session));
+
+  return sessions;
+}
+
+export async function getTutorSessions(
+  profileId: string,
+  params: {
+    startDate?: string;
+    endDate?: string;
+    status?: string | string[];
+    orderBy?: string;
+    ascending?: boolean;
+  },
+): Promise<Session[]> {
+  const { startDate, endDate, status, orderBy, ascending } = params
+    ? params
+    : {};
+
+  let query = supabase
+    .from(Table.Sessions)
+    .select(
+      `
+     *,
+     meeting:Meetings!meeting_id(*),
+     student:Profiles!student_id(*),
+     tutor:Profiles!tutor_id(*)
+    `,
+    )
+    .eq("tutor_id", profileId);
+
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
+  }
+
+  if (status) {
+    if (Array.isArray(status)) {
+      query = query.in("status", status);
+    } else {
+      query = query.eq("status", status);
+    }
+  }
+
+  if (orderBy && ascending !== undefined) {
+    query = query.order(orderBy, { ascending });
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching student sessions:", error.message);
+    throw error;
+  }
+
+  // Map the result to the Session interface
+  const sessions: Session[] = data
+    .filter((data) => data.meeting && data.student && data.tutor)
+    .map((session: any) => tableToInterfaceSessions(session));
+
+  return sessions;
+}
+
+export async function getSessionTimePassed(sessionId: string): Promise<number> {
+  const { data } = await supabase
+    .from("Sessions")
+    .select("date")
+    .single()
+    .throwOnError();
+  if (!data || !data.date) throw new Error("Session Date Not Found");
+  const sessionDate: Date = new Date(data.date);
+  const now: Date = new Date();
+  const diff = now.getTime() - sessionDate.getTime();
+  return diff;
+}
+
+export async function getAllSessions(
+  startDate?: string,
+  endDate?: string,
+  orderBy?: string,
+  ascending?: boolean,
+): Promise<Session[]> {
+  try {
+    let query = supabase.from(Table.Sessions).select(`
+      *,
+      meeting:Meetings!meeting_id(*),
+      student:Profiles!student_id(*),
+      tutor:Profiles!tutor_id(*)
+    `);
+
+    if (startDate) {
+      query = query.gte("date", startDate);
+    }
+    if (endDate) {
+      query = query.lte("date", endDate);
+    }
+
+    if (orderBy && ascending !== undefined) {
+      query = query.order(orderBy, { ascending });
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching student sessions:", error.message);
+      throw error;
+    }
+
+    const sessions: Session[] = data
+      .filter((session: any) => session.student && session.tutor)
+      .map((session: any) => tableToInterfaceSessions(session));
+
+    console.log(sessions.length);
+    return sessions;
+  } catch (error) {
+    console.error("Error fetching sessions", error);
+    return [];
   }
 }

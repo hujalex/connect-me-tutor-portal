@@ -47,10 +47,10 @@ import {
   getAllProfiles,
   deactivateUser,
   reactivateUser,
-  editUser,
   getUserFromId,
   resendEmailConfirmation,
 } from "@/lib/actions/admin.actions";
+import { editProfile } from "@/lib/actions/profile.server.actions"
 import { deleteUser } from "@/lib/actions/auth.server.actions";
 import { addUser } from "@/lib/actions/auth.actions";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -344,9 +344,16 @@ const StudentList = ({ initialStudents }: any) =>
         }
       } catch (error) {
         const err = error as Error;
-        console.error("Error adding student:", error);
-        toast.error("Failed to Add Student.");
-        toast.error(`${err.message}`);
+        console.error("Error adding student:", err.message);
+        
+        // Provide more descriptive error messages
+        if (err.message.includes("Email")) {
+          toast.error("Failed to add student. Please check the email address and ensure it is valid and unique.");
+        } else if (err.message.includes("required")) {
+          toast.error(`Failed to add student. Required field error: ${err.message}`);
+        } else {
+          toast.error(`Failed to add student: ${err.message || "Please try again"}`);
+        }
       } finally {
         setAddingStudent(false);
       }
@@ -404,13 +411,21 @@ const StudentList = ({ initialStudents }: any) =>
             subjects_of_interest: [],
             status: "Active",
             tutorIds: [],
+            studentNumber: "",
           });
         }
       } catch (error) {
         const err = error as Error;
-        console.error("Error adding student:", error);
-        toast.error("Failed to Add Student.");
-        toast.error(`${err.message}`);
+        console.error("Error adding student:", err.message);
+        
+        // Provide more descriptive error messages
+        if (err.message.includes("Email")) {
+          toast.error("Failed to add student. Please check the email address and ensure it is valid and unique.");
+        } else if (err.message.includes("required")) {
+          toast.error(`Failed to add student. Required field error: ${err.message}`);
+        } else {
+          toast.error(`Failed to add student: ${err.message || "Please try again"}`);
+        }
       } finally {
         setAddingStudent(false);
       }
@@ -464,7 +479,7 @@ const StudentList = ({ initialStudents }: any) =>
     const handleEditStudent = async () => {
       if (selectedStudent) {
         try {
-          await editUser(selectedStudent);
+          await editProfile(selectedStudent);
           toast.success("Tutor Edited Successfully");
           setIsEditModalOpen(false);
           setSelectedStudent(null);
@@ -550,6 +565,7 @@ const StudentList = ({ initialStudents }: any) =>
               <TableHead>Availability</TableHead>
               <TableHead>Subjects Learning</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Parent Email</TableHead>
               <TableHead>Parent Phone</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -573,10 +589,11 @@ const StudentList = ({ initialStudents }: any) =>
                   ))}
                 </TableCell>
                 <TableCell>{student.email}</TableCell>
+                <TableCell>{student.parentEmail || ""}</TableCell>
                 <TableCell>{student.parentPhone}</TableCell>
                 <TableCell>
                   <AlertDialog>
-                    <AlertDialogTrigger>
+                    <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon">
                         <RefreshCcw className="h-4 w-4" />
                       </Button>

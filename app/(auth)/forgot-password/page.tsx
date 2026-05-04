@@ -82,9 +82,9 @@ export default function ForgotPasswordPage() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: values.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
+        // options: {
+          // emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // }
       }) 
 
       if (error) {

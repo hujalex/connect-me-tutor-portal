@@ -1,10 +1,11 @@
 import { cachedGetUser } from "@/lib/actions/user.server.actions";
-import DashboardLayout from "@/components/admin/dashboard-layout";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import DashboardProviders from "./dashboardprovider";
-import { cachedGetProfile, getUserProfiles } from "@/lib/actions/profile.server.actions";
+import { getUserProfiles } from "@/lib/actions/profile.server.actions";
+import { cachedGetProfile } from "@/lib/actions/cache";
 import { redirect } from "next/navigation";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default async function Layout({
   children,
@@ -27,7 +28,9 @@ export default async function Layout({
     <>
       <DashboardProviders initialProfile={profile}>
         {" "}
-        <DashboardLayout profile={profile} userProfilesPromise = {userProfiles}>{children}</DashboardLayout>
+        <DashboardLayout profile={profile} userProfilesPromise={userProfiles}>
+          {children}
+        </DashboardLayout>
       </DashboardProviders>
     </>
   );

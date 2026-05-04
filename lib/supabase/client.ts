@@ -1,8 +1,6 @@
-// "use client"
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { createBrowserClient } from "@supabase/ssr";
-import { create } from "domain";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Database } from "@/types/database.types";
 
 let supabaseInstance: any | null = null;
 

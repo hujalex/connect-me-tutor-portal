@@ -30,7 +30,7 @@ export async function getTutorSessions(
   endDate?: string,
   status?: string | string[],
   orderby?: string,
-  ascending?: boolean
+  ascending?: boolean,
 ): Promise<Session[]> {
   let query = supabase
     .from(Table.Sessions)
@@ -40,7 +40,7 @@ export async function getTutorSessions(
      meeting:Meetings!meeting_id(*),
      student:Profiles!student_id(*),
      tutor:Profiles!tutor_id(*)
-    `
+    `,
     )
     .eq("tutor_id", profileId);
 
@@ -76,7 +76,6 @@ export async function getTutorSessions(
       id: session.id,
       enrollmentId: session.enrollment_id,
       createdAt: session.created_at,
-      environment: session.environment,
       date: session.date,
       summary: session.summary,
       meeting: tableToInterfaceMeetings(session.meeting),
@@ -149,52 +148,28 @@ export async function getTutorStudents(tutorId: string) {
   }
 }
 
-export async function rescheduleSession(
-  sessionId: string,
-  newDate: any,
-  meetingId: string,
-  tutorid?: string
-) {
-  try {
-    const { data: sessionData, error } = await supabase
-      .from(Table.Sessions)
-      .update({
-        date: newDate,
-        meeting_id: meetingId,
-      })
-      .eq("id", sessionId)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    const { error: notificationError } = await supabase
-      .from("Notifications")
-      .insert({
-        session_id: sessionId,
-        previous_date: sessionData.date,
-        suggested_date: newDate,
-        tutor_id: sessionData.tutor_id,
-        student_id: sessionData.student_id,
-        type: "RESCHEDULE_REQUEST",
-        status: "Active",
-      });
-
-    if (notificationError) throw notificationError;
-    if (sessionData) {
-      return sessionData[0];
-    }
-  } catch (error) {
-    console.error("Unable to reschedule", error);
-    throw error;
-  }
-}
-
 export async function cancelSession(sessionId: string) {
   const { data, error } = await supabase
     .from(Table.Sessions)
     .update({
       status: "CANCELLED",
+    })
+    .eq("id", sessionId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// changed to allow tutors to restore cancelled sessions back to their original status
+export async function undoCancelSession(
+  sessionId: string,
+  originalStatus: string = "Active",
+) {
+  const { data, error } = await supabase
+    .from(Table.Sessions)
+    .update({
+      status: originalStatus,
     })
     .eq("id", sessionId)
     .single();
@@ -228,7 +203,7 @@ export async function getTutorAvailability(tutorId: string) {
 //
 export async function updateTutorAvailability(
   tutorId: string,
-  availabilityData: any
+  availabilityData: any,
 ) {
   const { data, error } = await supabase
     .from("tutor_availability")
@@ -248,7 +223,7 @@ export async function getTutorResources() {
 
 export async function logSessionAttendance(
   sessionId: string,
-  attended: boolean
+  attended: boolean,
 ) {
   const { data, error } = await supabase
     .from(Table.Sessions)
@@ -271,4 +246,27 @@ export async function recordSessionExitForm(sessionId: string, notes: string) {
     .eq("id", sessionId)
     .single();
   if (error) throw error;
+}
+
+export async function undoSessionExitForm(sessionId: string) {
+  try {
+    const { data, error } = await supabase
+      .from(Table.Sessions)
+      .update({
+        status: "Active",
+        session_exit_form: null,
+        is_question_or_concern: false,
+        is_first_session: false,
+      })
+      .eq("id", sessionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error("Error undoing session exit form:", error);
+    throw error;
+  }
 }
