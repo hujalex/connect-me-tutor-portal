@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     );
     await logEvent("zoom_webhook_meeting_session_resolution", {
       request_id: requestId,
-      resolution_status: zoomSessionResolutionStatus(resolution),
+      resolution_status: await zoomSessionResolutionStatus(resolution),
       zoom_meeting_number: resolution.zoomMeetingNumber ?? null,
       zoom_meeting_uuid: resolution.zoomMeetingUuid ?? null,
       meetings_row_id: resolution.meetingsRowId,
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       : null;
 
   const zoomRelationshipLog = {
-    resolution_status: zoomSessionResolutionStatus(resolution),
+    resolution_status: await zoomSessionResolutionStatus(resolution),
     meetings_row_id: resolution.meetingsRowId,
     meetings_table_meeting_id: resolution.storedMeetingId,
     zoom_meeting_number: resolution.zoomMeetingNumber ?? null,
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     host_id: hostId,
     host_email: hostEmail,
     event_type: event,
-    resolution_status: zoomSessionResolutionStatus(resolution),
+    resolution_status: await zoomSessionResolutionStatus(resolution),
     meetings_row_id: resolution.meetingsRowId,
     meetings_table_meeting_id: resolution.storedMeetingId,
     has_zoom_meeting_id: !!zoomMeetingId,
