@@ -39,7 +39,7 @@ async function fetchProfilesByIds(
 
   const { data, error } = await admin
     .from("Profiles")
-    .select("id, email, first_name, last_name")
+    .select("id, user_id, email, first_name, last_name")
     .in("id", unique);
 
   if (error) {
@@ -47,7 +47,44 @@ async function fetchProfilesByIds(
     return [];
   }
 
-  return (data ?? []) as ChatRecipientRow[];
+  const rows = (data ?? []) as Array<
+    ChatRecipientRow & { user_id: string | null }
+  >;
+  const missingEmailRows = rows.filter((r) => !r.email && r.user_id);
+
+  if (missingEmailRows.length === 0) {
+    return rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      first_name: r.first_name,
+      last_name: r.last_name,
+    }));
+  }
+
+  const userIds = [...new Set(missingEmailRows.map((r) => r.user_id!))];
+  const { data: userSettingsRows, error: settingsError } = await admin
+    .from("user_settings")
+    .select("user_id, email")
+    .in("user_id", userIds);
+
+  if (settingsError) {
+    console.error("fetchProfilesByIds user_settings fallback", settingsError);
+  }
+
+  const userIdToEmail = new Map(
+    (userSettingsRows ?? [])
+      .filter((r) => r.user_id && r.email)
+      .map((r) => [r.user_id as string, r.email as string]),
+  );
+
+  const withFallback = rows.map((r) => ({
+    id: r.id,
+    email: r.email ?? (r.user_id ? userIdToEmail.get(r.user_id) ?? null : null),
+    first_name: r.first_name,
+    last_name: r.last_name,
+  }));
+
+  return withFallback;
 }
 
 async function fetchAdminProfileIds(
