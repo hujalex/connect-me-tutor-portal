@@ -155,7 +155,9 @@ export async function getAllProfiles(
   }
 }
 
-export const getProfileFromUserSettings = async (userId: string) => {
+export const getProfileFromUserSettings = async (
+  userId: string,
+): Promise<Profile | null> => {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -188,7 +190,7 @@ export const getProfileFromUserSettings = async (userId: string) => {
       `,
       )
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching profile in getProfile:", error.message);
@@ -196,14 +198,9 @@ export const getProfileFromUserSettings = async (userId: string) => {
       throw error;
     }
 
-    const profile = data as any;
-    // if (profile.user_id !== userId) {
-    //   throw new Error(
-    //     `User_settings for user ${userId} points to profile owned by ${profile?.user_id}. Refusing to return profile.`,
-    //   );
-    // }
-
-    console.log("Getting Profile FROM USER SETTINGS");
+    if (!data?.profile) {
+      return null;
+    }
 
     return tableToInterfaceProfiles(data.profile as any);
   } catch (error) {
@@ -217,7 +214,7 @@ export async function getProfile(userId: string) {
     return null;
   }
   try {
-    return getProfileFromUserSettings(userId);
+    return await getProfileFromUserSettings(userId);
   } catch (error) {
     console.error("Unexpected error in getProfile:", error);
     return null;

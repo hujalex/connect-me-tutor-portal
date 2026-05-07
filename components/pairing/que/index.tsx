@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,11 +40,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type QueViews = "tutors" | "students";
-
 export default function PriorityQueue() {
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
-  const [currentView, setCurrentView] = useState<QueViews>("tutors");
 
   const removeFromQueue = async (id: string) => {
     // console.log("Current Data", currentData);
@@ -53,32 +50,30 @@ export default function PriorityQueue() {
 
     await removePairingRequest(id);
     setPairingRequests((pairingRequests) =>
-      pairingRequests.filter((request) => request.request_id !== id)
+      pairingRequests.filter((request) => request.request_id !== id),
     );
   };
 
-  const requestsCache = useRef<Partial<Record<QueViews, PairingRequest[]>>>({});
-
   useEffect(() => {
-    if (currentView in requestsCache.current) {
-      setPairingRequests(requestsCache.current[currentView]!);
-      return;
-    }
     (async () => {
-      const { data, error } = await getAllPairingRequests(
-        currentView === "students" ? "student" : "tutor"
-      );
-      if (data) {
-        requestsCache.current[currentView] = data;
-        setPairingRequests(data);
-        return;
-      }
+      const [tutorRes, studentRes] = await Promise.all([
+        getAllPairingRequests("tutor"),
+        getAllPairingRequests("student"),
+      ]);
+      const error = tutorRes.error ?? studentRes.error;
       if (error) {
         toast.error("Failed to load pairing que");
-        console.error("Failed to load pairing queue", error)
+        console.error("Failed to load pairing queue", error);
+        return;
       }
+      const tutorData = tutorRes.data ?? [];
+      const studentData = studentRes.data ?? [];
+      const merged = [...tutorData, ...studentData].sort(
+        (a, b) => a.priority - b.priority,
+      );
+      setPairingRequests(merged);
     })();
-  }, [currentView]);
+  }, []);
 
   const updatePriority = (id: string, newPriority: number) => {
     setPairingRequests(
@@ -89,19 +84,17 @@ export default function PriorityQueue() {
               priority: newPriority,
               profile: { ...request.profile, priorityLevel: newPriority },
             }
-          : request
-      )
+          : request,
+      ),
     );
   };
 
   const sortedRequests = [...pairingRequests].sort(
-    (a, b) => a.priority - b.priority
+    (a, b) => a.priority - b.priority,
   );
-  const tutors = sortedRequests.filter((r) => r.type === "tutor");
-  const students = sortedRequests.filter((r) => r.type === "student");
-
-  const currentData = currentView === "tutors" ? tutors : students;
-  const currentCount = currentData.length;
+  const tutorCount = sortedRequests.filter((r) => r.type === "tutor").length;
+  const studentCount = sortedRequests.filter((r) => r.type === "student").length;
+  const currentCount = sortedRequests.length;
 
   const getPriorityColor = (level: number) => {
     switch (level) {
@@ -138,7 +131,7 @@ export default function PriorityQueue() {
               Pairing Queue Management
             </h1>
             <p className="text-gray-600">
-              Manage tutors and students in the priority queue system
+              Active pairing requests (tutors and students), sorted by priority
             </p>
           </div>
 
@@ -146,40 +139,17 @@ export default function PriorityQueue() {
             <TestingPairingControls />
           </div>
 
-          <div className="mb-6">
-            <div className="flex gap-2 p-1 bg-white rounded-lg border shadow-sm w-fit">
-              <Button
-                variant={currentView === "tutors" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setCurrentView("tutors")}
-                className="flex items-center gap-2"
-              >
-                <GraduationCap className="h-4 w-4" />
-                Tutors ({tutors.length})
-              </Button>
-              <Button
-                variant={currentView === "students" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setCurrentView("students")}
-                className="flex items-center gap-2"
-              >
-                <Users className="h-4 w-4" />
-                Students ({students.length})
-              </Button>
-            </div>
-          </div>
-
           <div className="bg-white rounded-lg border shadow-sm">
             <div className="p-6 border-b">
-              <div className="flex items-center gap-2">
-                {currentView === "tutors" ? (
-                  <GraduationCap className="h-6 w-6 text-blue-600" />
-                ) : (
-                  <Users className="h-6 w-6 text-green-600" />
-                )}
-                <h2 className="text-2xl font-semibold text-gray-900 capitalize">
-                  {currentView} ({currentCount})
+              <div className="flex flex-wrap items-center gap-3">
+                <Users className="h-6 w-6 text-gray-700" />
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Queue ({currentCount})
                 </h2>
+                <span className="text-sm text-gray-500">
+                  {tutorCount} tutor{tutorCount === 1 ? "" : "s"} ·{" "}
+                  {studentCount} student{studentCount === 1 ? "" : "s"}
+                </span>
               </div>
             </div>
 
@@ -188,6 +158,7 @@ export default function PriorityQueue() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Profile</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Availability</TableHead>
@@ -197,7 +168,20 @@ export default function PriorityQueue() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentData.map((request) => {
+                  {sortedRequests.map((request) => {
+                    const availability = Array.isArray(request.profile.availability)
+                      ? request.profile.availability
+                      : [];
+                    const subjects = Array.isArray(
+                      request.profile.subjects_of_interest,
+                    )
+                      ? request.profile.subjects_of_interest
+                      : [];
+                    const languages = Array.isArray(
+                      request.profile.languages_spoken,
+                    )
+                      ? request.profile.languages_spoken
+                      : [];
                     const fullName = `${request.profile.firstName} ${request.profile.lastName}`;
                     const initials = fullName
                       .split(" ")
@@ -228,6 +212,19 @@ export default function PriorityQueue() {
                         </TableCell>
                         <TableCell>
                           <Badge
+                            variant="outline"
+                            className="capitalize gap-1 font-normal"
+                          >
+                            {request.type === "tutor" ? (
+                              <GraduationCap className="h-3.5 w-3.5" />
+                            ) : (
+                              <Users className="h-3.5 w-3.5" />
+                            )}
+                            {request.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
                             className={`${getStatusColor(request.status || "pending")} font-semibold capitalize`}
                           >
                             {request.status || "Pending"}
@@ -242,9 +239,7 @@ export default function PriorityQueue() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1 max-w-48">
-                            {request.profile.availability
-                              .slice(0, 2)
-                              .map((time, index) => (
+                            {availability.slice(0, 2).map((time, index) => (
                                 <Badge
                                   key={index}
                                   variant="outline"
@@ -253,18 +248,16 @@ export default function PriorityQueue() {
                                   {`${time.day}, ${to12Hour(time.startTime)} - ${to12Hour(time.endTime)}`}
                                 </Badge>
                               ))}
-                            {request.profile.availability.length > 2 && (
+                            {availability.length > 2 && (
                               <Badge variant="outline" className="text-xs">
-                                +{request.profile.availability.length - 2} more
+                                +{availability.length - 2} more
                               </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1 max-w-48">
-                            {request.profile.subjects_of_interest
-                              .slice(0, 2)
-                              .map((subject, index) => (
+                            {subjects.slice(0, 2).map((subject, index) => (
                                 <Badge
                                   key={index}
                                   variant="secondary"
@@ -273,23 +266,17 @@ export default function PriorityQueue() {
                                   {subject}
                                 </Badge>
                               ))}
-                            {request.profile.subjects_of_interest.length >
-                              2 && (
+                            {subjects.length > 2 && (
                               <Badge variant="secondary" className="text-xs">
-                                +
-                                {request.profile.subjects_of_interest.length -
-                                  2}{" "}
-                                more
+                                +{subjects.length - 2} more
                               </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {request.profile.languages_spoken && (
+                          {languages.length > 0 && (
                             <div className="flex flex-wrap gap-1 max-w-32">
-                              {request.profile.languages_spoken
-                                .slice(0, 2)
-                                .map((language, index) => (
+                              {languages.slice(0, 2).map((language, index) => (
                                   <Badge
                                     key={index}
                                     variant="outline"
@@ -298,12 +285,12 @@ export default function PriorityQueue() {
                                     {language}
                                   </Badge>
                                 ))}
-                              {request.profile.languages_spoken.length > 2 && (
+                              {languages.length > 2 && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                 >
-                                  +{request.profile.languages_spoken.length - 2}
+                                  +{languages.length - 2}
                                 </Badge>
                               )}
                             </div>
@@ -316,7 +303,7 @@ export default function PriorityQueue() {
                               onValueChange={(value) =>
                                 updatePriority(
                                   request.request_id,
-                                  Number.parseInt(value)
+                                  Number.parseInt(value),
                                 )
                               }
                             >
@@ -371,12 +358,8 @@ export default function PriorityQueue() {
             ) : (
               <div className="p-12 text-center">
                 <div className="flex flex-col items-center gap-2">
-                  {currentView === "tutors" ? (
-                    <GraduationCap className="h-12 w-12 text-gray-300" />
-                  ) : (
-                    <Users className="h-12 w-12 text-gray-300" />
-                  )}
-                  <p className="text-gray-500">No {currentView} in queue</p>
+                  <Users className="h-12 w-12 text-gray-300" />
+                  <p className="text-gray-500">No one in the pairing queue</p>
                 </div>
               </div>
             )}
