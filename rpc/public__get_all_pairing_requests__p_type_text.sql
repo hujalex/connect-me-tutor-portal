@@ -20,10 +20,18 @@ BEGIN
             'languages_spoken', p.languages_spoken
         )) AS profile
     FROM pairing_requests pr
-    LEFT JOIN public.user_settings us
-      ON us.user_id = pr.user_id
-    LEFT JOIN public."Profiles" p
-      ON p.id = us.last_active_profile_id
+    LEFT JOIN LATERAL (
+      SELECT
+        prof.email,
+        prof.first_name,
+        prof.last_name,
+        prof.availability,
+        prof.subjects_of_interest,
+        prof.languages_spoken
+      FROM public."Profiles" prof
+      WHERE prof.id = pr.user_id
+      LIMIT 1
+    ) p ON TRUE
     WHERE pr.type = p_type
     ORDER BY pr.created_at DESC;
 END;

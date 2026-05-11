@@ -35,10 +35,17 @@ export const getAllPairingRequests = async (
     throw new Error("Missing Supabase environment variables");
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] =
+    await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
+
+  console.info("[getAllPairingRequests] auth context", {
+    hasSession: Boolean(sessionData.session),
+    hasAccessToken: Boolean(sessionData.session?.access_token),
+    userId: userData.user?.id ?? null,
+    userRole: userData.user?.role ?? null,
+    sessionError: sessionError?.message ?? null,
+    userError: userError?.message ?? null,
+  });
 
   const { data, error } = await supabase.rpc("get_all_pairing_requests", {
     p_type: profileType,
@@ -48,10 +55,20 @@ export const getAllPairingRequests = async (
     return { data: (data ?? null) as PairingRequest[] | null, error };
   }
 
+  const hasRenderableProfileData = (profile: Record<string, any>) =>
+    Boolean(
+      profile.email ??
+        profile.firstName ??
+        profile.first_name ??
+        profile.lastName ??
+        profile.last_name,
+    );
+
   const rows = (data as Record<string, any>[]).map((row) => {
     const profile = (row.profile ?? {}) as Record<string, any>;
     return {
       ...row,
+      userId: row.userId ?? row.user_id ?? "",
       profile: {
         ...profile,
         firstName:
@@ -76,6 +93,80 @@ export const getAllPairingRequests = async (
       },
     };
   }) as PairingRequest[];
+
+  const missingProfileIds = Array.from(
+    new Set(
+      rows
+        .filter((row) => !hasRenderableProfileData(row.profile as Record<string, any>))
+        .map((row) => row.userId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+
+  if (missingProfileIds.length > 0) {
+    const [profilesByIdResult, profilesByUserIdResult] = await Promise.all([
+      supabase
+        .from(Table.Profiles)
+        .select(
+          "id, user_id, email, first_name, last_name, availability, subjects_of_interest, languages_spoken",
+        )
+        .in("id", missingProfileIds),
+      supabase
+        .from(Table.Profiles)
+        .select(
+          "id, user_id, email, first_name, last_name, availability, subjects_of_interest, languages_spoken",
+        )
+        .in("user_id", missingProfileIds),
+    ]);
+
+    const fallbackProfiles = [
+      ...(profilesByIdResult.data ?? []),
+      ...(profilesByUserIdResult.data ?? []),
+    ] as Array<{
+      id: string;
+      user_id: string | null;
+      email: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      availability: unknown[] | null;
+      subjects_of_interest: string[] | null;
+      languages_spoken: string[] | null;
+    }>;
+
+    const fallbackByKey = new Map<string, (typeof fallbackProfiles)[number]>();
+    for (const profile of fallbackProfiles) {
+      fallbackByKey.set(profile.id, profile);
+      if (profile.user_id) fallbackByKey.set(profile.user_id, profile);
+    }
+
+    for (const row of rows) {
+      if (hasRenderableProfileData(row.profile as Record<string, any>)) continue;
+      const fallback = fallbackByKey.get(row.userId);
+      if (!fallback) continue;
+      row.profile = {
+        ...row.profile,
+        email: row.profile.email ?? fallback.email ?? "",
+        firstName: row.profile.firstName ?? fallback.first_name ?? "",
+        lastName: row.profile.lastName ?? fallback.last_name ?? "",
+        availability: Array.isArray(row.profile.availability)
+          ? row.profile.availability
+          : Array.isArray(fallback.availability)
+            ? fallback.availability
+            : [],
+        subjects_of_interest: Array.isArray(row.profile.subjects_of_interest)
+          ? row.profile.subjects_of_interest
+          : Array.isArray(fallback.subjects_of_interest)
+            ? fallback.subjects_of_interest
+            : [],
+        languages_spoken: Array.isArray(row.profile.languages_spoken)
+          ? row.profile.languages_spoken
+          : Array.isArray(fallback.languages_spoken)
+            ? fallback.languages_spoken
+            : [],
+      } as PairingRequest["profile"];
+    }
+  }
+
   const ids = rows.map((r) => r.request_id);
   const { data: queueRows, error: queueErr } = await supabase
     .from(Table.PairingRequests)
