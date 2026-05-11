@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2, Users, GraduationCap } from "lucide-react";
+import { Trash2, Users, GraduationCap, Waypoints } from "lucide-react";
 import { PairingRequest } from "@/types/pairing";
 import {
   getAllPairingRequests,
@@ -49,6 +49,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { buildQueuePriorityOverlapInsights } from "@/lib/pairing/queueOverlap";
+import { PairingCommitteeGraphDialog } from "../pairing-committee-graph";
 
 export default function PriorityQueue() {
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
@@ -57,6 +58,7 @@ export default function PriorityQueue() {
   );
   const [isSavingResults, setIsSavingResults] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
 
   const removeFromQueue = async (id: string) => {
     // console.log("Current Data", currentData);
@@ -238,16 +240,35 @@ export default function PriorityQueue() {
                     {studentCount} student{studentCount === 1 ? "" : "s"}
                   </span>
                 </div>
-                <Button
-                  onClick={openSaveReview}
-                  disabled={pendingPriorityUpdates.length === 0 || isSavingResults}
-                >
-                  {isSavingResults
-                    ? "Saving..."
-                    : `Save Results${pendingPriorityUpdates.length > 0 ? ` (${pendingPriorityUpdates.length})` : ""}`}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setGraphOpen(true)}
+                    disabled={currentCount === 0}
+                    className="gap-2"
+                  >
+                    <Waypoints className="h-4 w-4" />
+                    View graph
+                  </Button>
+                  <Button
+                    onClick={openSaveReview}
+                    disabled={pendingPriorityUpdates.length === 0 || isSavingResults}
+                  >
+                    {isSavingResults
+                      ? "Saving..."
+                      : `Save Results${pendingPriorityUpdates.length > 0 ? ` (${pendingPriorityUpdates.length})` : ""}`}
+                  </Button>
+                </div>
               </div>
             </div>
+
+            <PairingCommitteeGraphDialog
+              open={graphOpen}
+              onOpenChange={setGraphOpen}
+              mode="queue"
+              requests={pairingRequests}
+            />
 
             <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

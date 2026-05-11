@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -29,6 +29,7 @@ import {
   Calendar,
   XCircle,
   CheckCircle,
+  Waypoints,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +41,7 @@ import type {
 import { normalizePairingWorkflowPreviewPayload } from "@/lib/pairing/normalizePreviewPayload";
 import { filterPairingPreviewLogsForKeys } from "@/lib/pairing/filterPreviewLogs";
 import { to12Hour } from "@/lib/utils";
+import { PairingCommitteeGraphDialog } from "./pairing-committee-graph";
 
 type StoredPairingRun = {
   runId: string;
@@ -131,6 +133,9 @@ export function PairingLogsTable() {
   const [dateTo, setDateTo] = useState<string>(formatDate(tomorrow));
   const [previewRun, setPreviewRun] = useState<StoredPairingRun | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [graphScope, setGraphScope] = useState<"closed" | "selected" | "complete">(
+    "closed",
+  );
 
   const hasOverlapPreviews = Boolean(
     previewRun?.preview.matchPreviews?.length,
@@ -168,6 +173,35 @@ export function PairingLogsTable() {
   const clearPreviewSelection = useCallback(() => {
     setSelectedKeys(new Set());
   }, []);
+
+  const completeGraphPreviews = useMemo((): PairingMatchPreview[] => {
+    if (!previewRun) return [];
+    if (previewRun.preview.matchPreviews.length > 0) {
+      return previewRun.preview.matchPreviews;
+    }
+    return previewRun.preview.matchesToInsert.map((m, i) => ({
+      pairing_request_id: `legacy-${i}`,
+      match_profile_id: m.tutor_id,
+      student_id: m.student_id,
+      tutor_id: m.tutor_id,
+      similarity: m.similarity,
+      student_name: `Student ${m.student_id.slice(0, 8)}…`,
+      tutor_name: `Tutor ${m.tutor_id.slice(0, 8)}…`,
+      overlapping_subjects: [],
+      overlapping_slots: [],
+    }));
+  }, [previewRun]);
+
+  const selectedGraphPreviews = useMemo(() => {
+    if (!previewRun?.preview.matchPreviews?.length) return [];
+    return previewRun.preview.matchPreviews.filter((p) =>
+      selectedKeys.has(previewKey(p)),
+    );
+  }, [previewRun, selectedKeys]);
+
+  const canShowCompleteGraph = completeGraphPreviews.length > 0;
+  const canShowSelectedGraph =
+    hasOverlapPreviews && selectedGraphPreviews.length > 0;
 
   // Load data on component mount and when date filters change
   useEffect(() => {
@@ -388,6 +422,35 @@ export function PairingLogsTable() {
 
   return (
     <div className="space-y-6">
+      <PairingCommitteeGraphDialog
+        open={graphScope !== "closed"}
+        onOpenChange={(o) => {
+          if (!o) setGraphScope("closed");
+        }}
+        mode="preview"
+        previews={
+          graphScope === "selected"
+            ? selectedGraphPreviews
+            : graphScope === "complete"
+              ? completeGraphPreviews
+              : []
+        }
+        title={
+          graphScope === "selected"
+            ? "Selected for save"
+            : graphScope === "complete"
+              ? "All proposed matches"
+              : undefined
+        }
+        description={
+          graphScope === "selected"
+            ? "Only checked rows in the overlap table will be sent when you save. Arrows: student → tutor."
+            : graphScope === "complete"
+              ? "Every student → tutor pairing proposed in this preview. Compare with the selected graph before saving."
+              : undefined
+        }
+      />
+
       {error && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="pt-6">
@@ -417,6 +480,33 @@ export function PairingLogsTable() {
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Overlap before save</CardTitle>
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setGraphScope("selected")}
+                disabled={!canShowSelectedGraph}
+                title={
+                  !canShowSelectedGraph
+                    ? "Select at least one row in the table below"
+                    : "Student → tutor for matches you will save"
+                }
+              >
+                <Waypoints className="h-4 w-4 shrink-0" />
+                Selected graph
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setGraphScope("complete")}
+                disabled={!canShowCompleteGraph}
+              >
+                <Waypoints className="h-4 w-4 shrink-0" />
+                All proposed
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -574,7 +664,51 @@ export function PairingLogsTable() {
               ? `Preview Run Filters (${previewRun.runId.slice(0, 8)})`
               : "Filters"}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {previewRun && canShowCompleteGraph && hasOverlapPreviews && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setGraphScope("selected")}
+                  disabled={!canShowSelectedGraph}
+                  title={
+                    !canShowSelectedGraph
+                      ? "Select at least one row in the overlap table"
+                      : undefined
+                  }
+                >
+                  <Waypoints className="h-4 w-4 shrink-0" />
+                  Selected graph
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setGraphScope("complete")}
+                >
+                  <Waypoints className="h-4 w-4 shrink-0" />
+                  All proposed
+                </Button>
+              </>
+            )}
+            {previewRun &&
+              canShowCompleteGraph &&
+              !hasOverlapPreviews && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setGraphScope("complete")}
+                >
+                  <Waypoints className="h-4 w-4 shrink-0" />
+                  View proposed graph
+                </Button>
+              )}
             {previewRun && (
               <Button
                 size="sm"
