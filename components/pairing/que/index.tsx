@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +24,7 @@ import { PairingRequest } from "@/types/pairing";
 import {
   getAllPairingRequests,
   removePairingRequest,
+  updatePairingRequest,
 } from "@/lib/actions/pairing.actions";
 import { to12Hour } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -39,9 +40,23 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { buildQueuePriorityOverlapInsights } from "@/lib/pairing/queueOverlap";
 
 export default function PriorityQueue() {
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
+  const [savedPriorities, setSavedPriorities] = useState<Record<string, number>>(
+    {},
+  );
+  const [isSavingResults, setIsSavingResults] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const removeFromQueue = async (id: string) => {
     // console.log("Current Data", currentData);
@@ -52,6 +67,11 @@ export default function PriorityQueue() {
     setPairingRequests((pairingRequests) =>
       pairingRequests.filter((request) => request.request_id !== id),
     );
+    setSavedPriorities((priorities) => {
+      const next = { ...priorities };
+      delete next[id];
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -72,12 +92,15 @@ export default function PriorityQueue() {
         (a, b) => a.priority - b.priority,
       );
       setPairingRequests(merged);
+      setSavedPriorities(
+        Object.fromEntries(merged.map((request) => [request.request_id, request.priority])),
+      );
     })();
   }, []);
 
   const updatePriority = (id: string, newPriority: number) => {
-    setPairingRequests(
-      pairingRequests.map((request) =>
+    setPairingRequests((current) =>
+      current.map((request) =>
         request.request_id === id
           ? {
               ...request,
@@ -87,6 +110,69 @@ export default function PriorityQueue() {
           : request,
       ),
     );
+  };
+
+  const pendingPriorityUpdates = pairingRequests.filter((request) => {
+    const savedPriority = savedPriorities[request.request_id];
+    return savedPriority === undefined || savedPriority !== request.priority;
+  });
+
+  const overlapInsights = useMemo(
+    () =>
+      buildQueuePriorityOverlapInsights(
+        pendingPriorityUpdates,
+        pairingRequests,
+        savedPriorities,
+      ),
+    [pendingPriorityUpdates, pairingRequests, savedPriorities],
+  );
+
+  const runPersistPrioritySave = async () => {
+    if (pendingPriorityUpdates.length === 0) {
+      toast.success("No pairing option changes to save");
+      return;
+    }
+
+    setIsSavingResults(true);
+    const savePromise = Promise.all(
+      pendingPriorityUpdates.map((request) =>
+        updatePairingRequest(request.request_id, {
+          priority: request.priority,
+        }),
+      ),
+    );
+
+    toast.promise(savePromise, {
+      loading: "Saving pairing options...",
+      success: "Pairing options saved",
+      error: "Failed to save pairing options",
+    });
+
+    try {
+      await savePromise;
+      setSavedPriorities((current) => {
+        const next = { ...current };
+        for (const request of pendingPriorityUpdates) {
+          next[request.request_id] = request.priority;
+        }
+        return next;
+      });
+      setReviewOpen(false);
+    } finally {
+      setIsSavingResults(false);
+    }
+  };
+
+  const openSaveReview = () => {
+    if (pendingPriorityUpdates.length === 0) {
+      toast.success("No pairing option changes to save");
+      return;
+    }
+    setReviewOpen(true);
+  };
+
+  const handleConfirmSaveFromReview = () => {
+    void runPersistPrioritySave();
   };
 
   const sortedRequests = [...pairingRequests].sort(
@@ -141,17 +227,138 @@ export default function PriorityQueue() {
 
           <div className="bg-white rounded-lg border shadow-sm">
             <div className="p-6 border-b">
-              <div className="flex flex-wrap items-center gap-3">
-                <Users className="h-6 w-6 text-gray-700" />
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  Queue ({currentCount})
-                </h2>
-                <span className="text-sm text-gray-500">
-                  {tutorCount} tutor{tutorCount === 1 ? "" : "s"} ·{" "}
-                  {studentCount} student{studentCount === 1 ? "" : "s"}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Users className="h-6 w-6 text-gray-700" />
+                  <h2 className="text-2xl font-semibold text-gray-900">
+                    Queue ({currentCount})
+                  </h2>
+                  <span className="text-sm text-gray-500">
+                    {tutorCount} tutor{tutorCount === 1 ? "" : "s"} ·{" "}
+                    {studentCount} student{studentCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <Button
+                  onClick={openSaveReview}
+                  disabled={pendingPriorityUpdates.length === 0 || isSavingResults}
+                >
+                  {isSavingResults
+                    ? "Saving..."
+                    : `Save Results${pendingPriorityUpdates.length > 0 ? ` (${pendingPriorityUpdates.length})` : ""}`}
+                </Button>
               </div>
             </div>
+
+            <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Review priority changes</DialogTitle>
+                  <DialogDescription>
+                    Confirm priority updates and review how each profile overlaps
+                    (subjects and time) with top opposite-role candidates in the
+                    current queue.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-2">
+                  {overlapInsights.map((row) => (
+                    <div
+                      key={row.request_id}
+                      className="rounded-lg border bg-muted/30 p-4 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="font-semibold text-gray-900">
+                          {row.profileName}{" "}
+                          <Badge variant="outline" className="capitalize ml-1">
+                            {row.role}
+                          </Badge>
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Priority {row.previousPriority} → {row.newPriority}
+                        </p>
+                      </div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Top overlap with other queue members
+                      </p>
+                      {row.topCandidates.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No opposite-role requests in queue to compare.
+                        </p>
+                      ) : (
+                        <ul className="space-y-3">
+                          {row.topCandidates.map((c) => (
+                            <li
+                              key={c.request_id}
+                              className="rounded-md border bg-background p-3 text-sm"
+                            >
+                              <p className="font-medium text-gray-900">
+                                {c.displayName}{" "}
+                                <span className="text-muted-foreground capitalize">
+                                  ({c.role})
+                                </span>
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                <span className="text-xs text-muted-foreground w-full">
+                                  Subject overlap
+                                </span>
+                                {c.overlapping_subjects.length === 0 ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    None
+                                  </span>
+                                ) : (
+                                  c.overlapping_subjects.map((s) => (
+                                    <Badge key={s} variant="secondary" className="text-xs">
+                                      {s}
+                                    </Badge>
+                                  ))
+                                )}
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                <span className="text-xs text-muted-foreground w-full">
+                                  Time overlap
+                                </span>
+                                {c.overlapping_slots.length === 0 ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    None
+                                  </span>
+                                ) : (
+                                  c.overlapping_slots.map((slot, i) => (
+                                    <Badge
+                                      key={`${slot.day}-${slot.startTime}-${i}`}
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {slot.day}: {to12Hour(slot.startTime)} –{" "}
+                                      {to12Hour(slot.endTime)}
+                                    </Badge>
+                                  ))
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setReviewOpen(false)}
+                    disabled={isSavingResults}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleConfirmSaveFromReview}
+                    disabled={isSavingResults}
+                  >
+                    {isSavingResults ? "Saving…" : "Confirm save"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {currentCount > 0 ? (
               <Table>

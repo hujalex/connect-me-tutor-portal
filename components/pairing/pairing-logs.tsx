@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,25 +31,28 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getPairingLogs } from "@/lib/actions/pairing.actions";
-
-type PairingWorkflowPreview = {
-  logs: { type: string; message: string; error?: boolean }[];
-  matchesToInsert: { student_id: string; tutor_id: string; similarity: number }[];
-  summary: {
-    matchesToInsert: number;
-    logsToInsert: number;
-  };
-};
+import type {
+  PairingMatchPreview,
+  PairingWorkflowPreviewPayload,
+} from "@/types/pairing";
+import { normalizePairingWorkflowPreviewPayload } from "@/lib/pairing/normalizePreviewPayload";
+import { filterPairingPreviewLogsForKeys } from "@/lib/pairing/filterPreviewLogs";
+import { to12Hour } from "@/lib/utils";
 
 type StoredPairingRun = {
   runId: string;
   createdAt: string;
-  preview: PairingWorkflowPreview;
+  preview: PairingWorkflowPreviewPayload;
   appliedAt?: string;
 };
 
 const PREVIEW_RUN_STORAGE_PREFIX = "pairing-preview-run:";
+
+function previewKey(p: PairingMatchPreview): string {
+  return `${p.pairing_request_id}:${p.match_profile_id}`;
+}
 
 export type PairingLog = {
   id: string;
@@ -63,7 +68,7 @@ export type PairingLog = {
   } | null;
   message: string;
   status: string;
-  created_at: string;
+  created_at?: string;
 };
 
 const getStatusColor = (status: string) => {
@@ -109,6 +114,7 @@ export function PairingLogsTable() {
   const previewRunId = searchParams.get("runId");
   const [logs, setLogs] = useState<PairingLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isApplying, setIsApplying] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterUserType, setFilterUserType] = useState<string>("all");
@@ -124,6 +130,44 @@ export function PairingLogsTable() {
   const [dateFrom, setDateFrom] = useState<string>(formatDate(oneWeekAgo));
   const [dateTo, setDateTo] = useState<string>(formatDate(tomorrow));
   const [previewRun, setPreviewRun] = useState<StoredPairingRun | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+
+  const hasOverlapPreviews = Boolean(
+    previewRun?.preview.matchPreviews?.length,
+  );
+  const isLegacyPreview = previewRun && !hasOverlapPreviews;
+
+  useEffect(() => {
+    if (!previewRun?.preview.matchPreviews?.length) {
+      setSelectedKeys(new Set());
+      return;
+    }
+    setSelectedKeys(
+      new Set(
+        previewRun.preview.matchPreviews.map((p) => previewKey(p)),
+      ),
+    );
+  }, [previewRun?.runId, previewRun?.createdAt]);
+
+  const togglePreviewKey = useCallback((key: string, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const selectAllPreviews = useCallback(() => {
+    if (!previewRun?.preview.matchPreviews?.length) return;
+    setSelectedKeys(
+      new Set(previewRun.preview.matchPreviews.map((p) => previewKey(p))),
+    );
+  }, [previewRun]);
+
+  const clearPreviewSelection = useCallback(() => {
+    setSelectedKeys(new Set());
+  }, []);
 
   // Load data on component mount and when date filters change
   useEffect(() => {
@@ -141,15 +185,19 @@ export function PairingLogsTable() {
           setLogs([]);
         } else {
           const parsed = JSON.parse(raw) as StoredPairingRun;
-          setPreviewRun(parsed);
+          const normalized: StoredPairingRun = {
+            ...parsed,
+            preview: normalizePairingWorkflowPreviewPayload(parsed.preview),
+          };
+          setPreviewRun(normalized);
           setLogs(
-            parsed.preview.logs.map((log, index) => ({
-              id: `${parsed.runId}-${index}`,
+            normalized.preview.logs.map((log, index) => ({
+              id: `${normalized.runId}-${index}`,
               type: (log.type as PairingLog["type"]) ?? "pairing-selection-failed",
               profile: null,
               message: log.message,
               status: log.error ? "error" : "ok",
-              created_at: parsed.createdAt,
+              created_at: normalized.createdAt,
             })),
           );
         }
@@ -225,16 +273,20 @@ export function PairingLogsTable() {
       }
       try {
         const parsed = JSON.parse(raw) as StoredPairingRun;
-        setPreviewRun(parsed);
+        const normalized: StoredPairingRun = {
+          ...parsed,
+          preview: normalizePairingWorkflowPreviewPayload(parsed.preview),
+        };
+        setPreviewRun(normalized);
         setError(null);
         setLogs(
-          parsed.preview.logs.map((log, index) => ({
-            id: `${parsed.runId}-${index}`,
+          normalized.preview.logs.map((log, index) => ({
+            id: `${normalized.runId}-${index}`,
             type: (log.type as PairingLog["type"]) ?? "pairing-selection-failed",
             profile: null,
             message: log.message,
             status: log.error ? "error" : "ok",
-            created_at: parsed.createdAt,
+            created_at: normalized.createdAt,
           })),
         );
       } catch {
@@ -254,6 +306,68 @@ export function PairingLogsTable() {
       setError("Failed to refresh pairing logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApplyPreviewRun = async () => {
+    if (!previewRun) {
+      toast.error("No preview run loaded");
+      return;
+    }
+
+    if (hasOverlapPreviews && selectedKeys.size === 0) {
+      toast.error("Select at least one proposed match to save");
+      return;
+    }
+
+    let matchesToInsert = previewRun.preview.matchesToInsert;
+    let logs = previewRun.preview.logs;
+
+    if (hasOverlapPreviews) {
+      const previews = previewRun.preview.matchPreviews.filter((p) =>
+        selectedKeys.has(previewKey(p)),
+      );
+      matchesToInsert = previews.map((p) => ({
+        student_id: p.student_id,
+        tutor_id: p.tutor_id,
+        similarity: p.similarity,
+      }));
+      logs = filterPairingPreviewLogsForKeys(
+        previewRun.preview.logs,
+        selectedKeys,
+      );
+    }
+
+    setIsApplying(true);
+    const promise = axios.post("/api/pairing?debug=1", {
+      mode: "apply-preview",
+      preview: {
+        matchesToInsert,
+        logs,
+      },
+    });
+
+    toast.promise(promise, {
+      success: "Saved queue changes from this preview run",
+      error: "Failed to save queue changes",
+      loading: "Saving queue changes...",
+    });
+
+    try {
+      await promise;
+      if (typeof window !== "undefined") {
+        const nextRun: StoredPairingRun = {
+          ...previewRun,
+          appliedAt: new Date().toISOString(),
+        };
+        window.sessionStorage.setItem(
+          `${PREVIEW_RUN_STORAGE_PREFIX}${nextRun.runId}`,
+          JSON.stringify(nextRun),
+        );
+        setPreviewRun(nextRun);
+      }
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -283,6 +397,119 @@ export function PairingLogsTable() {
               <Button variant="outline" size="sm" onClick={handleRefresh}>
                 Retry
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {previewRun && isLegacyPreview && !previewRun.appliedAt && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-4 text-sm text-amber-900">
+            This preview has no overlap metadata. Saving will apply all proposed
+            matches. Run a new preview from the queue for overlap review and
+            selective save.
+          </CardContent>
+        </Card>
+      )}
+
+      {previewRun && hasOverlapPreviews && (
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Overlap before save</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={selectAllPreviews}
+                disabled={Boolean(previewRun.appliedAt)}
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={clearPreviewSelection}
+                disabled={Boolean(previewRun.appliedAt)}
+              >
+                Clear all
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10" />
+                    <TableHead>Student</TableHead>
+                    <TableHead>Tutor</TableHead>
+                    <TableHead>Subjects</TableHead>
+                    <TableHead>Times</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {previewRun.preview.matchPreviews.map((p) => {
+                    const key = previewKey(p);
+                    return (
+                      <TableRow key={key}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedKeys.has(key)}
+                            disabled={Boolean(previewRun.appliedAt)}
+                            onCheckedChange={(v) =>
+                              togglePreviewKey(key, v === true)
+                            }
+                            aria-label={`Select ${p.student_name}`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {p.student_name}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {p.tutor_name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {p.overlapping_subjects.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                None
+                              </span>
+                            ) : (
+                              p.overlapping_subjects.map((s) => (
+                                <Badge key={s} variant="secondary" className="text-xs">
+                                  {s}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1 max-w-[220px]">
+                            {p.overlapping_slots.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                None
+                              </span>
+                            ) : (
+                              p.overlapping_slots.map((slot, i) => (
+                                <Badge
+                                  key={`${slot.day}-${slot.startTime}-${i}`}
+                                  variant="outline"
+                                  className="text-xs w-fit"
+                                >
+                                  {slot.day}: {to12Hour(slot.startTime)} –{" "}
+                                  {to12Hour(slot.endTime)}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
@@ -347,18 +574,39 @@ export function PairingLogsTable() {
               ? `Preview Run Filters (${previewRun.runId.slice(0, 8)})`
               : "Filters"}
           </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
-            {loading
-              ? "Refreshing..."
-              : previewRun
-                ? "Reload Preview"
-                : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {previewRun && (
+              <Button
+                size="sm"
+                onClick={handleApplyPreviewRun}
+                disabled={
+                  isApplying ||
+                  Boolean(previewRun.appliedAt) ||
+                  (hasOverlapPreviews && selectedKeys.size === 0)
+                }
+              >
+                {previewRun.appliedAt
+                  ? "Queue Already Saved"
+                  : isApplying
+                    ? "Saving..."
+                    : hasOverlapPreviews
+                      ? `Save selected (${selectedKeys.size})`
+                      : "Save Queue"}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              {loading
+                ? "Refreshing..."
+                : previewRun
+                  ? "Reload Preview"
+                  : "Refresh"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
@@ -503,7 +751,9 @@ export function PairingLogsTable() {
                   filteredLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="font-mono text-sm">
-                        {new Date(log.created_at).toLocaleString()}
+                        {log.created_at
+                          ? new Date(log.created_at).toLocaleString()
+                          : "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

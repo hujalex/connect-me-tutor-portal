@@ -5,6 +5,19 @@ import {
 } from "@/lib/pairing";
 import { NextRequest, NextResponse } from "next/server";
 
+/** Opening this URL in a browser uses GET; the workflow only runs on POST */
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  return NextResponse.json(
+    {
+      message:
+        "Pairing runs on POST only (e.g. from the admin UI or curl). A plain browser visit uses GET and does not run the workflow.",
+      usePost: `curl -X POST "${url.origin}${url.pathname}?dryRun=1&debug=1" -H "Content-Type: application/json" -d '{}'`,
+    },
+    { headers: { Allow: "POST" } },
+  );
+}
+
 export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const dryRunParam = url.searchParams.get("dryRun");

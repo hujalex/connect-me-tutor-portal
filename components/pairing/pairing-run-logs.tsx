@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -15,24 +16,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-type PairingWorkflowPreview = {
-  logs: { type: string; message: string; error?: boolean }[];
-  matchesToInsert: { student_id: string; tutor_id: string; similarity: number }[];
-  summary: {
-    matchesToInsert: number;
-    logsToInsert: number;
-  };
-};
+import type { PairingMatchPreview, PairingWorkflowPreviewPayload } from "@/types/pairing";
+import { filterPairingPreviewLogsForKeys } from "@/lib/pairing/filterPreviewLogs";
+import { normalizePairingWorkflowPreviewPayload } from "@/lib/pairing/normalizePreviewPayload";
+import { to12Hour } from "@/lib/utils";
 
 type StoredPairingRun = {
   runId: string;
   createdAt: string;
-  preview: PairingWorkflowPreview;
+  preview: PairingWorkflowPreviewPayload;
   appliedAt?: string;
 };
 
 const PREVIEW_RUN_STORAGE_PREFIX = "pairing-preview-run:";
+
+function previewKey(p: PairingMatchPreview): string {
+  return `${p.pairing_request_id}:${p.match_profile_id}`;
+}
 
 export function PairingRunLogsPage() {
   const router = useRouter();
@@ -41,10 +41,13 @@ export function PairingRunLogsPage() {
 
   const [run, setRun] = useState<StoredPairingRun | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [showNoOverlapOnly, setShowNoOverlapOnly] = useState(false);
 
   useEffect(() => {
     if (!runId || typeof window === "undefined") {
       setRun(null);
+      setSelectedKeys(new Set());
       return;
     }
 
@@ -53,14 +56,24 @@ export function PairingRunLogsPage() {
     );
     if (!raw) {
       setRun(null);
+      setSelectedKeys(new Set());
       return;
     }
 
     try {
       const parsed = JSON.parse(raw) as StoredPairingRun;
-      setRun(parsed);
+      const preview = normalizePairingWorkflowPreviewPayload(parsed.preview);
+      setRun({ ...parsed, preview });
+      if (preview.matchPreviews.length > 0) {
+        setSelectedKeys(
+          new Set(preview.matchPreviews.map((p) => previewKey(p))),
+        );
+      } else {
+        setSelectedKeys(new Set());
+      }
     } catch {
       setRun(null);
+      setSelectedKeys(new Set());
     }
   }, [runId]);
 
@@ -69,15 +82,71 @@ export function PairingRunLogsPage() {
     return new Date(run.createdAt).toLocaleString();
   }, [run?.createdAt]);
 
+  const isLegacyPreview = !run?.preview.matchPreviews?.length;
+  const hasOverlapData = Boolean(run?.preview.matchPreviews?.length);
+
+  const visiblePreviews = useMemo(() => {
+    const list = run?.preview.matchPreviews ?? [];
+    if (!showNoOverlapOnly) return list;
+    return list.filter(
+      (p) =>
+        p.overlapping_subjects.length === 0 && p.overlapping_slots.length === 0,
+    );
+  }, [run?.preview.matchPreviews, showNoOverlapOnly]);
+
+  const toggleKey = useCallback((key: string, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      for (const p of visiblePreviews) {
+        next.add(previewKey(p));
+      }
+      return next;
+    });
+  }, [visiblePreviews]);
+
+  const clearAll = useCallback(() => {
+    setSelectedKeys(new Set());
+  }, []);
+
   const handleApplyRun = async () => {
     if (!run) return;
 
+    if (!isLegacyPreview && selectedKeys.size === 0) {
+      toast.error("Select at least one proposed match to apply");
+      return;
+    }
+
     setIsApplying(true);
+
+    let matchesToInsert = run.preview.matchesToInsert;
+    let logs = run.preview.logs;
+
+    if (!isLegacyPreview) {
+      const previews = run.preview.matchPreviews.filter((p) =>
+        selectedKeys.has(previewKey(p)),
+      );
+      matchesToInsert = previews.map((p) => ({
+        student_id: p.student_id,
+        tutor_id: p.tutor_id,
+        similarity: p.similarity,
+      }));
+      logs = filterPairingPreviewLogsForKeys(run.preview.logs, selectedKeys);
+    }
+
     const promise = axios.post("/api/pairing?debug=1", {
       mode: "apply-preview",
       preview: {
-        matchesToInsert: run.preview.matchesToInsert,
-        logs: run.preview.logs,
+        matchesToInsert,
+        logs,
       },
     });
 
@@ -141,9 +210,17 @@ export function PairingRunLogsPage() {
             </Button>
             <Button
               onClick={handleApplyRun}
-              disabled={isApplying || Boolean(run.appliedAt)}
+              disabled={
+                isApplying ||
+                Boolean(run.appliedAt) ||
+                (!isLegacyPreview && selectedKeys.size === 0)
+              }
             >
-              {run.appliedAt ? "Already Applied" : "Apply This Run"}
+              {run.appliedAt
+                ? "Already Applied"
+                : isLegacyPreview
+                  ? "Apply This Run"
+                  : `Apply selected (${selectedKeys.size})`}
             </Button>
           </div>
         </CardHeader>
@@ -166,9 +243,137 @@ export function PairingRunLogsPage() {
             <Badge variant="outline">
               Run logs: {run.preview.summary.logsToInsert}
             </Badge>
+            {hasOverlapData && (
+              <Badge variant="secondary">
+                Selected to apply: {selectedKeys.size}
+              </Badge>
+            )}
           </div>
+          {isLegacyPreview && (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2">
+              This preview was saved before overlap metadata existed. Apply will
+              insert all proposed matches. Run a new preview for overlap review
+              and selective apply.
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      {hasOverlapData && (
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle>Review overlap before apply</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={selectAllVisible}>
+                Select all (visible)
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={clearAll}>
+                Clear all
+              </Button>
+              <Button
+                type="button"
+                variant={showNoOverlapOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowNoOverlapOnly((v) => !v)}
+              >
+                {showNoOverlapOnly ? "Show all" : "Show no-overlap only"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10" />
+                    <TableHead>Student</TableHead>
+                    <TableHead>Tutor</TableHead>
+                    <TableHead>Similarity</TableHead>
+                    <TableHead>Subject overlap</TableHead>
+                    <TableHead>Time overlap</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visiblePreviews.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No proposed matches in this filter.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    visiblePreviews.map((p) => {
+                      const key = previewKey(p);
+                      const checked = selectedKeys.has(key);
+                      return (
+                        <TableRow key={key}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) =>
+                                toggleKey(key, v === true)
+                              }
+                              aria-label={`Select match ${p.student_name} / ${p.tutor_name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {p.student_name}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {p.tutor_name}
+                          </TableCell>
+                          <TableCell className="tabular-nums">
+                            {typeof p.similarity === "number"
+                              ? p.similarity.toFixed(2)
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {p.overlapping_subjects.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  None
+                                </span>
+                              ) : (
+                                p.overlapping_subjects.map((s) => (
+                                  <Badge key={s} variant="secondary" className="text-xs">
+                                    {s}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1 max-w-sm">
+                              {p.overlapping_slots.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  None
+                                </span>
+                              ) : (
+                                p.overlapping_slots.map((slot, i) => (
+                                  <Badge
+                                    key={`${slot.day}-${slot.startTime}-${i}`}
+                                    variant="outline"
+                                    className="text-xs w-fit"
+                                  >
+                                    {slot.day}: {to12Hour(slot.startTime)} –{" "}
+                                    {to12Hour(slot.endTime)}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

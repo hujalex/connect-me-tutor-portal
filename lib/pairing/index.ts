@@ -1,5 +1,4 @@
-"use server"
-import { PairingMatch } from "@/types/pairing";
+import type { PairingMatch, PairingMatchPreview } from "@/types/pairing";
 import { createAdminClient, createClient } from "../supabase/server";
 import { Person } from "@/types/enrollment";
 import { PairingLogSchemaType } from "./types";
@@ -10,17 +9,27 @@ import {
 } from "../actions/email.server.actions";
 import { getRejectedTutorIdsForStudent } from "../actions/pairing.server.actions";
 import { Profile } from "@/types";
+import {
+  computeOverlappingAvailabilitySlots,
+  intersectSubjects,
+} from "./overlap";
 
 type QueueItem = {
   pairing_request_id: string;
   profile_id: string;
 };
 
-
-type QueueItemMatch = QueueItem & {
+type QueueItemMatch = {
+  pairing_request_id: string;
   similarity: number;
   match_profile: Person;
   requestor_profile: Person;
+};
+
+/** Requestor's pairing_requests row id + RPC match row */
+type MatchWithContext = {
+  requestor_pairing_request_id: string;
+  result: QueueItemMatch;
 };
 
 type PairingWorkflowOptions = {
@@ -34,6 +43,7 @@ export type PairingWorkflowResult = {
   dryRun: boolean;
   logs: PairingLogSchemaType[];
   matchesToInsert: PairingMatchInsert[];
+  matchPreviews: PairingMatchPreview[];
   summary: {
     matchedStudents: number;
     matchedTutors: number;
@@ -110,15 +120,6 @@ const sendPairingRequestNotification = async (
   }
 };
 
-
-const buildMatches = async (matches: QueueItemMatch[]): Promise<PairingMatchInsert[]> => {
-  return matches.map((match) => ({
-    student_id: match.requestor_profile.id,
-    tutor_id: match.match_profile.id,
-    similarity: match.similarity,
-  }) as PairingMatchInsert)
-}
-
 const getPairingSupabaseClient = async () => {
   let supabase = await createClient();
   try {
@@ -128,6 +129,141 @@ const getPairingSupabaseClient = async () => {
   }
   return supabase;
 };
+
+const profileName = (p: {
+  first_name?: string | null;
+  last_name?: string | null;
+}) =>
+  `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Unknown";
+
+const buildMatchesFromContexts = (
+  contexts: MatchWithContext[],
+): PairingMatchInsert[] => {
+  return contexts.map(({ result: match }) => {
+    const requestorIsStudent =
+      match.requestor_profile.role?.toLowerCase() === "student";
+    const student_id = requestorIsStudent
+      ? match.requestor_profile.id
+      : match.match_profile.id;
+    const tutor_id = requestorIsStudent
+      ? match.match_profile.id
+      : match.requestor_profile.id;
+    return {
+      student_id,
+      tutor_id,
+      similarity: match.similarity,
+    } as PairingMatchInsert;
+  });
+};
+
+async function buildMatchPreviews(
+  supabase: Awaited<ReturnType<typeof getPairingSupabaseClient>>,
+  contexts: MatchWithContext[],
+): Promise<PairingMatchPreview[]> {
+  if (contexts.length === 0) return [];
+
+  const ids = new Set<string>();
+  for (const { result: m } of contexts) {
+    ids.add(m.requestor_profile.id);
+    ids.add(m.match_profile.id);
+  }
+
+  const { data: rows, error } = await supabase
+    .from("Profiles")
+    .select("id, first_name, last_name, subjects_of_interest, availability")
+    .in("id", [...ids]);
+
+  if (error) {
+    console.error("buildMatchPreviews: failed to load profiles", error);
+    return contexts.map(({ requestor_pairing_request_id, result: m }) => {
+      const requestorIsStudent =
+        m.requestor_profile.role?.toLowerCase() === "student";
+      const student_id = requestorIsStudent
+        ? m.requestor_profile.id
+        : m.match_profile.id;
+      const tutor_id = requestorIsStudent
+        ? m.match_profile.id
+        : m.requestor_profile.id;
+      return {
+        pairing_request_id: requestor_pairing_request_id,
+        match_profile_id: m.match_profile.id,
+        student_id,
+        tutor_id,
+        similarity: m.similarity,
+        student_name: profileName(
+          requestorIsStudent ? m.requestor_profile : m.match_profile,
+        ),
+        tutor_name: profileName(
+          requestorIsStudent ? m.match_profile : m.requestor_profile,
+        ),
+        overlapping_subjects: [],
+        overlapping_slots: [],
+      };
+    });
+  }
+
+  type Row = {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    subjects_of_interest: string[] | null;
+    availability: unknown;
+  };
+
+  const byId = new Map<string, Row>();
+  for (const r of (rows ?? []) as Row[]) {
+    byId.set(r.id, r);
+  }
+
+  const previews: PairingMatchPreview[] = [];
+
+  for (const { requestor_pairing_request_id, result: m } of contexts) {
+    const requestorIsStudent =
+      m.requestor_profile.role?.toLowerCase() === "student";
+    const student_id = requestorIsStudent
+      ? m.requestor_profile.id
+      : m.match_profile.id;
+    const tutor_id = requestorIsStudent
+      ? m.match_profile.id
+      : m.requestor_profile.id;
+
+    const ps = byId.get(student_id);
+    const pt = byId.get(tutor_id);
+    const student_name = ps
+      ? profileName(ps)
+      : profileName(
+          requestorIsStudent ? m.requestor_profile : m.match_profile,
+        );
+    const tutor_name = pt
+      ? profileName(pt)
+      : profileName(
+          requestorIsStudent ? m.match_profile : m.requestor_profile,
+        );
+
+    const overlapping_subjects =
+      ps && pt
+        ? intersectSubjects(ps.subjects_of_interest, pt.subjects_of_interest)
+        : [];
+    const overlapping_slots =
+      ps && pt
+        ? computeOverlappingAvailabilitySlots(ps.availability, pt.availability)
+        : [];
+
+    previews.push({
+      pairing_request_id: requestor_pairing_request_id,
+      match_profile_id: m.match_profile.id,
+      student_id,
+      tutor_id,
+      similarity: m.similarity,
+      student_name,
+      tutor_name,
+      overlapping_subjects,
+      overlapping_slots,
+    });
+  }
+
+  return previews;
+}
 
 const persistPairingWorkflowResult = async (
   matchesToInsert: PairingMatchInsert[],
@@ -216,8 +352,8 @@ export const runPairingWorkflow = async (
   // Alternate pairing: student, tutor, student, tutor
   const maxLength = Math.max(studentQueue.length, tutorQueue.length);
 
-  const studentMatches: QueueItemMatch[] = [];
-  const tutorMatches: QueueItemMatch[] = [];
+  const studentMatchContexts: MatchWithContext[] = [];
+  const tutorMatchContexts: MatchWithContext[] = [];
   const requestorNameCache = new Map<string, string>();
 
   for (let i = 0; i < maxLength; i++) {
@@ -266,6 +402,8 @@ export const runPairingWorkflow = async (
 
       if (result && !isExcluded) {
         const { requestor_profile, match_profile } = result;
+        const student_id = requestor_profile.id;
+        const tutor_id = match_profile.id;
         logDebug(debug, "Student match found", {
           pairing_request_id: studentReq.pairing_request_id,
           requestor_profile_id: requestor_profile.id,
@@ -281,10 +419,15 @@ export const runPairingWorkflow = async (
           metadata: {
             pairing_request_id: studentReq.pairing_request_id,
             match_profile_id: result.match_profile.id,
+            student_id,
+            tutor_id,
           },
         });
 
-        studentMatches.push(result);
+        studentMatchContexts.push({
+          requestor_pairing_request_id: studentReq.pairing_request_id,
+          result,
+        });
       } else {
         const requestorName = await getRequestorDisplayName(
           supabase,
@@ -333,6 +476,8 @@ export const runPairingWorkflow = async (
       }
 
       if (result) {
+        const student_id = result.match_profile.id;
+        const tutor_id = result.requestor_profile.id;
         logDebug(debug, "Tutor match found", {
           pairing_request_id: tutorReq.pairing_request_id,
           requestor_profile_id: result.requestor_profile.id,
@@ -341,7 +486,10 @@ export const runPairingWorkflow = async (
           match_name: `${result.match_profile.first_name} ${result.match_profile.last_name}`,
           similarity: result.similarity,
         });
-        tutorMatches.push(result);
+        tutorMatchContexts.push({
+          requestor_pairing_request_id: tutorReq.pairing_request_id,
+          result,
+        });
         logs.push({
           message: `Tutor ${result.requestor_profile.first_name} matched with ${result.match_profile.first_name}`,
           type: "pairing-match",
@@ -349,6 +497,8 @@ export const runPairingWorkflow = async (
           metadata: {
             pairing_request_id: tutorReq.pairing_request_id,
             match_profile_id: result.match_profile.id,
+            student_id,
+            tutor_id,
           },
         });
       } else {
@@ -376,20 +526,21 @@ export const runPairingWorkflow = async (
     }
   }
 
-  // Build matches for DB insert
-  const matchedStudents: PairingMatchInsert[] = await buildMatches(studentMatches)
-  const matchedTutors: PairingMatchInsert[] = await buildMatches(tutorMatches)
-
+  const matchedStudents = buildMatchesFromContexts(studentMatchContexts);
+  const matchedTutors = buildMatchesFromContexts(tutorMatchContexts);
+  const allMatchContexts = [...studentMatchContexts, ...tutorMatchContexts];
+  const matchPreviews = await buildMatchPreviews(supabase, allMatchContexts);
 
   // Insert pairing matches to track all suggested matches
   // Handle duplicates gracefully (users stay in queue and may get same matches on subsequent runs)
   const matchesToInsert = [...matchedStudents, ...matchedTutors].filter(
-    ({ similarity }) => similarity
+    ({ similarity }) => similarity,
   );
   const result: PairingWorkflowResult = {
     dryRun,
     logs,
     matchesToInsert,
+    matchPreviews,
     summary: {
       matchedStudents: matchedStudents.length,
       matchedTutors: matchedTutors.length,

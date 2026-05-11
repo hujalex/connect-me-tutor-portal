@@ -18,20 +18,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-
-type PairingWorkflowPreview = {
-  logs: { type: string; message: string; error?: boolean }[];
-  matchesToInsert: { student_id: string; tutor_id: string; similarity: number }[];
-  summary: {
-    matchesToInsert: number;
-    logsToInsert: number;
-  };
-};
+import type { PairingWorkflowPreviewPayload } from "@/types/pairing";
+import { normalizePairingWorkflowPreviewPayload } from "@/lib/pairing/normalizePreviewPayload";
 
 type StoredPairingRun = {
   runId: string;
   createdAt: string;
-  preview: PairingWorkflowPreview;
+  preview: PairingWorkflowPreviewPayload;
   appliedAt?: string;
 };
 
@@ -39,9 +32,8 @@ const PREVIEW_RUN_STORAGE_PREFIX = "pairing-preview-run:";
 
 export function TestingPairingControls() {
   const router = useRouter();
-  const [previewResult, setPreviewResult] = useState<PairingWorkflowPreview | null>(
-    null,
-  );
+  const [previewResult, setPreviewResult] =
+    useState<PairingWorkflowPreviewPayload | null>(null);
   const [latestRunId, setLatestRunId] = useState<string | null>(null);
 
   const createRunId = () => {
@@ -76,10 +68,11 @@ export function TestingPairingControls() {
     });
 
     const response = await promise;
-    const result = response.data?.result as PairingWorkflowPreview | undefined;
-    if (!result) {
+    const raw = response.data?.result;
+    if (!raw) {
       throw new Error("Missing preview result from API");
     }
+    const result = normalizePairingWorkflowPreviewPayload(raw);
 
     setPreviewResult(result);
     const runId = createRunId();

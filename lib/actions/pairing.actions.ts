@@ -35,18 +35,6 @@ export const getAllPairingRequests = async (
     throw new Error("Missing Supabase environment variables");
   }
 
-  const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] =
-    await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
-
-  console.info("[getAllPairingRequests] auth context", {
-    hasSession: Boolean(sessionData.session),
-    hasAccessToken: Boolean(sessionData.session?.access_token),
-    userId: userData.user?.id ?? null,
-    userRole: userData.user?.role ?? null,
-    sessionError: sessionError?.message ?? null,
-    userError: userError?.message ?? null,
-  });
-
   const { data, error } = await supabase.rpc("get_all_pairing_requests", {
     p_type: profileType,
   });
@@ -397,7 +385,11 @@ export const removePairingRequest = async (id: string) => {
 
 export const updatePairingRequest = async (
   requestId: string,
-  updates: { notes?: string; exclude_rejected_tutors?: boolean },
+  updates: {
+    notes?: string;
+    exclude_rejected_tutors?: boolean;
+    priority?: number;
+  },
 ) => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -415,6 +407,7 @@ export const updatePairingRequest = async (
   if (updates.notes !== undefined) payload.notes = updates.notes;
   if (updates.exclude_rejected_tutors !== undefined)
     payload.exclude_rejected_tutors = updates.exclude_rejected_tutors;
+  if (updates.priority !== undefined) payload.priority = updates.priority;
 
   if (Object.keys(payload).length === 0) return;
 
