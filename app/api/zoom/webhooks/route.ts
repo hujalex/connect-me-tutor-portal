@@ -7,10 +7,24 @@ import {
 } from "@/lib/actions/zoom.server.actions";
 import { resolvePortalSessionForZoomMeetingNumber } from "@/lib/actions/session.server.actions";
 import { logEvent, logError, serializeForPosthog } from "@/lib/posthog";
-import { decodeZoomWebhookMeetingUuid } from "@/lib/zoom/meeting-uuid";
 
 // Use a single signing secret for all Zoom webhooks
 const validationSecret = config.zoom.ZOOM_WEBHOOK_SECRET;
+
+function normalizeMeetingNumber(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  const digitsOnly = String(raw).replace(/\D/g, "");
+  return digitsOnly.length > 0 ? digitsOnly : null;
+}
+
+function formatMeetingNumberForStorage(normalizedMeetingNumber: string): string {
+  if (!normalizedMeetingNumber) return "";
+  if (normalizedMeetingNumber.length <= 3) return normalizedMeetingNumber;
+  if (normalizedMeetingNumber.length <= 7) {
+    return `${normalizedMeetingNumber.slice(0, 3)} ${normalizedMeetingNumber.slice(3)}`;
+  }
+  return `${normalizedMeetingNumber.slice(0, 3)} ${normalizedMeetingNumber.slice(3, 7)} ${normalizedMeetingNumber.slice(7)}`;
+}
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -23,8 +37,10 @@ export async function POST(req: NextRequest) {
   });
 
   let body;
+  let rawBody = "";
   try {
-    body = await req.json();
+    rawBody = await req.text();
+    body = JSON.parse(rawBody);
     await logEvent("zoom_webhook_body_parsed", {
       request_id: requestId,
       event: body?.event,
@@ -45,13 +61,16 @@ export async function POST(req: NextRequest) {
   const event = body?.event;
 
   // Extract identifying information from the payload
-  // Instance UUID: Base64 in the webhook; decode with lib/zoom/meeting-uuid (not the webhook secret)
+  // Zoom instance uuid (Base64) — portal matching uses numeric meeting id below, not this field
   const zoomMeetingId = payload?.object?.uuid;
-  const zoomMeetingUuidCanonical = decodeZoomWebhookMeetingUuid(zoomMeetingId);
   // Meeting number - the id field contains the meeting number (e.g., "77608067183")
   const meetingNumberRaw =
     payload?.object?.id || payload?.object?.meeting_number;
-  const meetingNumber = meetingNumberRaw ? String(meetingNumberRaw) : undefined;
+  const meetingNumberNormalized = normalizeMeetingNumber(meetingNumberRaw);
+  const meetingNumber = meetingNumberNormalized ?? undefined;
+  const meetingNumberSpaced = meetingNumberNormalized
+    ? formatMeetingNumberForStorage(meetingNumberNormalized)
+    : undefined;
   // Account information at payload level
   const accountId = payload?.account_id;
   const accountEmail = payload?.account_email;
@@ -76,11 +95,22 @@ export async function POST(req: NextRequest) {
   let meetingRecord: { id: string; meeting_id: string } | null = null;
 
   // console.log("meetingNumber", meetingNumber);
+  if (!meetingNumber && zoomMeetingId) {
+    await logEvent("zoom_webhook_uuid_only_input", {
+      request_id: requestId,
+      event_type: event,
+      zoom_meeting_id: zoomMeetingId,
+      meeting_number_raw: meetingNumberRaw,
+      resolution: "skipped_numeric_meeting_lookup",
+    });
+  }
+
   if (meetingNumber) {
     try {
       await logEvent("zoom_webhook_finding_meeting_start", {
         request_id: requestId,
         meeting_number: meetingNumber,
+        meeting_number_spaced: meetingNumberSpaced,
       });
 
       const resolved =
@@ -90,12 +120,14 @@ export async function POST(req: NextRequest) {
         await logEvent("zoom_webhook_meeting_not_found", {
           request_id: requestId,
           meeting_number: meetingNumber,
+          meeting_number_spaced: meetingNumberSpaced,
         });
       } else {
         meetingRecord = resolved.meetingRecord;
         await logEvent("zoom_webhook_meeting_found", {
           request_id: requestId,
           meeting_number: meetingNumber,
+          meeting_number_spaced: meetingNumberSpaced,
           meeting_id: meetingRecord.id,
           stored_meeting_id: meetingRecord.meeting_id,
         });
@@ -105,6 +137,7 @@ export async function POST(req: NextRequest) {
           await logEvent("zoom_webhook_active_session_found", {
             request_id: requestId,
             meeting_number: meetingNumber,
+            meeting_number_spaced: meetingNumberSpaced,
             meeting_id: meetingRecord.id,
             session_id: sessionId,
           });
@@ -112,6 +145,7 @@ export async function POST(req: NextRequest) {
           await logEvent("zoom_webhook_no_active_session", {
             request_id: requestId,
             meeting_number: meetingNumber,
+            meeting_number_spaced: meetingNumberSpaced,
             meeting_id: meetingRecord.id,
             resolution: "no_session_in_scheduled_window",
           });
@@ -130,10 +164,10 @@ export async function POST(req: NextRequest) {
   await logEvent("zoom_webhook_identifiers_extracted", {
     request_id: requestId,
     zoom_meeting_id: zoomMeetingId,
-    zoom_meeting_uuid_canonical: zoomMeetingUuidCanonical,
     account_id: accountId,
     account_email: accountEmail,
     meeting_number: meetingNumber,
+    meeting_number_spaced: meetingNumberSpaced,
     meeting_number_raw: meetingNumberRaw,
     host_id: hostId,
     host_email: hostEmail,
@@ -242,8 +276,7 @@ export async function POST(req: NextRequest) {
   // Method 2: Verify HMAC signature (recommended by Zoom, more secure)
   if (!isAuthorized && signature && timestamp) {
     try {
-      const bodyString = JSON.stringify(body);
-      const message = `v0:${timestamp}:${bodyString}`;
+      const message = `v0:${timestamp}:${rawBody}`;
       const expectedSignature = `v0=${crypto
         .createHmac("sha256", validationSecret)
         .update(message)

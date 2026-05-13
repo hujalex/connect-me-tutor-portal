@@ -12,6 +12,7 @@ import {
   PairingConfirmationEmailProps,
   PairingRequestNotificationEmailProps,
 } from "@/types/email";
+import MonthlyCheckInEmail from "@/components/emails/monthly-check-in-email";
 import { createAdminClient, createClient } from "../supabase/server";
 import { parseISO, subMinutes } from "date-fns";
 import StudentRescheduleNotificationEmail, {
@@ -420,6 +421,35 @@ export async function sendEarlySessionCheckInEmails(now = new Date()) {
   };
 }
 
+export async function sendMonthlyCheckInEmail(
+  data: { firstName: string; role: "tutor" | "student" | "parent" },
+  emailTo: string,
+) {
+  const emailHtml = await render(
+    React.createElement(MonthlyCheckInEmail, data),
+  );
+
+  const emailResult = await withRetry(
+    () =>
+      resend.emails.send({
+        from: "Connect Me Free Tutoring & Mentoring <notifications@connectmego.app>",
+        to: emailTo,
+        cc: [process.env.DEV_EMAIL!, process.env.OPERATIONS_EMAIL!],
+        subject: "Your Monthly Connect Me Check-In",
+        html: emailHtml,
+      }),
+    {
+      onRetry: (error, attempt) =>
+        console.error(
+          `sendMonthlyCheckInEmail attempt ${attempt + 1} failed:`,
+          error,
+        ),
+    },
+  );
+
+  return emailResult;
+}
+
 export const sendEmail = async (
   from: string,
   to: string,
@@ -656,6 +686,5 @@ function normalizeEnrollmentStartDate(startDate: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
     return startDate;
   }
-
   return formatInTimeZone(startDate, EASTERN_TIMEZONE, "yyyy-MM-dd");
 }

@@ -247,7 +247,7 @@ const AddStudentForm = ({
               <div className="space-y-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="studentNumber" className=" text-right">
-                    Student # 
+                    Student #
                   </Label>
                   <Input
                     id="studentNumber"
@@ -312,7 +312,6 @@ const AddStudentForm = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Kindergarten">Kindergarten</SelectItem>
-                      <SelectItem value="K">K</SelectItem>
                       {Array.from({ length: 12 }, (_, i) => (
                         <SelectItem
                           key={i}
@@ -541,7 +540,6 @@ const AddStudentForm = ({
                           <SelectItem value="Kindergarten">
                             Kindergarten
                           </SelectItem>
-                          <SelectItem value="K">K</SelectItem>
                           {Array.from({ length: 12 }, (_, i) => (
                             <SelectItem
                               key={i}
