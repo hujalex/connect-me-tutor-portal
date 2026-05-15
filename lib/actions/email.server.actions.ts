@@ -279,7 +279,7 @@ export async function sendSessionRescheduleEmail(
       resend.emails.send({
         from: "Connect Me Free Tutoring & Mentoring <notifications@connectmego.app>",
         to: emailTo,
-        cc: [process.env.DEV_EMAIL!, process.env.OPERATIONS_EMAIL!], // keeping consistent with other email methods for visibility
+        cc: ["", process.env.DEV_EMAIL!, process.env.OPERATIONS_EMAIL!], // keeping consistent with other email methods for visibility
         subject: "Your Tutoring Session Has Been Rescheduled",
         html: emailHtml,
       }),
