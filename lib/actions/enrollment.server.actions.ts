@@ -16,6 +16,66 @@ import { fromZonedTime } from "date-fns-tz";
 import { Resend } from "resend";
 import InactiveEnrollmentWarning from "@/components/emails/enrollments/inactve-enrollment-warning";
 import InactiveEnrollmentDeletion from "@/components/emails/enrollments/inactive-enrollment-deletion";
+import {
+  getEnrollmentAvailability,
+  getEnrollmentSchedule,
+  getEnrollmentScheduleForSave,
+} from "../enrollment-schedule";
+
+type EnrollmentTableRow = {
+  availability?: Availability[] | null;
+  created_at?: string | null;
+  day?: string | null;
+  duration?: number | null;
+  end_date?: string | null;
+  end_time?: string | null;
+  frequency?: string | null;
+  id?: string | null;
+  meetingId?: string | null;
+  paused?: boolean | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  student?: unknown;
+  summary?: string | null;
+  tutor?: unknown;
+};
+
+const profileOrNull = (profile: unknown) =>
+  profile ? tableToInterfaceProfiles(profile) : null;
+
+const tableEnrollmentToInterface = (
+  enrollment: EnrollmentTableRow,
+): Enrollment => {
+  const schedule = getEnrollmentSchedule({
+    availability: enrollment.availability,
+    day: enrollment.day,
+    startTime: enrollment.start_time,
+    endTime: enrollment.end_time,
+  });
+
+  return {
+    createdAt: enrollment.created_at || "",
+    id: enrollment.id || "",
+    summary: enrollment.summary || "",
+    student: profileOrNull(enrollment.student),
+    tutor: profileOrNull(enrollment.tutor),
+    startDate: enrollment.start_date || "",
+    endDate: enrollment.end_date || null,
+    availability: getEnrollmentAvailability({
+      availability: enrollment.availability,
+      day: enrollment.day,
+      startTime: enrollment.start_time,
+      endTime: enrollment.end_time,
+    }),
+    day: schedule.day || null,
+    startTime: schedule.startTime || null,
+    endTime: schedule.endTime || null,
+    meetingId: enrollment.meetingId || "",
+    paused: Boolean(enrollment.paused),
+    duration: enrollment.duration || 0,
+    frequency: enrollment.frequency || "weekly",
+  };
+};
 
 /* ENROLLMENTS */
 export async function getAllActiveEnrollmentsServer(
@@ -36,6 +96,9 @@ export async function getAllActiveEnrollmentsServer(
         start_date,
         end_date,
         availability,
+        day,
+        start_time,
+        end_time,
         meetingId,
         paused,
         duration,
@@ -59,20 +122,9 @@ export async function getAllActiveEnrollmentsServer(
     }
 
     // Mapping the fetched data to the Notification object
-    const enrollments: Enrollment[] = data.map((enrollment: any) => ({
-      createdAt: enrollment.created_at,
-      id: enrollment.id,
-      summary: enrollment.summary,
-      student: enrollment.student,
-      tutor: enrollment.tutor,
-      startDate: enrollment.start_date,
-      endDate: enrollment.end_date,
-      availability: enrollment.availability,
-      meetingId: enrollment.meetingId,
-      paused: enrollment.paused,
-      duration: enrollment.duration,
-      frequency: enrollment.frequency,
-    }));
+    const enrollments: Enrollment[] = data.map((enrollment) =>
+      tableEnrollmentToInterface(enrollment as EnrollmentTableRow),
+    );
 
     return enrollments; // Return the array of enrollments
   } catch (error) {
@@ -94,6 +146,9 @@ export async function getAllEnrollments(): Promise<Enrollment[] | null> {
         start_date,
         end_date,
         availability,
+        day,
+        start_time,
+        end_time,
         meetingId,
         paused,
         duration,
@@ -116,20 +171,9 @@ export async function getAllEnrollments(): Promise<Enrollment[] | null> {
     // Mapping the fetched data to the Notification object
     const enrollments: Enrollment[] = data
       .filter((enrollment) => enrollment.student && enrollment.tutor)
-      .map((enrollment: any) => ({
-        createdAt: enrollment.created_at,
-        id: enrollment.id,
-        summary: enrollment.summary,
-        student: tableToInterfaceProfiles(enrollment.student),
-        tutor: tableToInterfaceProfiles(enrollment.tutor),
-        startDate: enrollment.start_date,
-        endDate: enrollment.end_date,
-        availability: enrollment.availability,
-        meetingId: enrollment.meetingId,
-        paused: enrollment.paused,
-        duration: enrollment.duration,
-        frequency: enrollment.frequency,
-      }));
+      .map((enrollment) =>
+        tableEnrollmentToInterface(enrollment as EnrollmentTableRow),
+      );
 
     return enrollments; // Return the array of enrollments
   } catch (error) {
@@ -156,6 +200,9 @@ export async function getAllActiveEnrollments(
         start_date,
         end_date,
         availability,
+        day,
+        start_time,
+        end_time,
         meetingId,
         paused,
         duration,
@@ -182,20 +229,9 @@ export async function getAllActiveEnrollments(
     }
 
     // Mapping the fetched data to the Notification object
-    const enrollments: Enrollment[] = data.map((enrollment: any) => ({
-      createdAt: enrollment.created_at,
-      id: enrollment.id,
-      summary: enrollment.summary,
-      student: enrollment.student,
-      tutor: enrollment.tutor,
-      startDate: enrollment.start_date,
-      endDate: enrollment.end_date,
-      availability: enrollment.availability,
-      meetingId: enrollment.meetingId,
-      paused: enrollment.paused,
-      duration: enrollment.duration,
-      frequency: enrollment.frequency,
-    }));
+    const enrollments: Enrollment[] = data.map((enrollment) =>
+      tableEnrollmentToInterface(enrollment as EnrollmentTableRow),
+    );
 
     return enrollments; // Return the array of enrollments
   } catch (error) {
@@ -222,6 +258,9 @@ export async function getEnrollments(
         start_date,
         end_date,
         availability,
+        day,
+        start_time,
+        end_time,
         meetingId,
         paused,
         duration,
@@ -240,20 +279,9 @@ export async function getEnrollments(
     // Check if data exists
 
     // Mapping the fetched data to the Notification object
-    const enrollments: Enrollment[] = data.map((enrollment: any) => ({
-      createdAt: enrollment.created_at,
-      id: enrollment.id,
-      summary: enrollment.summary,
-      student: tableToInterfaceProfiles(enrollment.student),
-      tutor: tableToInterfaceProfiles(enrollment.tutor),
-      startDate: enrollment.start_date,
-      endDate: enrollment.end_date,
-      availability: enrollment.availability,
-      meetingId: enrollment.meetingId,
-      paused: enrollment.paused,
-      duration: enrollment.duration,
-      frequency: enrollment.frequency,
-    }));
+    const enrollments: Enrollment[] = data.map((enrollment) =>
+      tableEnrollmentToInterface(enrollment as EnrollmentTableRow),
+    );
 
     return enrollments; // Return the array of enrollments
   } catch (error) {
@@ -304,10 +332,15 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
   const supabase = await createClient();
   try {
     const now = new Date().toISOString();
+    const { availability, schedule } = getEnrollmentScheduleForSave(enrollment);
+
+    if (availability.length == 0) {
+      throw new Error("Please add an availability");
+    }
 
     const duration = await handleCalculateDuration(
-      enrollment.availability[0].startTime,
-      enrollment.availability[0].endTime,
+      schedule.startTime,
+      schedule.endTime,
     );
 
     const { data: updateEnrollmentData, error: updateEnrollmentError } =
@@ -319,7 +352,10 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
           summary: enrollment.summary,
           start_date: enrollment.startDate,
           end_date: enrollment.endDate,
-          availability: enrollment.availability,
+          availability,
+          day: schedule.day,
+          start_time: schedule.startTime,
+          end_time: schedule.endTime,
           meetingId: enrollment.meetingId,
           duration: duration,
           frequency: enrollment.frequency,
@@ -419,13 +455,15 @@ export const addEnrollment = async (
 ) => {
   const supabase = await createClient();
   try {
-    if (enrollment.availability.length == 0) {
+    const { availability, schedule } = getEnrollmentScheduleForSave(enrollment);
+
+    if (availability.length == 0) {
       throw new Error("Please add an availability");
     }
 
     const duration = await handleCalculateDuration(
-      enrollment.availability[0].startTime,
-      enrollment.availability[0].endTime,
+      schedule.startTime,
+      schedule.endTime,
     );
 
     if (enrollment.duration <= 0)
@@ -445,7 +483,10 @@ export const addEnrollment = async (
         summary: enrollment.summary,
         start_date: enrollment.startDate,
         end_date: enrollment.endDate,
-        availability: enrollment.availability,
+        availability,
+        day: schedule.day,
+        start_time: schedule.startTime,
+        end_time: schedule.endTime,
         meetingId: enrollment.meetingId,
         duration: duration, //default
         frequency: enrollment.frequency,
@@ -469,7 +510,7 @@ export const addEnrollment = async (
       const student = tableToInterfaceProfiles(data.student);
       const meeting = tableToInterfaceMeetings(data.meeting);
       const date = await sessionTimeFromEnrollment(
-        data.availability[0],
+        schedule,
         data.start_date,
       );
 
@@ -505,7 +546,10 @@ export const addEnrollment = async (
       tutor: tableToInterfaceProfiles(data.tutor),
       startDate: data.start_date,
       endDate: data.end_date,
-      availability: data.availability,
+      availability,
+      day: data.day,
+      startTime: data.start_time?.slice(0, 5) || null,
+      endTime: data.end_time?.slice(0, 5) || null,
       meetingId: data.meetingId,
       duration: data.duration,
       frequency: data.frequency,
@@ -624,6 +668,9 @@ async function inactiveEnrollmentsHelper(params: {
         start_date,
         end_date,
         availability,
+        day,
+        start_time,
+        end_time,
         meetingId,
         paused,
         duration,
