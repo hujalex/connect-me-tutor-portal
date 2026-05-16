@@ -122,6 +122,7 @@
     "follow-redirects": "^1.16.0",
     "@protobufjs/utf8": "^1.1.1",
     "protobufjs": "^7.5.8",
+    "uuid": "^11.1.1",
     "unhead": "^2.1.13"
   }
 }
