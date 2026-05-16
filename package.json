@@ -119,7 +119,7 @@
     "fast-xml-builder": "^1.2.0",
     "fast-xml-parser": "^5.7.1",
     "follow-redirects": "^1.16.0",
-    "protobufjs": "^7.5.5",
+    "protobufjs": "^7.5.8",
     "unhead": "^2.1.13"
   }
 }
