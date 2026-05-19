@@ -50,7 +50,7 @@ const StudentList = ({ initialStudents }: any) => {
   useEffect(() => {
     setStudents(initialStudents);
     setFilteredStudents(initialStudents);
-  }, [initialStudents]);
+  }, [supabase.auth]);
 
   useEffect(() => {
     const filtered = students.filter(
@@ -69,12 +69,8 @@ const StudentList = ({ initialStudents }: any) => {
   };
 
   const handleRowsPerPageChange = (value: string) => {
-    setRowsPerPage(Number(value));
+    setRowsPerPage(parseInt(value));
     setCurrentPage(1);
-  };
-
-  const removeStudent = (studentId: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
   };
 
   const paginatedStudents = filteredStudents.slice(
@@ -130,7 +126,7 @@ const StudentList = ({ initialStudents }: any) => {
                   <TableCell>{student.parentEmail}</TableCell>
                   <TableCell>{student.parentPhone}</TableCell>
                   <TableCell>
-                    <DeletePairingForm student={student} tutor={profile} onRemove={removeStudent} />
+                    <DeletePairingForm student={student} tutor={profile} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -148,7 +144,7 @@ const StudentList = ({ initialStudents }: any) => {
               <div className="font-semibold text-base">
                 {student.firstName} {student.lastName}
               </div>
-              <DeletePairingForm student={student} tutor={profile} onRemove={removeStudent} />
+              <DeletePairingForm student={student} tutor={profile} />
             </div>
             <div className="text-sm text-muted-foreground">
               Start Date: {student.startDate}

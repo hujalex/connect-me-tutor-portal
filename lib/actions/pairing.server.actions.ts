@@ -132,7 +132,6 @@ export const deletePairingServer = async (
   try {
     const adminSupabase = await createAdminClient();
 
-    // Find the pairing record for this tutor/student pair.
     const { data: pairings, error: pairingsError } = await adminSupabase
       .from("Pairings")
       .select("id")
@@ -147,7 +146,7 @@ export const deletePairingServer = async (
 
     const enrollmentIds = new Set<string>();
 
-    // Collect enrollments by tutor/student pair.
+   
     const { data: matchingEnrollments, error: matchingEnrollmentsError } =
       await adminSupabase
         .from("Enrollments")
@@ -160,7 +159,6 @@ export const deletePairingServer = async (
       if (enrollment.id) enrollmentIds.add(enrollment.id);
     });
 
-    // Also collect enrollments linked by pairing_id, if any.
     if (pairingIds.length > 0) {
       const { data: pairingEnrollments, error: pairingEnrollmentsError } =
         await adminSupabase
