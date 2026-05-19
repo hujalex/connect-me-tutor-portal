@@ -266,7 +266,10 @@ export async function getAllActiveEnrollmentsForCron(): Promise<Enrollment[]> {
       .eq("paused", false);
 
     if (error) {
-      console.error("Error fetching active enrollments for cron:", error.message);
+      console.error(
+        "Error fetching active enrollments for cron:",
+        error.message,
+      );
       throw error;
     }
 
@@ -374,14 +377,13 @@ export const removeEnrollment = async (enrollmentId: string) => {
 export const updateEnrollment = async (enrollment: Enrollment) => {
   const supabase = await createClient();
   try {
-    const now = new Date().toISOString();
     const { availability, schedule } = getEnrollmentScheduleForSave(enrollment);
 
     if (availability.length == 0) {
       throw new Error("Please add an availability");
     }
 
-    const duration = await handleCalculateDuration(
+    enrollment.duration = await handleCalculateDuration(
       schedule.startTime,
       schedule.endTime,
     );
@@ -400,41 +402,19 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
           start_time: schedule.startTime,
           end_time: schedule.endTime,
           meetingId: enrollment.meetingId,
-          duration: duration,
+          duration: enrollment.duration,
           frequency: enrollment.frequency,
         })
         .eq("id", enrollment.id)
-        .select("*") // Ensure it selects all columns
-        .single(); // Ensure only one object is returned
+        .select("*")
+        .single();
 
     if (updateEnrollmentError) {
       console.error("Error updating enrollment: ", updateEnrollmentError);
       throw updateEnrollmentError;
     }
 
-    // update related sessions
-    if (enrollment.student && enrollment.tutor) {
-      const { data: updateSessionData, error: updateSessionError } =
-        await supabase
-          .from(Table.Sessions)
-          .update({
-            student_id: enrollment.student?.id,
-            tutor_id: enrollment.tutor?.id,
-            meeting_id: enrollment.meetingId,
-          })
-          .eq("enrollment_id", enrollment.id)
-          .gte("date", now);
-
-      if (updateSessionError) {
-        console.error("Error updating sessions: ", updateSessionError);
-        throw updateSessionError;
-      }
-    }
-
-    //update future sessions
-    const adminSupabase = await createAdminClient();
-    await removeFutureSessions(enrollment.id, adminSupabase);
-
+    await updateFutureSessions(enrollment);
     return updateEnrollmentData;
   } catch (error) {
     console.error("Unable to update Enrollment", error);
@@ -442,19 +422,20 @@ export const updateEnrollment = async (enrollment: Enrollment) => {
   }
 };
 
-const updateSessions = async (enrollment: Enrollment) => {
+const updateFutureSessions = async (enrollment: Enrollment) => {
   const now = new Date().toISOString();
-  const supabase = await createClient();
-  await supabase
+  const supabase = await createAdminClient();
+  const { error } = await supabase
     .from("Sessions")
     .update({
       student_id: enrollment.student?.id,
       tutor_id: enrollment.tutor?.id,
-      meeting: enrollment.meetingId,
+      meeting_id: enrollment.meetingId,
       duration: enrollment.duration,
     })
     .eq("enrollment_id", enrollment.id)
     .gte("date", now);
+  if (error) throw error;
 };
 
 export const getEnrollmentsWithMissingSEF = async (
@@ -552,10 +533,7 @@ export const addEnrollment = async (
       const tutor = tableToInterfaceProfiles(data.tutor);
       const student = tableToInterfaceProfiles(data.student);
       const meeting = tableToInterfaceMeetings(data.meeting);
-      const date = await sessionTimeFromEnrollment(
-        schedule,
-        data.start_date,
-      );
+      const date = await sessionTimeFromEnrollment(schedule, data.start_date);
 
       const firstSession: Session = {
         id: "",
