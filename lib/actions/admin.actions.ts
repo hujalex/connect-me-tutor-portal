@@ -468,7 +468,7 @@ export async function getSessionKeys(data?: Session[]) {
 export async function isSingleMeetingAvailable(
   meetingId: string,
   session: Session,
-): Promise<void> {}
+): Promise<void> { }
 
 /**
  * Checks availability of multiple meetings at once
@@ -539,6 +539,7 @@ export async function updateSession(
       tutor,
       student,
       date,
+      duration,
       summary,
       meeting,
       session_exit_form,
@@ -553,6 +554,7 @@ export async function updateSession(
         student_id: student?.id,
         tutor_id: tutor?.id,
         date: date,
+        duration: duration,
         summary: summary,
         meeting_id: meeting?.id,
         session_exit_form: session_exit_form,
