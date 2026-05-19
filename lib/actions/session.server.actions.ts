@@ -182,7 +182,10 @@ export async function addSessionsServer(
           }
         } catch (err) {
           console.error(
-            `Error processing time for ${day} ${startTime}-${endTime}:`,
+            "Error processing time for %s %s-%s:",
+            day,
+            startTime,
+            endTime,
             err,
           );
         }
