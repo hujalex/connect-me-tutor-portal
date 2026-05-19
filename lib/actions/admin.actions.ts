@@ -569,7 +569,15 @@ export async function removeSession(
   sessionId: string,
   updateEmail: boolean = true,
 ) {
-  // Create a notification for the admin
+  const { error: notificationError } = await supabase
+    .from(Table.Notifications)
+    .delete()
+    .eq("session_id", sessionId);
+
+  if (notificationError) {
+    throw notificationError;
+  }
+
   const { error: eventError } = await supabase
     .from(Table.Sessions)
     .delete()
