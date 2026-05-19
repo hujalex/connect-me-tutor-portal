@@ -61,7 +61,7 @@ import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 import SessionExitForm from "./SessionExitForm";
 import CancellationForm from "./CancellationForm";
 import EditSessionForm from "./EditSessionForm";
-import { useDashboardContext } from "@/contexts/dashboardContext";
+import { useDashboardContext } from "@/lib/contexts/dashboardContext";
 
 const CurrentSessionsTable = ({
   meetings,

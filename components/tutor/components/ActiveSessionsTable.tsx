@@ -58,7 +58,7 @@ import SessionExitForm from "./SessionExitForm";
 import CancellationForm from "./CancellationForm";
 import EditSessionForm from "./EditSessionForm";
 import { boolean } from "zod";
-import { useDashboardContext } from "@/contexts/dashboardContext";
+import { useDashboardContext } from "@/lib/contexts/dashboardContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
