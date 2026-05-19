@@ -166,6 +166,38 @@ export const getIncomingPairingMatches = async (profileId: string) => {
 
 export const deletePairing = async (tutorId: string, studentId: string) => {
   try {
+    // First, get all enrollments for this tutor-student pair
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from("Enrollments")
+      .select("id")
+      .eq("tutor_id", tutorId)
+      .eq("student_id", studentId);
+
+    if (enrollmentsError) throw enrollmentsError;
+
+    // Delete future sessions for each enrollment
+    if (enrollments && enrollments.length > 0) {
+      const now = new Date().toISOString();
+      for (const enrollment of enrollments) {
+        await supabase
+          .from("Sessions")
+          .delete()
+          .eq("enrollment_id", enrollment.id)
+          .neq("status", "Complete")
+          .gte("date", now);
+      }
+
+      // Delete the enrollments
+      const { error: deleteEnrollmentsError } = await supabase
+        .from("Enrollments")
+        .delete()
+        .eq("tutor_id", tutorId)
+        .eq("student_id", studentId);
+
+      if (deleteEnrollmentsError) throw deleteEnrollmentsError;
+    }
+
+    // Delete the pairing
     const { data, error } = await supabase
       .from("Pairings")
       .delete()

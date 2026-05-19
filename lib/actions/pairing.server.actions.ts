@@ -2,7 +2,7 @@
 
 import { Enrollment, Meeting, Profile } from "@/types";
 import { SharedPairing } from "@/types/pairing";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import axios from "axios";
 import { getProfile } from "./user.actions";
 import { createServerClient } from "../supabase/server";
@@ -122,6 +122,89 @@ export const resetPairingQueues = async () => {
   if (error) {
     console.error("Error deleting rows:", error);
   } else {
+  }
+};
+
+export const deletePairingServer = async (
+  tutorId: string,
+  studentId: string,
+) => {
+  try {
+    const adminSupabase = await createAdminClient();
+
+    // Find the pairing record for this tutor/student pair.
+    const { data: pairings, error: pairingsError } = await adminSupabase
+      .from("Pairings")
+      .select("id")
+      .eq("tutor_id", tutorId)
+      .eq("student_id", studentId);
+
+    if (pairingsError) throw pairingsError;
+
+    const pairingIds = (pairings || [])
+      .map((pairing: any) => pairing.id)
+      .filter(Boolean);
+
+    const enrollmentIds = new Set<string>();
+
+    // Collect enrollments by tutor/student pair.
+    const { data: matchingEnrollments, error: matchingEnrollmentsError } =
+      await adminSupabase
+        .from("Enrollments")
+        .select("id")
+        .eq("tutor_id", tutorId)
+        .eq("student_id", studentId);
+
+    if (matchingEnrollmentsError) throw matchingEnrollmentsError;
+    matchingEnrollments?.forEach((enrollment: any) => {
+      if (enrollment.id) enrollmentIds.add(enrollment.id);
+    });
+
+    // Also collect enrollments linked by pairing_id, if any.
+    if (pairingIds.length > 0) {
+      const { data: pairingEnrollments, error: pairingEnrollmentsError } =
+        await adminSupabase
+          .from("Enrollments")
+          .select("id")
+          .in("pairing_id", pairingIds);
+
+      if (pairingEnrollmentsError) throw pairingEnrollmentsError;
+      pairingEnrollments?.forEach((enrollment: any) => {
+        if (enrollment.id) enrollmentIds.add(enrollment.id);
+      });
+    }
+
+    const enrollmentIdList = Array.from(enrollmentIds);
+
+    if (enrollmentIdList.length > 0) {
+      const now = new Date().toISOString();
+      await adminSupabase
+        .from("Sessions")
+        .delete()
+        .in("enrollment_id", enrollmentIdList)
+        .neq("status", "Complete")
+        .gte("date", now);
+
+      const { error: deleteEnrollmentsError } = await adminSupabase
+        .from("Enrollments")
+        .delete()
+        .in("id", enrollmentIdList);
+
+      if (deleteEnrollmentsError) throw deleteEnrollmentsError;
+    }
+
+    const { error: deletePairingError } = await adminSupabase
+      .from("Pairings")
+      .delete()
+      .eq("tutor_id", tutorId)
+      .eq("student_id", studentId);
+
+    if (deletePairingError) throw deletePairingError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete pairing:", error);
+    throw error;
   }
 };
 
