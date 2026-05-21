@@ -470,3 +470,42 @@ export async function getAllSessions(
     return [];
   }
 }
+
+export async function addOneSession(
+  session: Session
+): Promise<Session | null> {
+  try {
+    const newSession = {
+      date: session.date,
+      enrollment_id: session.enrollmentId || null,
+      student_id: session.student?.id,
+      tutor_id: session.tutor?.id,
+      status: session.status || "Active",
+      summary: session.summary,
+      meeting_id: session.meeting?.id,
+      duration: session.duration || 1,
+      is_standalone: true,
+    };
+
+    const { data, error } = await supabase
+      .from(Table.Sessions)
+      .insert(newSession)
+      .select(`
+        *,
+        tutor:Profiles!tutor_id(*),
+        student:Profiles!student_id(*),
+        meeting:Meetings!meeting_id(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    
+    if (data) {
+      return tableToInterfaceSessions(data);
+    }
+    return null;
+  } catch (error) {
+    console.error("Unable to add one session", error);
+    throw error;
+  }
+}
